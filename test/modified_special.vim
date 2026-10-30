@@ -21,7 +21,10 @@ suite.modified_semantics_outside_preedit = (): void => {
     [false, true, true, false, 'かける', ''],
   ]
     const events = [input.Event.new('a', first), input.Event.new('b', second), input.Event.new('c', third)]
-    assert.equals(special.Compose(pattern, events), {start_conversion: starts, reading: reading, okuri: okuri})
+    const composed = special.Compose(pattern, events)
+    assert.equals(composed.start_conversion, starts)
+    assert.equals(composed.reading, reading)
+    assert.equals(composed.okuri, okuri)
   endfor
 }
 
@@ -38,18 +41,25 @@ suite.modified_semantics_in_preedit = (): void => {
     [true, true, true, 'か', 'ける'],
   ]
     const events = [input.Event.new('a', first), input.Event.new('b', second), input.Event.new('c', third)]
-    assert.equals(special.Compose(pattern, events, true), {start_conversion: false, reading: reading, okuri: okuri})
+    const composed = special.Compose(pattern, events, true)
+    assert.equals(composed.start_conversion, false)
+    assert.equals(composed.reading, reading)
+    assert.equals(composed.okuri, okuri)
   endfor
 }
 
 suite.one_key_special_has_no_later_modified_key = (): void => {
-  assert.equals(special.Compose(output_pattern.Parse('か*ける'), [input.Event.new('<C-x>', true)]),
-    {start_conversion: true, reading: 'かける', okuri: ''})
+  const composed = special.Compose(output_pattern.Parse('か*ける'), [input.Event.new('<C-x>', true)])
+  assert.equals(composed.start_conversion, true)
+  assert.equals(composed.reading, 'かける')
+  assert.equals(composed.okuri, '')
 }
 
 suite.modified_input_without_boundary = (): void => {
-  assert.equals(special.Compose(output_pattern.Parse('かな'), [input.Event.new('1', true), input.Event.new('2', true)]),
-    {start_conversion: true, reading: 'かな', okuri: ''})
+  const composed = special.Compose(output_pattern.Parse('かな'), [input.Event.new('1', true), input.Event.new('2', true)])
+  assert.equals(composed.start_conversion, true)
+  assert.equals(composed.reading, 'かな')
+  assert.equals(composed.okuri, '')
 }
 
 suite.matcher_preserves_modified_events_in_pending_and_replay = (): void => {
@@ -64,8 +74,10 @@ suite.matcher_preserves_modified_events_in_pending_and_replay = (): void => {
   assert.equals(matched.events[0].key, 'a')
   assert.equals(matched.events[0].modified, true)
   assert.equals(matched.events[1].modified, false)
-  assert.equals(special.Compose(matched.output, matched.events),
-    {start_conversion: true, reading: 'かな', okuri: ''})
+  const composed = special.Compose(matched.output, matched.events)
+  assert.equals(composed.start_conversion, true)
+  assert.equals(composed.reading, 'かな')
+  assert.equals(composed.okuri, '')
 }
 
 suite.suffix_match_excludes_replayed_modified_input = (): void => {
@@ -73,14 +85,24 @@ suite.suffix_match_excludes_replayed_modified_input = (): void => {
   const events = [input.Event.new('a', true), input.Event.new('b'), input.Event.new('c', true)]
   const result = special.MatchEvents(rules, events)
   assert.equals(result.replay, [events[0]])
-  assert.equals(special.Compose(result.output, result.events),
-    {start_conversion: false, reading: 'かける', okuri: ''})
+  const composed = special.Compose(result.output, result.events)
+  assert.equals(composed.start_conversion, false)
+  assert.equals(composed.reading, 'かける')
+  assert.equals(composed.okuri, '')
 }
 
 suite.matcher_handles_empty_input_and_full_replay = (): void => {
-  assert.equals(special.MatchEvents([], []), {replay: [], pending: []})
+  const match = special.MatchEvents([], [])
+  assert.equals(match.replay, [])
+  assert.equals(match.pending, [])
+  assert.equals(match.output is null_object, true)
+  assert.equals(match.events, [])
   const event = input.Event.new('<C-x>', true)
-  assert.equals(special.MatchEvents([], [event]), {replay: [event], pending: []})
+  const next_match = special.MatchEvents([], [event])
+  assert.equals(next_match.replay, [event])
+  assert.equals(next_match.pending, [])
+  assert.equals(next_match.output is null_object, true)
+  assert.equals(next_match.events, [])
 }
 
 suite.empty_events_cannot_compose_a_special = (): void => {

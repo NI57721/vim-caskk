@@ -2,10 +2,19 @@ vim9script
 
 import 'caskk/output_pattern.vim' as pattern_types
 
+export class KanaTable
+  const vowels: list<string>
+  const rows: dict<list<string>>
+  const symbols: dict<string>
+
+  def new(this.vowels, this.rows, this.symbols)
+  enddef
+endclass
+
 # Fixed output vocabulary shared by generation and its tests.
-export const TABLE: dict<any> = {
-  vowels: ['a', 'i', 'u', 'e', 'o'],
-  rows: {
+export const TABLE: KanaTable = KanaTable.new(
+  ['a', 'i', 'u', 'e', 'o'],
+  {
     '': ['あ', 'い', 'う', 'え', 'お'],
     x: ['ぁ', 'ぃ', 'ぅ', 'ぇ', 'ぉ'],
     xy: ['ゃ', '', 'ゅ', '', 'ょ'],
@@ -43,8 +52,7 @@ export const TABLE: dict<any> = {
     w: ['わ', 'うぃ', 'う', 'うぇ', 'を'],
     wh: ['うぁ', 'うぃ', 'う', 'うぇ', 'うぉ'],
   },
-  symbols: {N: 'ん', T: 'っ'},
-}
+  {N: 'ん', T: 'っ'})
 
 def GenerateCharacter(row: string, character: string): string
   const vowel = index(TABLE.vowels, character)

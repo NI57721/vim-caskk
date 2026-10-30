@@ -17,10 +17,39 @@ export class Rule
   enddef
 endclass
 
+# A null output means the input is pending or must be replayed.
+export class MatchResult
+  const replay: list<string>
+  const pending: list<string>
+  const output: pattern_types.OutputPattern
+
+  def new(this.replay, this.pending, this.output = v:none)
+  enddef
+endclass
+
+export class EventMatchResult
+  const replay: list<input.Event>
+  const pending: list<input.Event>
+  const output: pattern_types.OutputPattern
+  const events: list<input.Event> = []
+
+  def new(this.replay, this.pending, this.output = v:none, this.events = v:none)
+  enddef
+endclass
+
+export class CompositionResult
+  const start_conversion: bool
+  const reading: string
+  const okuri: string
+
+  def new(this.start_conversion, this.reading, this.okuri)
+  enddef
+endclass
+
 # Match the pending prefix plus the next input token.
 # Replay is processed normally before output. Pending is retained for the next call.
-# An output field is present only when an unambiguous special has matched.
-export def Match(rules: list<Rule>, keys: list<string>): dict<any>
+# Output is non-null only when an unambiguous special has matched.
+export def Match(rules: list<Rule>, keys: list<string>): MatchResult
   final replay: list<string> = []
   var pending = copy(keys)
   while !empty(pending)
@@ -39,20 +68,20 @@ export def Match(rules: list<Rule>, keys: list<string>): dict<any>
     endfor
 
     if longer
-      return {replay: replay, pending: pending}
+      return MatchResult.new(replay, pending)
     elseif exact != -1
-      return {replay: replay, pending: [], output: rules[exact].output}
+      return MatchResult.new(replay, [], rules[exact].output)
     endif
 
     # Retest every suffix, retaining the longest one that can start a special.
     replay->add(remove(pending, 0))
   endwhile
-  return {replay: replay, pending: []}
+  return MatchResult.new(replay, [])
 enddef
 
 # Preserve semantic input events while matching only their normalized KeyTokens.
 # The caller processes replay before interpreting a matched special in its new context.
-export def MatchEvents(rules: list<Rule>, events: list<input.Event>): dict<any>
+export def MatchEvents(rules: list<Rule>, events: list<input.Event>): EventMatchResult
   final keys: list<string> = []
   for event in events
     keys->add(event.key)
@@ -68,16 +97,16 @@ export def MatchEvents(rules: list<Rule>, events: list<input.Event>): dict<any>
       remaining->add(events[index])
     endif
   endfor
-  if has_key(match, 'output')
-    return {replay: replay, pending: [], output: match.output, events: remaining}
+  if match.output isnot null_object
+    return EventMatchResult.new(replay, [], match.output, remaining)
   endif
-  return {replay: replay, pending: remaining}
+  return EventMatchResult.new(replay, remaining)
 enddef
 
 # Interpret an already matched special using the current preedit context.
 # Boundary placement is determined solely by the output pattern.
 export def Compose(pattern: pattern_types.OutputPattern, events: list<input.Event>,
-    in_preedit: bool = false): dict<any>
+    in_preedit: bool = false): CompositionResult
   if empty(events)
     throw 'caskk: special composition requires at least one input event'
   endif
@@ -91,9 +120,5 @@ export def Compose(pattern: pattern_types.OutputPattern, events: list<input.Even
   endfor
   const okuri_input = (in_preedit || first_modified) && later_modified
   const composed = combination.Compose('', pattern, okuri_input)
-  return {
-    start_conversion: !in_preedit && first_modified,
-    reading: composed.reading,
-    okuri: composed.okuri,
-  }
+  return CompositionResult.new(!in_preedit && first_modified, composed.reading, composed.okuri)
 enddef

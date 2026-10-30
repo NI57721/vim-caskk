@@ -1,5 +1,6 @@
 vim9script
 
+import 'caskk/input.vim' as input
 import autoload 'caskk/input/normalize.vim' as normalize
 import autoload 'caskk/composer/special.vim' as special
 import autoload 'caskk/scheme/output_pattern.vim' as output_pattern
@@ -77,8 +78,8 @@ suite.uppercase_and_sticky_input_have_same_special_semantics = (): void => {
   const rules = [special.Rule.new(['a', 'b', 'c'], output_pattern.Parse('か*ける'))]
   for keys in [['A', 'B', 'c'], [';', 'a', ';', 'b', 'c']]
     const normalizer = normalize.Normalizer.new(';')
-    var pending = []
-    var result: dict<any> = {}
+    var pending: list<input.Event> = []
+    var result: special.EventMatchResult
     for key in keys
       const events = normalizer.Feed(key)
       if empty(events)
@@ -88,7 +89,9 @@ suite.uppercase_and_sticky_input_have_same_special_semantics = (): void => {
       assert.equals(result.replay, [])
       pending = result.pending
     endfor
-    assert.equals(special.Compose(result.output, result.events),
-      {start_conversion: true, reading: 'か', okuri: 'ける'})
+    const composed = special.Compose(result.output, result.events)
+    assert.equals(composed.start_conversion, true)
+    assert.equals(composed.reading, 'か')
+    assert.equals(composed.okuri, 'ける')
   endfor
 }
