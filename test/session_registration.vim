@@ -12,6 +12,70 @@ import autoload 'caskk/user_state/codec.vim' as codec
 final suite = themis#suite('session registration completion')
 const assert = themis#helper('assert')
 
+suite.cancel_registration_keeps_preedit_and_preferences_without_registering = (): void => {
+  const preferences = user_state.State.new()
+  const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}))
+  ime.Feed('K')
+  ime.Feed('a')
+  ime.StartConversion({}, preferences)
+  const before = codec.Encode(preferences.GetSnapshot())
+  const result = ime.CancelRegistration()
+  assert.equals(result.text, 'か')
+  assert.equals(result.replace_preedit, true)
+  assert.equals(result.commit_preedit, false)
+  assert.equals(result.registration_requested, false)
+  assert.equals(result.in_candidate, false)
+  assert.equals(result.state.in_preedit, true)
+  assert.equals(result.state.reading, 'か')
+  assert.equals(ime.GetCandidates() is null_object, true)
+  ime.Feed('k')
+  ime.Feed('a')
+  assert.equals(ime.GetSnapshot().reading, 'かか')
+  assert.equals(codec.Encode(preferences.GetSnapshot()), before)
+}
+
+suite.cancel_registration_after_exhaustion_keeps_okuri_for_plain_commit = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('いk /行/')]])
+  const preferences = user_state.State.new()
+  const compiled = scheme.Compile({k: 'k'}, {a: 'a'}, [scheme.SpecialDefinition.new(['z', 'x'], 'い*くらい')])
+  const ime = session.Session.new(compiled, '', entries, preferences)
+  ime.Feed('Z')
+  ime.Feed('X')
+  ime.NextCandidate()
+  const before = codec.Encode(preferences.GetSnapshot())
+  const result = ime.CancelRegistration()
+  assert.equals(result.text, 'いくらい')
+  assert.equals(result.state.reading, 'い')
+  assert.equals(result.state.okuri, 'くらい')
+  assert.equals(result.state.okuri_started, true)
+  assert.equals(ime.InCandidate(), false)
+  const committed = ime.Feed('k')
+  assert.equals(committed[0].text, 'いくらい')
+  assert.equals(committed[0].commit_preedit, true)
+  assert.equals(ime.Feed('a')[0].text, 'か')
+  assert.equals(codec.Encode(preferences.GetSnapshot()), before)
+  assert.equals(entries['いk'].candidates[0].text, '行')
+}
+
+suite.registration_can_be_requested_again_after_cancellation = (): void => {
+  const preferences = user_state.State.new()
+  const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}))
+  ime.Feed('K')
+  ime.Feed('a')
+  ime.StartConversion({}, preferences)
+  ime.CancelRegistration()
+  var caught = ''
+  try
+    ime.CancelRegistration()
+  catch
+    caught = v:exception
+  endtry
+  assert.equals(caught, 'caskk: no current dictionary registration request')
+  assert.equals(ime.StartConversion({}, preferences)[0].registration_requested, true)
+  assert.equals(ime.Register(dictionary.Candidate.new('蚊', [])).text, '蚊')
+  assert.equals(preferences.GetSnapshot().entries[json_encode(['か', ''])][0].text, '蚊')
+}
+
 suite.registration_adds_and_learns_the_candidate_then_replaces_and_commits_preedit = (): void => {
   const preferences = user_state.State.new()
   const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}), ';')
@@ -92,7 +156,7 @@ suite.empty_registration_is_rejected_without_consuming_the_request = (): void =>
 
 suite.registration_requires_a_current_request_and_cannot_be_applied_twice = (): void => {
   const entries = merger.Merge([[parser.ParseLine('か /蚊/')]])
-  for phase in ['direct', 'candidate', 'cancelled', 'completed', 'edited']
+  for phase in ['direct', 'candidate', 'cancelled', 'completed', 'edited', 'registration_cancelled']
     const preferences = user_state.State.new()
     const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}))
     if phase !=# 'direct'
@@ -107,6 +171,8 @@ suite.registration_requires_a_current_request_and_cannot_be_applied_twice = (): 
         ime.StartConversion({}, preferences)
         if phase ==# 'completed'
           ime.Register(dictionary.Candidate.new('科', []))
+        elseif phase ==# 'registration_cancelled'
+          ime.CancelRegistration()
         else
           ime.Feed('k')
         endif
@@ -117,6 +183,15 @@ suite.registration_requires_a_current_request_and_cannot_be_applied_twice = (): 
     var caught = ''
     try
       ime.Register(dictionary.Candidate.new('課', []))
+    catch
+      caught = v:exception
+    endtry
+    assert.equals(caught, 'caskk: no current dictionary registration request')
+    assert.equals(codec.Encode(preferences.GetSnapshot()), before)
+    assert.equals(ime.GetSnapshot().reading, reading)
+    caught = ''
+    try
+      ime.CancelRegistration()
     catch
       caught = v:exception
     endtry

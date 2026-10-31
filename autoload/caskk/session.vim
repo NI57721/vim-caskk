@@ -172,6 +172,17 @@ export class Session
     return Result.new(text, [], this._state.GetSnapshot(), true, false, true)
   enddef
 
+  def CancelRegistration(): Result
+    if this._prepared is null_object || this.InCandidate()
+      throw 'caskk: no current dictionary registration request'
+    endif
+    const text = this._prepared.query.reading .. this._prepared.okuri
+    this._prepared = null_object
+    this._request_preferences = null_object
+    this._reading_after_cancel = true
+    return Result.new(text, [], this._state.GetSnapshot(), false, false, true)
+  enddef
+
   def CancelConversion(): Result
     if !this.InCandidate()
       throw 'caskk: no active conversion selection'
