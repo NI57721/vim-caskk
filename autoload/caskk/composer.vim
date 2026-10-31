@@ -3,6 +3,8 @@ vim9script
 import 'caskk/input.vim' as input
 import 'caskk/combination_table.vim' as table_types
 import 'caskk/output_pattern.vim' as pattern_types
+import 'caskk/composition.vim' as composition
+import autoload 'caskk/composer/combination.vim' as combination
 import autoload 'caskk/composer/special.vim' as special
 import autoload 'caskk/scheme.vim' as scheme
 import autoload 'caskk/scheme/kana.vim' as kana
@@ -12,10 +14,22 @@ import autoload 'caskk/scheme/kana.vim' as kana
 export class Result
   const events: list<input.Event>
   const output: pattern_types.OutputPattern
+  const is_special: bool = false
 
-  def new(this.events, this.output = v:none)
+  def new(this.events, this.output = v:none, this.is_special = v:none)
   enddef
 endclass
+
+# Resolve Modified semantics after matching, using the caller's current state.
+export def Compose(result: Result, in_preedit: bool = false): composition.Result
+  if result.output is null_object
+    throw 'caskk: cannot compose unmatched input'
+  endif
+  if result.is_special
+    return special.Compose(result.output, result.events, in_preedit)
+  endif
+  return combination.ComposeEvents(result.output, result.events, in_preedit)
+enddef
 
 export class Composer
   const _table: table_types.CombinationTable
@@ -71,7 +85,7 @@ export class Composer
         results->add(Result.new([this._consonant]))
         this._consonant = null_object
       endif
-      results->add(Result.new(match.events, match.output))
+      results->add(Result.new(match.events, match.output, true))
       remaining = match.rest
     endwhile
     return results

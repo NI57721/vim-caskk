@@ -1,5 +1,6 @@
 vim9script
 
+import 'caskk/input.vim' as input
 import autoload 'caskk/scheme/output_pattern.vim' as output_pattern
 import autoload 'caskk/composer/combination.vim' as combination
 
@@ -75,4 +76,55 @@ suite.parsed_pattern_can_be_reused = (): void => {
   assert.equals(combination.Compose('n', pattern), {reading: 'non', okuri: ''})
   assert.equals(pattern.text, 'on')
   assert.equals(pattern.boundary, 1)
+}
+
+suite.modified_events_use_the_current_preedit_context = (): void => {
+  const pattern = output_pattern.Parse('こ*ん')
+  for [preedit, first, second, starts, reading, okuri, boundary] in [
+    [false, false, false, false, 'こん', '', false],
+    [false, false, true, true, 'こ', 'ん', true],
+    [false, true, false, true, 'こん', '', false],
+    [false, true, true, true, 'こ', 'ん', true],
+    [true, false, false, false, 'こん', '', false],
+    [true, true, false, false, '', 'こん', true],
+    [true, false, true, false, 'こ', 'ん', true],
+    [true, true, true, false, '', 'こん', true],
+  ]
+    const events = [input.Event.new('k', first), input.Event.new('l', second)]
+    const composed = combination.ComposeEvents(pattern, events, preedit)
+    assert.equals(composed.start_conversion, starts)
+    assert.equals(composed.reading, reading)
+    assert.equals(composed.okuri, okuri)
+    assert.equals(composed.okuri_started, boundary)
+  endfor
+}
+
+suite.modified_consonant_starts_okuri_without_a_latent_marker = (): void => {
+  const events = [input.Event.new('j', true), input.Event.new('i')]
+  const composed = combination.ComposeEvents(output_pattern.Parse('じ'), events, true)
+  assert.equals(composed.start_conversion, false)
+  assert.equals(composed.reading, '')
+  assert.equals(composed.okuri, 'じ')
+  assert.equals(composed.okuri_started, true)
+}
+
+suite.modified_combination_without_latent_marker_preserves_reading = (): void => {
+  const events = [input.Event.new('k'), input.Event.new('a', true)]
+  const composed = combination.ComposeEvents(output_pattern.Parse('か'), events, true)
+  assert.equals(composed.reading, 'か')
+  assert.equals(composed.okuri, '')
+  assert.equals(composed.okuri_started, false)
+}
+
+suite.event_composition_requires_a_consonant_and_a_combination = (): void => {
+  const event = input.Event.new('a')
+  for events in [[], [event], [event, event, event]]
+    var caught = ''
+    try
+      combination.ComposeEvents(output_pattern.Parse('かな'), events)
+    catch
+      caught = v:exception
+    endtry
+    assert.equals(caught, 'caskk: combination composition requires exactly two input events')
+  endfor
 }

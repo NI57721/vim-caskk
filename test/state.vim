@@ -1,6 +1,7 @@
 vim9script
 
 import 'caskk/input.vim' as input
+import 'caskk/composition.vim' as composition
 import autoload 'caskk/state.vim' as state
 import autoload 'caskk/composer.vim' as composer
 import autoload 'caskk/composer/special.vim' as special
@@ -38,13 +39,11 @@ suite.modified_first_input_starts_preedit = (): void => {
   assert.equals(ime.okuri, '')
 }
 
-suite.preedit_reading_accumulates_without_restarting = (): void => {
+suite.preedit_reading_accumulates_from_composed_readings = (): void => {
   const ime = state.State.new()
-  assert.equals(ime.Apply(special.Compose(output_pattern.Parse('か'), [input.Event.new('a', true)])), '')
-  const plain = special.Compose(output_pattern.Parse('ん'), [input.Event.new('b')], ime.in_preedit)
-  assert.equals(ime.Apply(plain), '')
-  const modified = special.Compose(output_pattern.Parse('じ'), [input.Event.new('c', true)], ime.in_preedit)
-  assert.equals(ime.Apply(modified), '')
+  assert.equals(ime.Apply(composition.Result.new(true, 'か', '', false)), '')
+  assert.equals(ime.Apply(composition.Result.new(false, 'ん', '', false)), '')
+  assert.equals(ime.Apply(composition.Result.new(false, 'じ', '', false)), '')
   assert.equals(ime.in_preedit, true)
   assert.equals(ime.reading, 'かんじ')
   assert.equals(ime.okuri, '')
@@ -155,7 +154,7 @@ suite.reprocessed_specials_use_state_updated_by_preceding_output = (): void => {
   const results = engine.Feed(input.Event.new('x', true))
   assert.equals(len(results), 2)
   for result in results
-    assert.equals(ime.Apply(special.Compose(result.output, result.events, ime.in_preedit)), '')
+    assert.equals(ime.Apply(composer.Compose(result, ime.in_preedit)), '')
   endfor
   assert.equals(ime.in_preedit, true)
   assert.equals(ime.reading, 'さか')
@@ -171,13 +170,33 @@ suite.uppercase_and_sticky_keys_produce_the_same_preedit = (): void => {
     for key in keys
       for event in normalizer.Feed(key)
         for result in engine.Feed(event)
-          assert.equals(ime.Apply(special.Compose(result.output, result.events, ime.in_preedit)), '')
+          assert.equals(ime.Apply(composer.Compose(result, ime.in_preedit)), '')
         endfor
       endfor
     endfor
     assert.equals(ime.in_preedit, true)
     assert.equals(ime.reading, 'か')
     assert.equals(ime.okuri, 'ける')
+    assert.equals(ime.okuri_started, true)
+  endfor
+}
+
+suite.modified_normal_consonant_begins_okuri_after_existing_reading = (): void => {
+  const compiled = scheme.Compile({k: 'k', j: 'z'}, {l: 'aN', i: 'i'})
+  for keys in [['K', 'l', 'J', 'i'], [';', 'k', 'l', ';', 'j', 'i']]
+    const normalizer = normalize.Normalizer.new(';')
+    const engine = composer.Composer.new(compiled)
+    const ime = state.State.new()
+    for key in keys
+      for event in normalizer.Feed(key)
+        for result in engine.Feed(event)
+          assert.equals(ime.Apply(composer.Compose(result, ime.in_preedit)), '')
+        endfor
+      endfor
+    endfor
+    assert.equals(ime.in_preedit, true)
+    assert.equals(ime.reading, 'かん')
+    assert.equals(ime.okuri, 'じ')
     assert.equals(ime.okuri_started, true)
   endfor
 }

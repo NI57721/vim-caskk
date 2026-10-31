@@ -2,6 +2,8 @@ vim9script
 
 import 'caskk/output_pattern.vim' as pattern_types
 import 'caskk/combination_table.vim' as table_types
+import 'caskk/input.vim' as input
+import 'caskk/composition.vim' as composition
 import autoload 'caskk/scheme/kana.vim' as kana
 
 # pattern is the structured result of scheme/output_pattern.Parse().
@@ -20,6 +22,25 @@ export def Compose(consonant: string, pattern: pattern_types.OutputPattern,
     reading: consonant .. strcharpart(text, 0, boundary),
     okuri: strcharpart(text, boundary),
   }
+enddef
+
+# Interpret an already generated consonant/combination output.
+# A Modified consonant in Preedit starts okuri before the whole syllable.
+# Otherwise a Modified combination activates its latent output boundary.
+export def ComposeEvents(pattern: pattern_types.OutputPattern, events: list<input.Event>,
+    in_preedit: bool = false): composition.Result
+  if len(events) != 2
+    throw 'caskk: combination composition requires exactly two input events'
+  endif
+  const first_modified = events[0].modified
+  const second_modified = events[1].modified
+  if in_preedit && first_modified
+    return composition.Result.new(false, '', pattern.text, true)
+  endif
+
+  const composed = Compose('', pattern, second_modified)
+  return composition.Result.new(!in_preedit && (first_modified || second_modified),
+    composed.reading, composed.okuri, second_modified && pattern.boundary != -1)
 enddef
 
 # Resolve individual KeyTokens and generate kana before splitting okuri.

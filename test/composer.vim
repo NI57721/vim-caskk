@@ -17,6 +17,7 @@ suite.normal_combination_waits_for_second_key = (): void => {
   const results = engine.Feed(second)
   assert.equals(len(results), 1)
   assert.equals(results[0].output.text, 'か')
+  assert.equals(results[0].is_special, false)
   assert.equals(results[0].events, [first, second])
   assert.equals(engine.Pending(), [])
 }
@@ -28,6 +29,7 @@ suite.special_overrides_generated_combination = (): void => {
   const results = engine.Feed(input.Event.new('a'))
   assert.equals(len(results), 1)
   assert.equals(results[0].output.text, '特別')
+  assert.equals(results[0].is_special, true)
   assert.equals(engine.Pending(), [])
 }
 
@@ -274,7 +276,7 @@ suite.replay_preserves_modified_input_and_generated_okuri_boundary = (): void =>
   assert.equals(results[0].events, [first, second])
   assert.equals(results[0].output.text, 'きょん')
   assert.equals(results[0].output.boundary, 2)
-  const composed = special.Compose(results[0].output, results[0].events)
+  const composed = composer.Compose(results[0])
   assert.equals(composed.start_conversion, true)
   assert.equals(composed.reading, 'きょ')
   assert.equals(composed.okuri, 'ん')
@@ -333,4 +335,54 @@ suite.pending_returns_a_copy = (): void => {
   var pending = engine.Pending()
   remove(pending, 0)
   assert.equals(engine.Pending(), [event])
+}
+
+suite.special_output_keeps_special_modified_semantics_in_preedit = (): void => {
+  const compiled = scheme.Compile({j: 'z'}, {i: 'i'}, [scheme.SpecialDefinition.new(['j', 'i'], 'じ')])
+  const engine = composer.Composer.new(compiled)
+  assert.equals(engine.Feed(input.Event.new('j', true)), [])
+  const results = engine.Feed(input.Event.new('i'))
+  const composed = composer.Compose(results[0], true)
+  assert.equals(composed.start_conversion, false)
+  assert.equals(composed.reading, 'じ')
+  assert.equals(composed.okuri, '')
+  assert.equals(composed.okuri_started, false)
+}
+
+suite.single_key_special_does_not_implicitly_start_okuri = (): void => {
+  const compiled = scheme.Compile({}, {}, [scheme.SpecialDefinition.new(['x'], 'じ')])
+  const engine = composer.Composer.new(compiled)
+  const results = engine.Feed(input.Event.new('x', true))
+  assert.equals(len(results), 1)
+  const composed = composer.Compose(results[0], true)
+  assert.equals(composed.start_conversion, false)
+  assert.equals(composed.reading, 'じ')
+  assert.equals(composed.okuri, '')
+  assert.equals(composed.okuri_started, false)
+}
+
+suite.failed_special_is_interpreted_as_normal_input = (): void => {
+  const definitions = [scheme.SpecialDefinition.new(['j', 'i', 'x'], '特別')]
+  const engine = composer.Composer.new(scheme.Compile({j: 'z'}, {i: 'i'}, definitions))
+  assert.equals(engine.Feed(input.Event.new('j', true)), [])
+  assert.equals(engine.Feed(input.Event.new('i')), [])
+  const results = engine.Feed(input.Event.new('!'))
+  assert.equals(len(results), 2)
+  assert.equals(results[0].is_special, false)
+  const composed = composer.Compose(results[0], true)
+  assert.equals(composed.reading, '')
+  assert.equals(composed.okuri, 'じ')
+  assert.equals(composed.okuri_started, true)
+}
+
+suite.unmatched_input_cannot_be_interpreted_as_composed_text = (): void => {
+  const engine = composer.Composer.new(scheme.Compile({}, {}))
+  const results = engine.Feed(input.Event.new('!'))
+  var caught = ''
+  try
+    composer.Compose(results[0])
+  catch
+    caught = v:exception
+  endtry
+  assert.equals(caught, 'caskk: cannot compose unmatched input')
 }
