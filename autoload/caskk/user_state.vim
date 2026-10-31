@@ -9,6 +9,35 @@ def Identity(query: dictionary.Query): string
   return json_encode([query.reading, query.exact_okuri])
 enddef
 
+const SCHEMA_VERSION = 1
+
+def CopyEntries(entries: dict<list<dictionary.Candidate>>): dict<list<dictionary.Candidate>>
+  final copied: dict<list<dictionary.Candidate>> = {}
+  for [key, candidates] in items(entries)
+    copied[key] = []
+    for candidate in candidates
+      copied[key]->add(dictionary.Candidate.new(candidate.text, candidate.annotations))
+    endfor
+  endfor
+  return copied
+enddef
+
+# Typed transfer data, not a file format. Keys encode [reading, exact_okuri].
+export class Snapshot
+  const version: number
+  const entries: dict<list<dictionary.Candidate>>
+  const mru: dict<list<string>>
+  const pinned: dict<string>
+  const demoted: dict<list<string>>
+
+  def new(this.version, entries: dict<list<dictionary.Candidate>>, mru: dict<list<string>>, pinned: dict<string>, demoted: dict<list<string>>)
+    this.entries = CopyEntries(entries)
+    this.mru = deepcopy(mru)
+    this.pinned = copy(pinned)
+    this.demoted = deepcopy(demoted)
+  enddef
+endclass
+
 # In-memory user entries and preferences; system candidates remain read-only.
 export class State
   var _entries: dict<list<dictionary.Candidate>> = {}
@@ -17,6 +46,25 @@ export class State
   var _demoted: dict<list<string>> = {}
 
   def new()
+  enddef
+
+  def GetSnapshot(): Snapshot
+    return Snapshot.new(SCHEMA_VERSION, this._entries, this._mru, this._pinned, this._demoted)
+  enddef
+
+  def Restore(snapshot: Snapshot)
+    if snapshot.version != SCHEMA_VERSION
+      throw 'caskk: unsupported user state schema version: ' .. snapshot.version
+    endif
+    # Copy everything before replacing the current state.
+    final entries = CopyEntries(snapshot.entries)
+    final mru = deepcopy(snapshot.mru)
+    final pinned = copy(snapshot.pinned)
+    final demoted = deepcopy(snapshot.demoted)
+    this._entries = entries
+    this._mru = mru
+    this._pinned = pinned
+    this._demoted = demoted
   enddef
 
   def AddEntry(query: dictionary.Query, candidate: dictionary.Candidate)
