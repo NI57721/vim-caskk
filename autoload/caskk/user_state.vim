@@ -2,19 +2,49 @@ vim9script
 
 import 'caskk/dictionary.vim' as dictionary
 import autoload 'caskk/candidate/ranking.vim' as ranking
+import autoload 'caskk/dictionary/merge.vim' as merger
 
 # Encode the pair to avoid collisions from concatenating reading and okuri.
 def Identity(query: dictionary.Query): string
   return json_encode([query.reading, query.exact_okuri])
 enddef
 
-# In-memory preferences only; dictionary candidates remain separate.
+# In-memory user entries and preferences; system candidates remain read-only.
 export class State
+  var _entries: dict<list<dictionary.Candidate>> = {}
   var _mru: dict<list<string>> = {}
   var _pinned: dict<string> = {}
   var _demoted: dict<list<string>> = {}
 
   def new()
+  enddef
+
+  def AddEntry(query: dictionary.Query, candidate: dictionary.Candidate)
+    const key = Identity(query)
+    const merged = merger.Merge([
+      [dictionary.Entry.new(query.lookup_key, get(this._entries, key, []))],
+      [dictionary.Entry.new(query.lookup_key, [candidate])],
+    ])
+    this._entries[key] = merged[query.lookup_key].candidates
+  enddef
+
+  # Remove only the registered source; ranking preferences remain independent.
+  def DeleteEntry(query: dictionary.Query, text: string)
+    const key = Identity(query)
+    if !has_key(this._entries, key)
+      return
+    endif
+    final remaining: list<dictionary.Candidate> = []
+    for candidate in this._entries[key]
+      if candidate.text !=# text
+        remaining->add(candidate)
+      endif
+    endfor
+    if empty(remaining)
+      remove(this._entries, key)
+    else
+      this._entries[key] = remaining
+    endif
   enddef
 
   def Learn(query: dictionary.Query, text: string)
@@ -71,7 +101,15 @@ export class State
 
   def Rank(query: dictionary.Query, candidates: list<dictionary.Candidate>): list<dictionary.Candidate>
     const key = Identity(query)
-    return ranking.Rank(candidates, get(this._pinned, key, ''),
+    var combined = candidates
+    if has_key(this._entries, key)
+      const merged = merger.Merge([
+        [dictionary.Entry.new(query.lookup_key, candidates)],
+        [dictionary.Entry.new(query.lookup_key, this._entries[key])],
+      ])
+      combined = merged[query.lookup_key].candidates
+    endif
+    return ranking.Rank(combined, get(this._pinned, key, ''),
       get(this._mru, key, []), get(this._demoted, key, []))
   enddef
 endclass
