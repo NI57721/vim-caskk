@@ -10,6 +10,22 @@ import autoload 'caskk/user_state/codec.vim' as codec
 final suite = themis#suite('conversion selection')
 const assert = themis#helper('assert')
 
+suite.next_moves_in_ranked_order_without_learning_until_commit = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('かんじ /漢字/感じ/幹事/')]])
+  const preferences = user_state.State.new()
+  preferences.Pin(lookup.CreateQuery('かんじ', ''), '感じ')
+  const before = codec.Encode(preferences.GetSnapshot())
+  const selected = conversion.Selection.new(conversion.Prepare(entries, preferences, 'かんじ'), preferences)
+  assert.equals(selected.CurrentText(), '感じ')
+  assert.equals(selected.Next(), true)
+  assert.equals(selected.CurrentText(), '漢字')
+  assert.equals(selected.Next(), true)
+  assert.equals(selected.CurrentText(), '幹事')
+  assert.equals(codec.Encode(preferences.GetSnapshot()), before)
+  assert.equals(selected.Commit(), '幹事')
+  assert.equals(preferences.GetSnapshot().mru[json_encode(['かんじ', ''])], ['幹事'])
+}
+
 suite.selection_only_learns_when_committed = (): void => {
   const entries = merger.Merge([[parser.ParseLine('かんじ /漢字/感じ/')]])
   const preferences = user_state.State.new()
@@ -97,7 +113,7 @@ suite.completed_selection_rejects_further_actions_without_learning = (): void =>
       selected.Cancel()
     endif
     const before = codec.Encode(preferences.GetSnapshot())
-    for action in ['commit', 'cancel', 'select', 'current']
+    for action in ['commit', 'cancel', 'select', 'current', 'next', 'previous']
       var caught = ''
       try
         if action ==# 'commit'
@@ -106,6 +122,10 @@ suite.completed_selection_rejects_further_actions_without_learning = (): void =>
           selected.Cancel()
         elseif action ==# 'select'
           selected.Select(1)
+        elseif action ==# 'next'
+          selected.Next()
+        elseif action ==# 'previous'
+          selected.Previous()
         else
           selected.CurrentText()
         endif

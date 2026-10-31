@@ -10,6 +10,76 @@ import autoload 'caskk/user_state/codec.vim' as codec
 final suite = themis#suite('session conversion')
 const assert = themis#helper('assert')
 
+suite.next_candidate_moves_in_ranked_order_without_learning = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('か /蚊/科/課/')]])
+  const preferences = user_state.State.new()
+  const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}))
+  ime.Feed('K')
+  ime.Feed('a')
+  ime.StartConversion(entries, preferences)
+  const before = codec.Encode(preferences.GetSnapshot())
+  for text in ['科', '課']
+    const result = ime.NextCandidate()
+    assert.equals(result.text, text)
+    assert.equals(result.in_candidate, true)
+    assert.equals(result.replace_preedit, true)
+    assert.equals(result.registration_requested, false)
+    assert.equals(result.commit_preedit, false)
+    assert.equals(result.state.reading, 'か')
+  endfor
+  assert.equals(codec.Encode(preferences.GetSnapshot()), before)
+  assert.equals(ime.Commit()[0].text, '課')
+}
+
+suite.next_after_the_last_candidate_requests_registration_without_committing = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('か /蚊/科/')]])
+  const preferences = user_state.State.new()
+  const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}))
+  ime.Feed('K')
+  ime.Feed('a')
+  ime.StartConversion(entries, preferences)
+  ime.NextCandidate()
+  const before = codec.Encode(preferences.GetSnapshot())
+  const request = ime.NextCandidate()
+  assert.equals(request.registration_requested, true)
+  assert.equals(request.in_candidate, false)
+  assert.equals(request.commit_preedit, false)
+  assert.equals(request.replace_preedit, true)
+  assert.equals(request.text, 'か')
+  assert.equals(request.state.in_preedit, true)
+  assert.equals(request.state.reading, 'か')
+  assert.equals(ime.InCandidate(), false)
+  assert.equals(ime.GetCandidates().query.reading, 'か')
+  assert.equals(len(ime.GetCandidates().candidates), 2)
+  assert.equals(codec.Encode(preferences.GetSnapshot()), before)
+  var caught = ''
+  try
+    ime.NextCandidate()
+  catch
+    caught = v:exception
+  endtry
+  assert.equals(caught, 'caskk: no active conversion selection')
+}
+
+suite.exhausting_a_single_okuri_candidate_keeps_the_full_registration_reading = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('いk /行/')]])
+  const preferences = user_state.State.new()
+  const compiled = scheme.Compile({}, {}, [scheme.SpecialDefinition.new(['z', 'x'], 'い*くらい')])
+  const ime = session.Session.new(compiled, '', entries, preferences)
+  ime.Feed('Z')
+  assert.equals(ime.Feed('X')[0].text, '行くらい')
+  const request = ime.NextCandidate()
+  assert.equals(request.registration_requested, true)
+  assert.equals(request.text, 'いくらい')
+  assert.equals(request.commit_preedit, false)
+  assert.equals(request.state.reading, 'い')
+  assert.equals(request.state.okuri, 'くらい')
+  assert.equals(request.state.okuri_started, true)
+  assert.equals(ime.GetCandidates().query.exact_okuri, 'く')
+  assert.equals(ime.GetCandidates().okuri, 'くらい')
+  assert.equals(preferences.GetSnapshot().mru, {})
+}
+
 suite.cancel_restores_preedit_and_allows_reading_input_to_continue = (): void => {
   const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}))
   ime.Feed('K')
@@ -240,13 +310,15 @@ suite.unhandled_input_is_returned_after_the_candidate_commit = (): void => {
 
 suite.selection_actions_outside_candidate_state_are_rejected = (): void => {
   const ime = session.Session.new(scheme.Compile({}, {}))
-  for action in ['select', 'cancel', 'previous']
+  for action in ['select', 'cancel', 'previous', 'next']
     var caught = ''
     try
       if action ==# 'select'
         ime.SelectCandidate(0)
       elseif action ==# 'previous'
         ime.PreviousCandidate()
+      elseif action ==# 'next'
+        ime.NextCandidate()
       else
         ime.CancelConversion()
       endif

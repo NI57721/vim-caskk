@@ -172,6 +172,21 @@ export class Session
     return this.CancelConversion()
   enddef
 
+  def NextCandidate(): Result
+    if !this.InCandidate()
+      throw 'caskk: no active conversion selection'
+    endif
+    if this._selection.Next()
+      return Result.new(this._selection.CurrentText(), [], this._state.GetSnapshot(), false, true, true)
+    endif
+    # Exhaustion requests registration rather than committing or wrapping.
+    # Keep the prepared query and full okuri for the separate registration UI.
+    const text = this._selection.Cancel()
+    this._selection = null_object
+    this._reading_after_cancel = false
+    return Result.new(text, [], this._state.GetSnapshot(), false, false, true, true)
+  enddef
+
   def Pending(): list<input.Event>
     return this._composer.Pending()
   enddef

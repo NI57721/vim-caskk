@@ -60,6 +60,16 @@ export class Selection
     return text
   enddef
 
+  # False reports that there is no following candidate; the caller handles it.
+  def Next(): bool
+    this._CheckActive()
+    if this._index + 1 >= len(this._prepared.candidates)
+      return false
+    endif
+    this._index += 1
+    return true
+  enddef
+
   # False asks the caller to return from the first candidate to reading display.
   def Previous(): bool
     this._CheckActive()
