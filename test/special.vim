@@ -33,9 +33,36 @@ suite.exact_match_waits_when_longer_rule_exists = (): void => {
   assert.equals(match.output is null_object, true)
   assert.equals(special.Match(rules, ['a', 'b']).output.text, '長')
   const next_match = special.Match(rules, ['a', 'x'])
-  assert.equals(next_match.replay, ['a', 'x'])
+  assert.equals(next_match.replay, [])
   assert.equals(next_match.pending, [])
-  assert.equals(next_match.output is null_object, true)
+  assert.equals(next_match.output.text, '短')
+  assert.equals(next_match.rest, ['x'])
+}
+
+suite.failure_commits_longest_complete_prefix = (): void => {
+  const rules = [
+    special.Rule.new(['a'], output_pattern.Parse('短')),
+    special.Rule.new(['a', 'b', 'c'], output_pattern.Parse('中')),
+    special.Rule.new(['a', 'b', 'c', 'd', 'e'], output_pattern.Parse('長')),
+  ]
+  const result = special.Match(rules, ['a', 'b', 'c', 'x'])
+  assert.equals(result.replay, [])
+  assert.equals(result.pending, [])
+  assert.equals(result.output.text, '中')
+  assert.equals(result.rest, ['x'])
+}
+
+suite.complete_prefix_precedes_overlapping_suffix_special = (): void => {
+  const rules = [
+    special.Rule.new(['a'], output_pattern.Parse('先頭')),
+    special.Rule.new(['a', 'b', 'c'], output_pattern.Parse('長')),
+    special.Rule.new(['b', 'x'], output_pattern.Parse('末尾')),
+  ]
+  const result = special.Match(rules, ['a', 'b', 'x'])
+  assert.equals(result.replay, [])
+  assert.equals(result.pending, [])
+  assert.equals(result.output.text, '先頭')
+  assert.equals(result.rest, ['b', 'x'])
 }
 
 suite.failure_replays_unmatched_keys = (): void => {

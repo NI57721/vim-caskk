@@ -114,3 +114,24 @@ suite.empty_events_cannot_compose_a_special = (): void => {
   endtry
   assert.equals(caught, 'caskk: special composition requires at least one input event')
 }
+
+suite.fallback_separates_replay_matched_events_and_remaining_events = (): void => {
+  const rules = [
+    special.Rule.new(['a', 'b'], output_pattern.Parse('か*ける')),
+    special.Rule.new(['a', 'b', 'c', 'd'], output_pattern.Parse('長')),
+  ]
+  const preceding = input.Event.new('!')
+  const first = input.Event.new('a', true)
+  const second = input.Event.new('b')
+  const rest = input.Event.new('x', true)
+  const result = special.MatchEvents(rules, [preceding, first, second, rest])
+  assert.equals(result.replay, [preceding])
+  assert.equals(result.pending, [])
+  assert.equals(result.events, [first, second])
+  assert.equals(result.rest, [rest])
+  assert.equals(result.output.text, 'かける')
+  const composed = special.Compose(result.output, result.events)
+  assert.equals(composed.start_conversion, true)
+  assert.equals(composed.reading, 'かける')
+  assert.equals(composed.okuri, '')
+}

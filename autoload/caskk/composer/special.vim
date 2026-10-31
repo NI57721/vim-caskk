@@ -22,8 +22,10 @@ export class MatchResult
   const replay: list<string>
   const pending: list<string>
   const output: pattern_types.OutputPattern
+  # Input after a matched special, to be matched again after processing output.
+  const rest: list<string> = []
 
-  def new(this.replay, this.pending, this.output = v:none)
+  def new(this.replay, this.pending, this.output = v:none, this.rest = v:none)
   enddef
 endclass
 
@@ -32,8 +34,10 @@ export class EventMatchResult
   const pending: list<input.Event>
   const output: pattern_types.OutputPattern
   const events: list<input.Event> = []
+  const rest: list<input.Event> = []
 
-  def new(this.replay, this.pending, this.output = v:none, this.events = v:none)
+  def new(this.replay, this.pending, this.output = v:none, this.events = v:none,
+      this.rest = v:none)
   enddef
 endclass
 
@@ -48,7 +52,8 @@ endclass
 
 # Match the pending prefix plus the next input token.
 # Replay is processed normally before output. Pending is retained for the next call.
-# Output is non-null only when an unambiguous special has matched.
+# Rest is reprocessed after output. A failed extension commits the longest
+# complete prefix before considering normal input or another suffix special.
 export def Match(rules: list<Rule>, keys: list<string>): MatchResult
   final replay: list<string> = []
   var pending = copy(keys)
@@ -57,20 +62,20 @@ export def Match(rules: list<Rule>, keys: list<string>): MatchResult
     var longer = false
     for index in range(len(rules))
       const rule = rules[index]
-      if len(rule.keys) < len(pending) || rule.keys[: len(pending) - 1] != pending
-        continue
-      endif
-      if len(rule.keys) == len(pending)
+      if len(rule.keys) > len(pending)
+        if rule.keys[: len(pending) - 1] == pending
+          longer = true
+        endif
+      elseif pending[: len(rule.keys) - 1] == rule.keys
+          && (exact == -1 || len(rule.keys) > len(rules[exact].keys))
         exact = index
-      else
-        longer = true
       endif
     endfor
 
     if longer
       return MatchResult.new(replay, pending)
     elseif exact != -1
-      return MatchResult.new(replay, [], rules[exact].output)
+      return MatchResult.new(replay, [], rules[exact].output, pending[len(rules[exact].keys) :])
     endif
 
     # Retest every suffix, retaining the longest one that can start a special.
@@ -88,17 +93,21 @@ export def MatchEvents(rules: list<Rule>, events: list<input.Event>): EventMatch
   endfor
   const match = Match(rules, keys)
   const replay_count = len(match.replay)
+  const match_end = len(events) - len(match.rest)
   final replay: list<input.Event> = []
   final remaining: list<input.Event> = []
+  final rest: list<input.Event> = []
   for index in range(len(events))
     if index < replay_count
       replay->add(events[index])
+    elseif index >= match_end
+      rest->add(events[index])
     else
       remaining->add(events[index])
     endif
   endfor
   if match.output isnot null_object
-    return EventMatchResult.new(replay, [], match.output, remaining)
+    return EventMatchResult.new(replay, [], match.output, remaining, rest)
   endif
   return EventMatchResult.new(replay, remaining)
 enddef
