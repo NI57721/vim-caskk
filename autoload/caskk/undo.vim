@@ -1,0 +1,90 @@
+vim9script
+
+import autoload 'caskk/buffer.vim' as buffer
+import autoload 'caskk/session.vim' as session
+import autoload 'caskk/state.vim' as state_types
+
+export class Manager
+  const _writer: buffer.Writer
+  const _buffer: number
+  var _tick: number
+  var _unit_open: bool = false
+  var _preedit: bool = false
+  var _reading_state: state_types.Snapshot = null_object
+
+  def new(writer: buffer.Writer)
+    this._writer = writer
+    this._buffer = writer.GetBufferNumber()
+    this._CheckTarget()
+    this._tick = getbufvar(this._buffer, 'changedtick')
+  enddef
+
+  def _CheckTarget()
+    if bufnr('%') != this._buffer
+      throw 'caskk: undo target must be the current buffer'
+    endif
+  enddef
+
+  def _Break()
+    # :help undo-break documents this as closing a block while preserving
+    # both global and buffer-local undolevels values.
+    &g:undolevels = &g:undolevels
+    this._unit_open = false
+  enddef
+
+  def _Write(result: session.Result)
+    const preedit = result.state.in_preedit && !result.commit_preedit
+    const changes_text = result.replace_preedit || preedit || (!result.commit_preedit && result.text != '')
+    if changes_text
+      if !this._unit_open || (preedit && !this._preedit)
+        this._Break()
+      else
+        undojoin
+      endif
+    endif
+    this._writer.Apply(result)
+    const tick: number = getbufvar(this._buffer, 'changedtick')
+    if tick != this._tick
+      this._unit_open = true
+    endif
+    this._tick = tick
+    this._preedit = preedit
+  enddef
+
+  def Apply(result: session.Result)
+    this._CheckTarget()
+    if getbufvar(this._buffer, 'changedtick') != this._tick
+      throw 'caskk: buffer changed outside the managed undo unit'
+    endif
+    if !empty(result.unhandled)
+      return
+    endif
+    if result.commit_preedit && this._reading_state isnot null_object
+        && result.text !=# (this._reading_state.reading .. this._reading_state.okuri)
+      # Finish the composition's existing undo block as plain reading text.
+      # Only the final committed candidate gets a separate block; browsing
+      # candidates never leaves intermediate selections in the undo history.
+      const reading = this._reading_state.reading .. this._reading_state.okuri
+      this._Write(session.Result.new(reading, [], this._reading_state, false, false, true))
+      this._Break()
+      this._Write(session.Result.new(result.text, result.unhandled, result.state,
+        result.commit_preedit, result.in_candidate, true, result.registration_requested))
+    else
+      this._Write(result)
+    endif
+    if result.commit_preedit
+      this.Close()
+    elseif result.state.in_preedit
+      this._reading_state = result.state
+    endif
+  enddef
+
+  # The integration layer also calls this when Insert-mode input ends.
+  def Close()
+    this._CheckTarget()
+    this._Break()
+    this._preedit = false
+    this._reading_state = null_object
+    this._tick = getbufvar(this._buffer, 'changedtick')
+  enddef
+endclass

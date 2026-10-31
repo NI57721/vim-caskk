@@ -116,6 +116,10 @@ export class Writer
     return this._active
   enddef
 
+  def GetBufferNumber(): number
+    return this._buffer
+  enddef
+
   def GetPosition(): Position
     return Position.new(this._end_line, this._end_column)
   enddef
