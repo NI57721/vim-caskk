@@ -4,13 +4,12 @@ import 'caskk/input.vim' as input
 import autoload 'caskk/composer.vim' as composer
 import autoload 'caskk/composer/special.vim' as special
 import autoload 'caskk/scheme.vim' as scheme
-import autoload 'caskk/scheme/output_pattern.vim' as output_pattern
 
 final suite = themis#suite('input composition')
 const assert = themis#helper('assert')
 
 suite.normal_combination_waits_for_second_key = (): void => {
-  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}), [])
+  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}))
   const first = input.Event.new('k')
   const second = input.Event.new('a')
   assert.equals(engine.Feed(first), [])
@@ -23,8 +22,8 @@ suite.normal_combination_waits_for_second_key = (): void => {
 }
 
 suite.special_overrides_generated_combination = (): void => {
-  const rules = [special.Rule.new(['k', 'a'], output_pattern.Parse('特別'))]
-  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}), rules)
+  const definitions = [scheme.SpecialDefinition.new(['k', 'a'], '特別')]
+  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}, definitions))
   assert.equals(engine.Feed(input.Event.new('k')), [])
   const results = engine.Feed(input.Event.new('a'))
   assert.equals(len(results), 1)
@@ -33,8 +32,8 @@ suite.special_overrides_generated_combination = (): void => {
 }
 
 suite.special_prefix_delays_complete_normal_combination = (): void => {
-  const rules = [special.Rule.new(['k', 'a', 'b'], output_pattern.Parse('特別'))]
-  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}), rules)
+  const definitions = [scheme.SpecialDefinition.new(['k', 'a', 'b'], '特別')]
+  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}, definitions))
   const first = input.Event.new('k')
   const second = input.Event.new('a')
   const third = input.Event.new('b')
@@ -49,11 +48,11 @@ suite.special_prefix_delays_complete_normal_combination = (): void => {
 }
 
 suite.exact_special_waits_for_longer_special = (): void => {
-  const rules = [
-    special.Rule.new(['k', 'a'], output_pattern.Parse('短')),
-    special.Rule.new(['k', 'a', 'b'], output_pattern.Parse('長')),
+  const definitions = [
+    scheme.SpecialDefinition.new(['k', 'a'], '短'),
+    scheme.SpecialDefinition.new(['k', 'a', 'b'], '長'),
   ]
-  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}), rules)
+  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}, definitions))
   assert.equals(engine.Feed(input.Event.new('k')), [])
   assert.equals(engine.Feed(input.Event.new('a')), [])
   const results = engine.Feed(input.Event.new('b'))
@@ -62,8 +61,8 @@ suite.exact_special_waits_for_longer_special = (): void => {
 }
 
 suite.failed_special_replays_through_normal_composition = (): void => {
-  const rules = [special.Rule.new(['k', 'a', 'b'], output_pattern.Parse('特別'))]
-  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}), rules)
+  const definitions = [scheme.SpecialDefinition.new(['k', 'a', 'b'], '特別')]
+  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}, definitions))
   const first = input.Event.new('k')
   const second = input.Event.new('a')
   const third = input.Event.new('x')
@@ -79,11 +78,11 @@ suite.failed_special_replays_through_normal_composition = (): void => {
 }
 
 suite.failed_longer_special_commits_shorter_special_before_normal_rules = (): void => {
-  const rules = [
-    special.Rule.new(['k', 'a'], output_pattern.Parse('短')),
-    special.Rule.new(['k', 'a', 'b'], output_pattern.Parse('長')),
+  const definitions = [
+    scheme.SpecialDefinition.new(['k', 'a'], '短'),
+    scheme.SpecialDefinition.new(['k', 'a', 'b'], '長'),
   ]
-  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}), rules)
+  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}, definitions))
   assert.equals(engine.Feed(input.Event.new('k')), [])
   assert.equals(engine.Feed(input.Event.new('a')), [])
   const results = engine.Feed(input.Event.new('x'))
@@ -95,12 +94,12 @@ suite.failed_longer_special_commits_shorter_special_before_normal_rules = (): vo
 }
 
 suite.fallback_reprocesses_remaining_input_as_another_special = (): void => {
-  const rules = [
-    special.Rule.new(['k', 'a'], output_pattern.Parse('短')),
-    special.Rule.new(['k', 'a', 'b'], output_pattern.Parse('長')),
-    special.Rule.new(['x', 'y'], output_pattern.Parse('次')),
+  const definitions = [
+    scheme.SpecialDefinition.new(['k', 'a'], '短'),
+    scheme.SpecialDefinition.new(['k', 'a', 'b'], '長'),
+    scheme.SpecialDefinition.new(['x', 'y'], '次'),
   ]
-  const engine = composer.Composer.new(scheme.Compile({k: 'k', x: 'n'}, {a: 'a', y: 'a'}), rules)
+  const engine = composer.Composer.new(scheme.Compile({k: 'k', x: 'n'}, {a: 'a', y: 'a'}, definitions))
   const first = input.Event.new('k', true)
   const second = input.Event.new('a')
   const rest = input.Event.new('x', true)
@@ -120,11 +119,11 @@ suite.fallback_reprocesses_remaining_input_as_another_special = (): void => {
 }
 
 suite.fallback_reprocesses_remaining_input_as_normal_combination = (): void => {
-  const rules = [
-    special.Rule.new(['k', 'a'], output_pattern.Parse('短')),
-    special.Rule.new(['k', 'a', 'b'], output_pattern.Parse('長')),
+  const definitions = [
+    scheme.SpecialDefinition.new(['k', 'a'], '短'),
+    scheme.SpecialDefinition.new(['k', 'a', 'b'], '長'),
   ]
-  const engine = composer.Composer.new(scheme.Compile({k: 'k', n: 'n'}, {a: 'a'}), rules)
+  const engine = composer.Composer.new(scheme.Compile({k: 'k', n: 'n'}, {a: 'a'}, definitions))
   assert.equals(engine.Feed(input.Event.new('k')), [])
   assert.equals(engine.Feed(input.Event.new('a')), [])
   const rest = input.Event.new('n')
@@ -139,12 +138,12 @@ suite.fallback_reprocesses_remaining_input_as_normal_combination = (): void => {
 }
 
 suite.fallback_reprocesses_buffered_special_and_normal_input_in_order = (): void => {
-  const rules = [
-    special.Rule.new(['a'], output_pattern.Parse('短')),
-    special.Rule.new(['a', 'b', 'c', 'z'], output_pattern.Parse('長')),
-    special.Rule.new(['b'], output_pattern.Parse('次')),
+  const definitions = [
+    scheme.SpecialDefinition.new(['a'], '短'),
+    scheme.SpecialDefinition.new(['a', 'b', 'c', 'z'], '長'),
+    scheme.SpecialDefinition.new(['b'], '次'),
   ]
-  const engine = composer.Composer.new(scheme.Compile({c: 'k'}, {x: 'a'}), rules)
+  const engine = composer.Composer.new(scheme.Compile({c: 'k'}, {x: 'a'}, definitions))
   const first = input.Event.new('a')
   const second = input.Event.new('b', true)
   const third = input.Event.new('c')
@@ -164,11 +163,11 @@ suite.fallback_reprocesses_buffered_special_and_normal_input_in_order = (): void
 }
 
 suite.empty_special_remains_prioritized_when_longer_special_fails = (): void => {
-  const rules = [
-    special.Rule.new(['k', 'a'], output_pattern.Parse('')),
-    special.Rule.new(['k', 'a', 'b'], output_pattern.Parse('長')),
+  const definitions = [
+    scheme.SpecialDefinition.new(['k', 'a'], ''),
+    scheme.SpecialDefinition.new(['k', 'a', 'b'], '長'),
   ]
-  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}), rules)
+  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}, definitions))
   assert.equals(engine.Feed(input.Event.new('k')), [])
   assert.equals(engine.Feed(input.Event.new('a')), [])
   const results = engine.Feed(input.Event.new('x'))
@@ -180,8 +179,8 @@ suite.empty_special_remains_prioritized_when_longer_special_fails = (): void => 
 }
 
 suite.replay_can_emit_multiple_normal_combinations = (): void => {
-  const rules = [special.Rule.new(['k', 'a', 'n', 'a', 'z'], output_pattern.Parse('特別'))]
-  const engine = composer.Composer.new(scheme.Compile({k: 'k', n: 'n'}, {a: 'a'}), rules)
+  const definitions = [scheme.SpecialDefinition.new(['k', 'a', 'n', 'a', 'z'], '特別')]
+  const engine = composer.Composer.new(scheme.Compile({k: 'k', n: 'n'}, {a: 'a'}, definitions))
   for key in ['k', 'a', 'n', 'a']
     assert.equals(engine.Feed(input.Event.new(key)), [])
   endfor
@@ -195,11 +194,11 @@ suite.replay_can_emit_multiple_normal_combinations = (): void => {
 }
 
 suite.failure_keeps_suffix_that_can_start_another_special = (): void => {
-  const rules = [
-    special.Rule.new(['k', 'a', 'z'], output_pattern.Parse('甲')),
-    special.Rule.new(['a', 'b'], output_pattern.Parse('乙')),
+  const definitions = [
+    scheme.SpecialDefinition.new(['k', 'a', 'z'], '甲'),
+    scheme.SpecialDefinition.new(['a', 'b'], '乙'),
   ]
-  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}), rules)
+  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}, definitions))
   assert.equals(engine.Feed(input.Event.new('k')), [])
   assert.equals(engine.Feed(input.Event.new('a')), [])
   const suffix = input.Event.new('a', true)
@@ -215,11 +214,11 @@ suite.failure_keeps_suffix_that_can_start_another_special = (): void => {
 }
 
 suite.suffix_special_takes_precedence_over_replayed_consonant = (): void => {
-  const rules = [
-    special.Rule.new(['k', 'a', 'z'], output_pattern.Parse('甲')),
-    special.Rule.new(['a', 'b'], output_pattern.Parse('乙')),
+  const definitions = [
+    scheme.SpecialDefinition.new(['k', 'a', 'z'], '甲'),
+    scheme.SpecialDefinition.new(['a', 'b'], '乙'),
   ]
-  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}), rules)
+  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}, definitions))
   const first = input.Event.new('k', true)
   const second = input.Event.new('a')
   const third = input.Event.new('b')
@@ -235,8 +234,8 @@ suite.suffix_special_takes_precedence_over_replayed_consonant = (): void => {
 }
 
 suite.special_can_start_while_normal_consonant_is_pending = (): void => {
-  const rules = [special.Rule.new(['a', 'b'], output_pattern.Parse('特別'))]
-  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}), rules)
+  const definitions = [scheme.SpecialDefinition.new(['a', 'b'], '特別')]
+  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}, definitions))
   const first = input.Event.new('k')
   const second = input.Event.new('a')
   assert.equals(engine.Feed(first), [])
@@ -251,8 +250,8 @@ suite.special_can_start_while_normal_consonant_is_pending = (): void => {
 }
 
 suite.failed_special_can_complete_preceding_normal_consonant = (): void => {
-  const rules = [special.Rule.new(['a', 'b'], output_pattern.Parse('特別'))]
-  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}), rules)
+  const definitions = [scheme.SpecialDefinition.new(['a', 'b'], '特別')]
+  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}, definitions))
   assert.equals(engine.Feed(input.Event.new('k')), [])
   assert.equals(engine.Feed(input.Event.new('a')), [])
   const results = engine.Feed(input.Event.new('x'))
@@ -264,8 +263,8 @@ suite.failed_special_can_complete_preceding_normal_consonant = (): void => {
 }
 
 suite.replay_preserves_modified_input_and_generated_okuri_boundary = (): void => {
-  const rules = [special.Rule.new(['j', 'l', 'x'], output_pattern.Parse('特別'))]
-  const engine = composer.Composer.new(scheme.Compile({j: 'ky'}, {l: 'o*N'}), rules)
+  const definitions = [scheme.SpecialDefinition.new(['j', 'l', 'x'], '特別')]
+  const engine = composer.Composer.new(scheme.Compile({j: 'ky'}, {l: 'o*N'}, definitions))
   const first = input.Event.new('j', true)
   const second = input.Event.new('l', true)
   assert.equals(engine.Feed(first), [])
@@ -282,8 +281,8 @@ suite.replay_preserves_modified_input_and_generated_okuri_boundary = (): void =>
 }
 
 suite.single_key_special_can_suppress_normal_input = (): void => {
-  const rules = [special.Rule.new(['k'], output_pattern.Parse(''))]
-  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}), rules)
+  const definitions = [scheme.SpecialDefinition.new(['k'], '')]
+  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}, definitions))
   const event = input.Event.new('k')
   const results = engine.Feed(event)
   assert.equals(len(results), 1)
@@ -293,8 +292,8 @@ suite.single_key_special_can_suppress_normal_input = (): void => {
 }
 
 suite.key_tokens_remain_opaque = (): void => {
-  const rules = [special.Rule.new(['<C-x>', 'あ'], output_pattern.Parse('特別'))]
-  const engine = composer.Composer.new(scheme.Compile({'<C-x>': 'k'}, {'あ': 'a'}), rules)
+  const definitions = [scheme.SpecialDefinition.new(['<C-x>', 'あ'], '特別')]
+  const engine = composer.Composer.new(scheme.Compile({'<C-x>': 'k'}, {'あ': 'a'}, definitions))
   assert.equals(engine.Feed(input.Event.new('<C-x>')), [])
   const results = engine.Feed(input.Event.new('あ'))
   assert.equals(len(results), 1)
@@ -302,7 +301,7 @@ suite.key_tokens_remain_opaque = (): void => {
 }
 
 suite.unmatched_consonant_is_returned_before_next_combination = (): void => {
-  const engine = composer.Composer.new(scheme.Compile({k: 'k', n: 'n'}, {a: 'a'}), [])
+  const engine = composer.Composer.new(scheme.Compile({k: 'k', n: 'n'}, {a: 'a'}))
   const first = input.Event.new('k')
   const second = input.Event.new('n')
   assert.equals(engine.Feed(first), [])
@@ -317,9 +316,9 @@ suite.unmatched_consonant_is_returned_before_next_combination = (): void => {
 }
 
 suite.composers_have_independent_pending_input = (): void => {
-  const table = scheme.Compile({k: 'k'}, {a: 'a'})
-  const first = composer.Composer.new(table, [])
-  const second = composer.Composer.new(table, [])
+  const compiled = scheme.Compile({k: 'k'}, {a: 'a'})
+  const first = composer.Composer.new(compiled)
+  const second = composer.Composer.new(compiled)
   const event = input.Event.new('k')
   assert.equals(first.Feed(event), [])
   assert.equals(second.Pending(), [])
@@ -327,8 +326,8 @@ suite.composers_have_independent_pending_input = (): void => {
 }
 
 suite.pending_returns_a_copy = (): void => {
-  const rules = [special.Rule.new(['k', 'a'], output_pattern.Parse('特別'))]
-  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}), rules)
+  const definitions = [scheme.SpecialDefinition.new(['k', 'a'], '特別')]
+  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}, definitions))
   const event = input.Event.new('k')
   assert.equals(engine.Feed(event), [])
   var pending = engine.Pending()

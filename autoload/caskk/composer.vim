@@ -4,6 +4,7 @@ import 'caskk/input.vim' as input
 import 'caskk/combination_table.vim' as table_types
 import 'caskk/output_pattern.vim' as pattern_types
 import autoload 'caskk/composer/special.vim' as special
+import autoload 'caskk/scheme.vim' as scheme
 import autoload 'caskk/scheme/kana.vim' as kana
 
 # Results retain their input events for later Modified/preedit interpretation.
@@ -22,8 +23,9 @@ export class Composer
   var _special_pending: list<input.Event> = []
   var _consonant: input.Event
 
-  def new(this._table, rules: list<special.Rule>)
-    this._rules = copy(rules)
+  def new(compiled: scheme.CompiledScheme)
+    this._table = compiled.table
+    this._rules = compiled.specials
   enddef
 
   # Normal replay must bypass special matching to avoid retrying a failed prefix.
