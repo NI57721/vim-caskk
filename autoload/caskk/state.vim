@@ -2,6 +2,17 @@ vim9script
 
 import 'caskk/composition.vim' as composition
 
+# Values captured after one output, independent of later state changes.
+export class Snapshot
+  const in_preedit: bool
+  const reading: string
+  const okuri: string
+  const okuri_started: bool
+
+  def new(this.in_preedit, this.reading, this.okuri, this.okuri_started)
+  enddef
+endclass
+
 # Reading state only; committed text is returned to the caller, not retained.
 export class State
   var in_preedit: bool = false
@@ -10,6 +21,10 @@ export class State
   var okuri_started: bool = false
 
   def new()
+  enddef
+
+  def GetSnapshot(): Snapshot
+    return Snapshot.new(this.in_preedit, this.reading, this.okuri, this.okuri_started)
   enddef
 
   # Interpret each result in order, using the state left by the preceding result.

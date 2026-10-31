@@ -200,3 +200,16 @@ suite.modified_normal_consonant_begins_okuri_after_existing_reading = (): void =
     assert.equals(ime.okuri_started, true)
   endfor
 }
+
+suite.snapshot_retains_values_after_state_changes_and_commit = (): void => {
+  const ime = state.State.new()
+  assert.equals(ime.Apply(composition.Result.new(true, 'か', 'け', true)), '')
+  const snapshot = ime.GetSnapshot()
+  assert.equals(ime.Apply(composition.Result.new(false, 'る', '', false)), '')
+  assert.equals(ime.okuri, 'ける')
+  assert.equals(ime.Commit(), 'かける')
+  assert.equals(snapshot.in_preedit, true)
+  assert.equals(snapshot.reading, 'か')
+  assert.equals(snapshot.okuri, 'け')
+  assert.equals(snapshot.okuri_started, true)
+}
