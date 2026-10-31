@@ -39,24 +39,31 @@ suite.cancel_restores_preedit_and_allows_reading_input_to_continue = (): void =>
   assert.equals(codec.Encode(preferences.GetSnapshot()), before)
 }
 
-suite.cancel_preserves_the_full_okuri_and_its_boundary = (): void => {
-  const ime = session.Session.new(scheme.Compile({q: '', k: 'k', r: 'r'}, {a: 'a', i: 'i', u: 'u'}))
-  for key in ['Q', 'i', 'K', 'u', 'r', 'a', 'q', 'i']
-    ime.Feed(key)
-  endfor
+suite.cancel_preserves_full_okuri_then_normal_input_commits_the_reading = (): void => {
   const entries = merger.Merge([[parser.ParseLine('いk /行/往/')]])
   const preferences = user_state.State.new()
-  assert.equals(ime.StartConversion(entries, preferences)[0].text, '行くらい')
+  const compiled = scheme.Compile({k: 'k'}, {a: 'a'}, [
+    scheme.SpecialDefinition.new(['z', 'x'], 'い*くらい'),
+  ])
+  const ime = session.Session.new(compiled, '', entries, preferences)
+  ime.Feed('Z')
+  const started = ime.Feed('X')
+  assert.equals(started[0].text, '行くらい')
   assert.equals(ime.GetCandidates().query.exact_okuri, 'く')
   const cancelled = ime.CancelConversion()
   assert.equals(cancelled.text, 'いくらい')
   assert.equals(cancelled.state.reading, 'い')
   assert.equals(cancelled.state.okuri, 'くらい')
   assert.equals(cancelled.state.okuri_started, true)
-  ime.Feed('k')
-  ime.Feed('a')
-  assert.equals(ime.GetSnapshot().reading, 'い')
-  assert.equals(ime.GetSnapshot().okuri, 'くらいか')
+  const committed = ime.Feed('k')
+  assert.equals(committed[0].text, 'いくらい')
+  assert.equals(committed[0].commit_preedit, true)
+  const direct = ime.Feed('a')
+  assert.equals(direct[0].text, 'か')
+  assert.equals(ime.GetSnapshot().in_preedit, false)
+  assert.equals(ime.GetSnapshot().reading, '')
+  assert.equals(ime.GetSnapshot().okuri, '')
+  assert.equals(preferences.GetSnapshot().mru, {})
 }
 
 suite.commit_returns_selected_text_learns_and_resets_input_state = (): void => {
@@ -233,11 +240,13 @@ suite.unhandled_input_is_returned_after_the_candidate_commit = (): void => {
 
 suite.selection_actions_outside_candidate_state_are_rejected = (): void => {
   const ime = session.Session.new(scheme.Compile({}, {}))
-  for action in ['select', 'cancel']
+  for action in ['select', 'cancel', 'previous']
     var caught = ''
     try
       if action ==# 'select'
         ime.SelectCandidate(0)
+      elseif action ==# 'previous'
+        ime.PreviousCandidate()
       else
         ime.CancelConversion()
       endif

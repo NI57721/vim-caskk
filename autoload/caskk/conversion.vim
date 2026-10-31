@@ -60,6 +60,16 @@ export class Selection
     return text
   enddef
 
+  # False asks the caller to return from the first candidate to reading display.
+  def Previous(): bool
+    this._CheckActive()
+    if this._index == 0
+      return false
+    endif
+    this._index -= 1
+    return true
+  enddef
+
   def Commit(): string
     const text = this.CurrentText()
     this._preferences.Learn(this._prepared.query, this._prepared.candidates[this._index].text)
