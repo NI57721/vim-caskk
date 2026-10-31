@@ -2,6 +2,7 @@ vim9script
 
 import 'caskk/output_pattern.vim' as pattern_types
 import 'caskk/input.vim' as input
+import 'caskk/composition.vim' as composition
 import autoload 'caskk/composer/combination.vim' as combination
 
 # Keys are individual normalized KeyTokens; outputs are parsed in the scheme layer.
@@ -38,15 +39,6 @@ export class EventMatchResult
 
   def new(this.replay, this.pending, this.output = v:none, this.events = v:none,
       this.rest = v:none)
-  enddef
-endclass
-
-export class CompositionResult
-  const start_conversion: bool
-  const reading: string
-  const okuri: string
-
-  def new(this.start_conversion, this.reading, this.okuri)
   enddef
 endclass
 
@@ -115,7 +107,7 @@ enddef
 # Interpret an already matched special using the current preedit context.
 # Boundary placement is determined solely by the output pattern.
 export def Compose(pattern: pattern_types.OutputPattern, events: list<input.Event>,
-    in_preedit: bool = false): CompositionResult
+    in_preedit: bool = false): composition.Result
   if empty(events)
     throw 'caskk: special composition requires at least one input event'
   endif
@@ -129,5 +121,6 @@ export def Compose(pattern: pattern_types.OutputPattern, events: list<input.Even
   endfor
   const okuri_input = (in_preedit || first_modified) && later_modified
   const composed = combination.Compose('', pattern, okuri_input)
-  return CompositionResult.new(!in_preedit && first_modified, composed.reading, composed.okuri)
+  return composition.Result.new(!in_preedit && first_modified, composed.reading, composed.okuri,
+    okuri_input && pattern.boundary != -1)
 enddef

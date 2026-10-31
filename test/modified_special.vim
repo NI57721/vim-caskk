@@ -135,3 +135,18 @@ suite.fallback_separates_replay_matched_events_and_remaining_events = (): void =
   assert.equals(composed.reading, 'かける')
   assert.equals(composed.okuri, '')
 }
+
+suite.okuri_activation_is_explicit_even_when_no_okuri_text_exists = (): void => {
+  const modified = [input.Event.new('a', true), input.Event.new('b', true)]
+  const trailing = special.Compose(output_pattern.Parse('か*'), modified)
+  assert.equals(trailing.reading, 'か')
+  assert.equals(trailing.okuri, '')
+  assert.equals(trailing.okuri_started, true)
+  const absent = special.Compose(output_pattern.Parse('かな'), modified)
+  assert.equals(absent.okuri_started, false)
+  const literal = special.Compose(output_pattern.Parse('か\*'), modified)
+  assert.equals(literal.okuri_started, false)
+  const ordinary = special.Compose(output_pattern.Parse('か*'),
+    [input.Event.new('a', true), input.Event.new('b')])
+  assert.equals(ordinary.okuri_started, false)
+}
