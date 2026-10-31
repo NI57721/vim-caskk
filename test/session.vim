@@ -6,6 +6,26 @@ import autoload 'caskk/scheme.vim' as scheme
 final suite = themis#suite('input session')
 const assert = themis#helper('assert')
 
+suite.redundant_sticky_and_uppercase_input_produce_the_same_preedit = (): void => {
+  for keys in ['Ka', ';Ka', 'K;a', ';;;;;ka']
+    const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}), ';')
+    for key in split(keys, '\zs')
+      for result in ime.Feed(key)
+        assert.equals(result.unhandled, [])
+        assert.equals(result.text, '')
+      endfor
+    endfor
+    assert.equals(ime.GetSnapshot().in_preedit, true)
+    assert.equals(ime.GetSnapshot().reading, 'か')
+    assert.equals(ime.GetSnapshot().okuri, '')
+    assert.equals(ime.Pending(), [])
+    ime.Feed('k')
+    ime.Feed('a')
+    assert.equals(ime.GetSnapshot().reading, 'かか')
+    assert.equals(ime.GetSnapshot().okuri, '')
+  endfor
+}
+
 suite.normal_input_returns_direct_text_after_the_second_key = (): void => {
   const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}))
   assert.equals(ime.Feed('k'), [])

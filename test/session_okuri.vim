@@ -10,6 +10,39 @@ import autoload 'caskk/user_state.vim' as user_state
 final suite = themis#suite('automatic okuri conversion')
 const assert = themis#helper('assert')
 
+suite.redundant_sticky_and_uppercase_modifiers_produce_the_same_okuri_conversion = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('いk /行/往/')]])
+  const compiled = scheme.Compile({k: 'k'}, {u: 'u'}, [scheme.SpecialDefinition.new(['i'], 'い')])
+  for keys in [';i;ku', ';i;Ku', ';i;;;ku', 'IK;;;u']
+    const preferences = user_state.State.new()
+    const ime = session.Session.new(compiled, ';', entries, preferences)
+    var results: list<session.Result> = []
+    for key in split(keys, '\zs')
+      results = ime.Feed(key)
+      for result in results
+        assert.equals(result.unhandled, [])
+      endfor
+    endfor
+    assert.equals(len(results), 1)
+    assert.equals(results[0].text, '行く')
+    assert.equals(results[0].in_candidate, true)
+    assert.equals(results[0].registration_requested, false)
+    assert.equals(results[0].state.reading, 'い')
+    assert.equals(results[0].state.okuri, 'く')
+    assert.equals(results[0].state.okuri_started, true)
+    assert.equals(ime.GetCandidates().query.exact_okuri, 'く')
+    assert.equals(ime.Pending(), [])
+    assert.equals(preferences.GetSnapshot().mru, {})
+    const committed = ime.Feed('k')
+    assert.equals(committed[0].text, '行く')
+    assert.equals(committed[0].commit_preedit, true)
+    const direct = ime.Feed('u')
+    assert.equals(direct[0].text, 'く')
+    assert.equals(direct[0].state.in_preedit, false)
+    assert.equals(preferences.GetSnapshot().mru[json_encode(['い', 'く'])], ['行'])
+  endfor
+}
+
 suite.completed_okuri_immediately_displays_the_first_ranked_candidate = (): void => {
   const entries = merger.Merge([[parser.ParseLine('いk /行/往/')]])
   const compiled = scheme.Compile({q: '', k: 'k'}, {i: 'i', u: 'u'})

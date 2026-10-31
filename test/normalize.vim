@@ -59,6 +59,31 @@ suite.uppercase_consumes_pending_sticky_modifier = (): void => {
   assert.equals(normalizer.Feed('l')[0].modified, false)
 }
 
+suite.repeated_sticky_keys_keep_one_pending_modifier = (): void => {
+  const normalizer = normalize.Normalizer.new(';')
+  for count in range(5)
+    assert.equals(normalizer.Feed(';'), [])
+  endfor
+  const modified = normalizer.Feed('k')
+  assert.equals(len(modified), 1)
+  assert.equals(modified[0].key, 'k')
+  assert.equals(modified[0].modified, true)
+  const plain = normalizer.Feed('a')
+  assert.equals(plain[0].key, 'a')
+  assert.equals(plain[0].modified, false)
+}
+
+suite.repetition_also_works_for_a_custom_sticky_key = (): void => {
+  const normalizer = normalize.Normalizer.new('<C-x>')
+  assert.equals(normalizer.Feed('<C-x>'), [])
+  assert.equals(normalizer.Feed('<C-x>'), [])
+  assert.equals(normalizer.Feed('<C-x>'), [])
+  const modified = normalizer.Feed('K')
+  assert.equals(modified[0].key, 'k')
+  assert.equals(modified[0].modified, true)
+  assert.equals(normalizer.Feed('a')[0].modified, false)
+}
+
 suite.reset_clears_pending_sticky_modifier = (): void => {
   const normalizer = normalize.Normalizer.new(';')
   normalizer.Feed(';')

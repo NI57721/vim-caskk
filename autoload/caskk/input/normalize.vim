@@ -12,7 +12,7 @@ export class Normalizer
   enddef
 
   def Feed(key: string): list<input.Event>
-    if !this._modified && this._sticky_key != '' && key == this._sticky_key
+    if this._sticky_key != '' && key == this._sticky_key
       this._modified = true
       return []
     endif
