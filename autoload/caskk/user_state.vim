@@ -55,6 +55,20 @@ export class State
     endif
   enddef
 
+  # Clear explicit tier overrides for one candidate; retain automatic MRU history.
+  def Reset(query: dictionary.Query, text: string)
+    const key = Identity(query)
+    if has_key(this._pinned, key) && this._pinned[key] ==# text
+      remove(this._pinned, key)
+    endif
+    if has_key(this._demoted, key)
+      const position = index(this._demoted[key], text)
+      if position >= 0
+        remove(this._demoted[key], position)
+      endif
+    endif
+  enddef
+
   def Rank(query: dictionary.Query, candidates: list<dictionary.Candidate>): list<dictionary.Candidate>
     const key = Identity(query)
     return ranking.Rank(candidates, get(this._pinned, key, ''),

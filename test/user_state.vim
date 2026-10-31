@@ -95,3 +95,56 @@ suite.state_instances_and_returned_lists_are_independent = (): void => {
   assert.equals(Texts(second.Rank(query, candidates)), ['行', '往', '逝'])
   assert.equals(Texts(candidates), ['行', '往', '逝'])
 }
+
+suite.reset_pin_restores_normal_mru_without_clearing_other_demotions = (): void => {
+  const state = user_state.State.new()
+  const query = lookup.CreateQuery('い', 'く')
+  state.Learn(query, '逝')
+  state.Pin(query, '往')
+  state.Demote(query, '行')
+  assert.equals(Texts(state.Rank(query, Candidates())), ['往', '逝', '行'])
+  state.Reset(query, '往')
+  assert.equals(Texts(state.Rank(query, Candidates())), ['逝', '往', '行'])
+}
+
+suite.reset_demote_restores_previous_mru_and_allows_learning_again = (): void => {
+  const state = user_state.State.new()
+  const query = lookup.CreateQuery('い', 'く')
+  state.Learn(query, '往')
+  state.Learn(query, '逝')
+  state.Demote(query, '逝')
+  assert.equals(Texts(state.Rank(query, Candidates())), ['往', '行', '逝'])
+  state.Reset(query, '逝')
+  assert.equals(Texts(state.Rank(query, Candidates())), ['逝', '往', '行'])
+  state.Learn(query, '行')
+  state.Learn(query, '逝')
+  assert.equals(Texts(state.Rank(query, Candidates())), ['逝', '行', '往'])
+}
+
+suite.reset_is_scoped_to_candidate_reading_and_exact_okuri = (): void => {
+  const state = user_state.State.new()
+  const first = lookup.CreateQuery('い', 'くらい')
+  const other_okuri = lookup.CreateQuery('い', 'こない')
+  const other_reading = lookup.CreateQuery('ゆ', 'く')
+  for query in [first, other_okuri, other_reading]
+    state.Pin(query, '逝')
+    state.Demote(query, '行')
+  endfor
+  state.Reset(lookup.CreateQuery('い', 'くれば'), '行')
+  assert.equals(Texts(state.Rank(first, Candidates())), ['逝', '行', '往'])
+  for query in [other_okuri, other_reading]
+    assert.equals(Texts(state.Rank(query, Candidates())), ['逝', '往', '行'])
+  endfor
+}
+
+suite.reset_missing_or_already_reset_candidate_is_harmless = (): void => {
+  const state = user_state.State.new()
+  const query = lookup.CreateQuery('い', 'く')
+  state.Reset(query, '未登録')
+  state.Pin(query, '往')
+  state.Reset(query, '未登録')
+  assert.equals(Texts(state.Rank(query, Candidates())), ['往', '行', '逝'])
+  state.Reset(query, '往')
+  state.Reset(query, '往')
+  assert.equals(Texts(state.Rank(query, Candidates())), ['行', '往', '逝'])
+}
