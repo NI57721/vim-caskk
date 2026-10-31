@@ -11,8 +11,8 @@ import autoload 'caskk/state.vim' as state_types
 
 # One ordered output and the state immediately after it.
 # Text is Direct output, committed text, or replacement text for Preedit.
-# A commit result confirms existing preedit text rather than inserting it again.
-# replace_preedit replaces that range while keeping the composition open.
+# commit_preedit closes the existing range rather than inserting a second copy.
+# replace_preedit replaces that range; it may also commit the replacement.
 # The state snapshot retains the original reading even during candidate display.
 # Unhandled semantic events are returned without assigning buffer behavior.
 export class Result
@@ -39,6 +39,7 @@ export class Session
   const _preferences: user_state.State
   var _prepared: conversion.Candidates = null_object
   var _selection: conversion.Selection = null_object
+  var _request_preferences: user_state.State = null_object
   var _reading_after_cancel: bool = false
 
   def new(compiled: scheme.CompiledScheme, sticky_key: string = '',
@@ -53,6 +54,7 @@ export class Session
   def _PrepareConversion(entries: dict<dictionary.Entry>, preferences: user_state.State): Result
     this._reading_after_cancel = false
     this._prepared = conversion.Prepare(entries, preferences, this._state.reading, this._state.okuri)
+    this._request_preferences = preferences
     if empty(this._prepared.candidates)
       return Result.new('', [], this._state.GetSnapshot(), false, false, false, true)
     endif
@@ -149,6 +151,25 @@ export class Session
     endif
     const text = this._selection.Select(index)
     return Result.new(text, [], this._state.GetSnapshot(), false, true, true)
+  enddef
+
+  # The separate registration UI supplies a candidate body without display okuri.
+  def Register(candidate: dictionary.Candidate): Result
+    if this._prepared is null_object || this.InCandidate()
+      throw 'caskk: no current dictionary registration request'
+    endif
+    if candidate.text == ''
+      throw 'caskk: registered candidate text must not be empty'
+    endif
+    const text = candidate.text .. this._prepared.okuri
+    this._request_preferences.AddEntry(this._prepared.query, candidate)
+    this._request_preferences.Learn(this._prepared.query, candidate.text)
+    this._state.Commit()
+    this._normalizer.Reset()
+    this._prepared = null_object
+    this._request_preferences = null_object
+    this._reading_after_cancel = false
+    return Result.new(text, [], this._state.GetSnapshot(), true, false, true)
   enddef
 
   def CancelConversion(): Result
