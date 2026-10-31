@@ -125,3 +125,28 @@ suite.empty_rule_is_rejected = (): void => {
   endtry
   assert.equals(caught, 'caskk: special requires at least one key')
 }
+
+suite.end_of_input_commits_longest_complete_prefix = (): void => {
+  const rules = [
+    special.Rule.new(['a'], output_pattern.Parse('短')),
+    special.Rule.new(['a', 'b', 'c'], output_pattern.Parse('中')),
+    special.Rule.new(['a', 'b', 'c', 'd', 'e'], output_pattern.Parse('長')),
+  ]
+  const waiting = special.Match(rules, ['a', 'b', 'c'])
+  assert.equals(waiting.output is null_object, true)
+  assert.equals(waiting.pending, ['a', 'b', 'c'])
+  const result = special.Match(rules, ['a', 'b', 'c'], true)
+  assert.equals(result.output.text, '中')
+  assert.equals(result.replay, [])
+  assert.equals(result.pending, [])
+  assert.equals(result.rest, [])
+}
+
+suite.end_of_input_replays_prefix_without_a_complete_special = (): void => {
+  const rules = [special.Rule.new(['a', 'b', 'c'], output_pattern.Parse('特別'))]
+  const result = special.Match(rules, ['a', 'b'], true)
+  assert.equals(result.output is null_object, true)
+  assert.equals(result.replay, ['a', 'b'])
+  assert.equals(result.pending, [])
+  assert.equals(result.rest, [])
+}

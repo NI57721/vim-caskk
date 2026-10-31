@@ -63,14 +63,12 @@ export class Composer
     endif
   enddef
 
-  # A feed may resolve several normal combinations after a failed special.
-  # Results are returned in input order, before any still-pending suffix.
-  def Feed(event: input.Event): list<Result>
-    var remaining = this._special_pending + [event]
+  def _Process(events: list<input.Event>, end_of_input: bool): list<Result>
+    var remaining = events
     this._special_pending = []
     final results: list<Result> = []
     while !empty(remaining)
-      const match = special.MatchEvents(this._rules, remaining)
+      const match = special.MatchEvents(this._rules, remaining, end_of_input)
       for replayed in match.replay
         this._Replay(replayed, results)
       endfor
@@ -88,6 +86,22 @@ export class Composer
       results->add(Result.new(match.events, match.output, true))
       remaining = match.rest
     endwhile
+    return results
+  enddef
+
+  # A feed may resolve several normal combinations after a failed special.
+  # Results are returned in input order, before any still-pending suffix.
+  def Feed(event: input.Event): list<Result>
+    return this._Process(this._special_pending + [event], false)
+  enddef
+
+  # Explicit end of input resolves complete specials and returns unfinished keys.
+  def Flush(): list<Result>
+    final results = this._Process(this._special_pending, true)
+    if this._consonant isnot null_object
+      results->add(Result.new([this._consonant]))
+      this._consonant = null_object
+    endif
     return results
   enddef
 

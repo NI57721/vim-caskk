@@ -216,3 +216,138 @@ suite.initial_snapshot_remains_unchanged_after_input = (): void => {
   assert.equals(initial.okuri, '')
   assert.equals(initial.okuri_started, false)
 }
+
+suite.commit_returns_reading_and_okuri_and_resets_preedit = (): void => {
+  const ime = session.Session.new(scheme.Compile({k: 'k', j: 'z'}, {l: 'aN', i: 'i'}))
+  for key in ['K', 'l', 'J', 'i']
+    ime.Feed(key)
+  endfor
+  const previous = ime.GetSnapshot()
+  const results = ime.Commit()
+  assert.equals(len(results), 1)
+  assert.equals(results[0].text, 'かんじ')
+  assert.equals(results[0].commit_preedit, true)
+  assert.equals(results[0].unhandled, [])
+  assert.equals(results[0].state.in_preedit, false)
+  assert.equals(results[0].state.reading, '')
+  assert.equals(results[0].state.okuri, '')
+  assert.equals(results[0].state.okuri_started, false)
+  assert.equals(previous.reading, 'かん')
+  assert.equals(previous.okuri, 'じ')
+  assert.equals(ime.Commit(), [])
+  assert.equals(ime.Feed('k'), [])
+  const next = ime.Feed('l')
+  assert.equals(next[0].text, 'かん')
+  assert.equals(next[0].state.in_preedit, false)
+}
+
+suite.commit_resolves_pending_special_before_committing_preedit = (): void => {
+  const definitions = [
+    scheme.SpecialDefinition.new(['k', 'a'], '短'),
+    scheme.SpecialDefinition.new(['k', 'a', 'b'], '長'),
+  ]
+  const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}, definitions))
+  assert.equals(ime.Feed('K'), [])
+  assert.equals(ime.Feed('a'), [])
+  const results = ime.Commit()
+  assert.equals(len(results), 2)
+  assert.equals(results[0].text, '')
+  assert.equals(results[0].commit_preedit, false)
+  assert.equals(results[0].state.in_preedit, true)
+  assert.equals(results[0].state.reading, '短')
+  assert.equals(results[1].text, '短')
+  assert.equals(results[1].commit_preedit, true)
+  assert.equals(results[1].state.in_preedit, false)
+  assert.equals(ime.Pending(), [])
+}
+
+suite.commit_interprets_flushed_specials_using_updated_state = (): void => {
+  const definitions = [
+    scheme.SpecialDefinition.new(['a'], 'さ'),
+    scheme.SpecialDefinition.new(['a', 'b', 'c', 'z'], '長'),
+    scheme.SpecialDefinition.new(['b', 'c'], 'か*ける'),
+  ]
+  const ime = session.Session.new(scheme.Compile({}, {}, definitions))
+  for key in ['A', 'b', 'C']
+    assert.equals(ime.Feed(key), [])
+  endfor
+  const results = ime.Commit()
+  assert.equals(len(results), 3)
+  assert.equals(results[0].state.reading, 'さ')
+  assert.equals(results[0].state.okuri, '')
+  assert.equals(results[1].state.reading, 'さか')
+  assert.equals(results[1].state.okuri, 'ける')
+  assert.equals(results[1].commit_preedit, false)
+  assert.equals(results[2].text, 'さかける')
+  assert.equals(results[2].commit_preedit, true)
+  assert.equals(results[2].state.in_preedit, false)
+  assert.equals(ime.Pending(), [])
+}
+
+suite.commit_replays_incomplete_special_without_repeating_direct_output = (): void => {
+  const definitions = [scheme.SpecialDefinition.new(['k', 'a', 'b'], '特別')]
+  const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}, definitions))
+  assert.equals(ime.Feed('k'), [])
+  assert.equals(ime.Feed('a'), [])
+  const results = ime.Commit()
+  assert.equals(len(results), 1)
+  assert.equals(results[0].text, 'か')
+  assert.equals(results[0].commit_preedit, false)
+  assert.equals(results[0].state.in_preedit, false)
+  assert.equals(ime.Pending(), [])
+  assert.equals(ime.Commit(), [])
+}
+
+suite.commit_returns_unfinished_consonant_without_losing_modified_information = (): void => {
+  const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}))
+  assert.equals(ime.Feed('K'), [])
+  ime.Feed('a')
+  assert.equals(ime.Feed('K'), [])
+  const results = ime.Commit()
+  assert.equals(len(results), 2)
+  assert.equals(results[0].text, '')
+  assert.equals(results[0].unhandled[0].key, 'k')
+  assert.equals(results[0].unhandled[0].modified, true)
+  assert.equals(results[0].state.reading, 'か')
+  assert.equals(results[0].commit_preedit, false)
+  assert.equals(results[1].text, 'か')
+  assert.equals(results[1].commit_preedit, true)
+  assert.equals(ime.Pending(), [])
+  assert.equals(ime.Feed('k'), [])
+  assert.equals(ime.Feed('a')[0].text, 'か')
+}
+
+suite.commit_clears_sticky_modifier_in_direct_and_preedit = (): void => {
+  const compiled = scheme.Compile({k: 'k'}, {a: 'a'})
+  for prefix in [[], ['K', 'a']]
+    const ime = session.Session.new(compiled, ';')
+    for key in prefix
+      ime.Feed(key)
+    endfor
+    assert.equals(ime.Feed(';'), [])
+    const committed = ime.Commit()
+    if empty(prefix)
+      assert.equals(committed, [])
+    else
+      assert.equals(len(committed), 1)
+      assert.equals(committed[0].text, 'か')
+      assert.equals(committed[0].commit_preedit, true)
+    endif
+    assert.equals(ime.Feed('k'), [])
+    const next = ime.Feed('a')
+    assert.equals(next[0].text, 'か')
+    assert.equals(next[0].state.in_preedit, false)
+  endfor
+}
+
+suite.commit_notifies_empty_preedit_and_is_idempotent = (): void => {
+  const compiled = scheme.Compile({}, {}, [scheme.SpecialDefinition.new(['x'], '')])
+  const ime = session.Session.new(compiled)
+  assert.equals(ime.Feed('X')[0].state.in_preedit, true)
+  const results = ime.Commit()
+  assert.equals(len(results), 1)
+  assert.equals(results[0].text, '')
+  assert.equals(results[0].commit_preedit, true)
+  assert.equals(results[0].state.in_preedit, false)
+  assert.equals(ime.Commit(), [])
+}

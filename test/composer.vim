@@ -386,3 +386,73 @@ suite.unmatched_input_cannot_be_interpreted_as_composed_text = (): void => {
   endtry
   assert.equals(caught, 'caskk: cannot compose unmatched input')
 }
+
+suite.flush_replays_incomplete_special_as_normal_input = (): void => {
+  const definitions = [scheme.SpecialDefinition.new(['k', 'a', 'b'], '特別')]
+  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}, definitions))
+  assert.equals(engine.Feed(input.Event.new('k')), [])
+  assert.equals(engine.Feed(input.Event.new('a')), [])
+  const results = engine.Flush()
+  assert.equals(len(results), 1)
+  assert.equals(results[0].output.text, 'か')
+  assert.equals(results[0].is_special, false)
+  assert.equals(engine.Pending(), [])
+  assert.equals(engine.Flush(), [])
+}
+
+suite.flush_prioritizes_complete_special_over_normal_combination = (): void => {
+  const definitions = [
+    scheme.SpecialDefinition.new(['k', 'a'], '短'),
+    scheme.SpecialDefinition.new(['k', 'a', 'b'], '長'),
+  ]
+  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}, definitions))
+  assert.equals(engine.Feed(input.Event.new('k')), [])
+  assert.equals(engine.Feed(input.Event.new('a')), [])
+  const results = engine.Flush()
+  assert.equals(len(results), 1)
+  assert.equals(results[0].output.text, '短')
+  assert.equals(results[0].is_special, true)
+  assert.equals(engine.Pending(), [])
+}
+
+suite.flush_returns_unmatched_consonant_with_modified_information = (): void => {
+  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}))
+  const event = input.Event.new('k', true)
+  assert.equals(engine.Feed(event), [])
+  const results = engine.Flush()
+  assert.equals(len(results), 1)
+  assert.equals(results[0].output is null_object, true)
+  assert.equals(results[0].events, [event])
+  assert.equals(engine.Pending(), [])
+  assert.equals(engine.Flush(), [])
+  assert.equals(engine.Feed(input.Event.new('k')), [])
+  assert.equals(engine.Feed(input.Event.new('a'))[0].output.text, 'か')
+}
+
+suite.flush_reprocesses_remaining_specials_in_order = (): void => {
+  const definitions = [
+    scheme.SpecialDefinition.new(['a'], '先頭'),
+    scheme.SpecialDefinition.new(['a', 'b', 'c', 'z'], '長'),
+    scheme.SpecialDefinition.new(['b', 'c'], '末尾'),
+  ]
+  const engine = composer.Composer.new(scheme.Compile({}, {}, definitions))
+  for key in ['a', 'b', 'c']
+    assert.equals(engine.Feed(input.Event.new(key)), [])
+  endfor
+  const results = engine.Flush()
+  assert.equals(len(results), 2)
+  assert.equals(results[0].output.text, '先頭')
+  assert.equals(results[1].output.text, '末尾')
+  assert.equals(engine.Pending(), [])
+}
+
+suite.flush_can_complete_consonant_waiting_before_special_prefix = (): void => {
+  const definitions = [scheme.SpecialDefinition.new(['a', 'b'], '特別')]
+  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}, definitions))
+  assert.equals(engine.Feed(input.Event.new('k')), [])
+  assert.equals(engine.Feed(input.Event.new('a')), [])
+  const results = engine.Flush()
+  assert.equals(len(results), 1)
+  assert.equals(results[0].output.text, 'か')
+  assert.equals(engine.Pending(), [])
+}

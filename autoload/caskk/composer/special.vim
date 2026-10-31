@@ -46,7 +46,7 @@ endclass
 # Replay is processed normally before output. Pending is retained for the next call.
 # Rest is reprocessed after output. A failed extension commits the longest
 # complete prefix before considering normal input or another suffix special.
-export def Match(rules: list<Rule>, keys: list<string>): MatchResult
+export def Match(rules: list<Rule>, keys: list<string>, end_of_input: bool = false): MatchResult
   final replay: list<string> = []
   var pending = copy(keys)
   while !empty(pending)
@@ -64,7 +64,7 @@ export def Match(rules: list<Rule>, keys: list<string>): MatchResult
       endif
     endfor
 
-    if longer
+    if longer && !end_of_input
       return MatchResult.new(replay, pending)
     elseif exact != -1
       return MatchResult.new(replay, [], rules[exact].output, pending[len(rules[exact].keys) :])
@@ -78,12 +78,13 @@ enddef
 
 # Preserve semantic input events while matching only their normalized KeyTokens.
 # The caller processes replay before interpreting a matched special in its new context.
-export def MatchEvents(rules: list<Rule>, events: list<input.Event>): EventMatchResult
+export def MatchEvents(rules: list<Rule>, events: list<input.Event>,
+    end_of_input: bool = false): EventMatchResult
   final keys: list<string> = []
   for event in events
     keys->add(event.key)
   endfor
-  const match = Match(rules, keys)
+  const match = Match(rules, keys, end_of_input)
   const replay_count = len(match.replay)
   const match_end = len(events) - len(match.rest)
   final replay: list<input.Event> = []
