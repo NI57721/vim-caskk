@@ -11,6 +11,17 @@ import autoload 'caskk/user_state.vim' as user_state
 final suite = themis#suite('preedit presentation integration')
 const assert = themis#helper('assert')
 
+def CheckMarker(number: number, line: number, column: number)
+  var count = 0
+  for property in prop_list(line, {bufnr: number})
+    if get(property, 'text', '') ==# '*'
+      count += 1
+      assert.equals(property.col, column)
+    endif
+  endfor
+  assert.equals(count, 1)
+enddef
+
 def Scratch(): number
   const number = bufadd('')
   bufload(number)
@@ -27,7 +38,7 @@ def Apply(writer: buffer.Writer, view: presentation.Highlighter, results: list<s
   for result in results
     view.Clear()
     writer.Apply(result)
-    view.Render()
+    view.Render(result)
   endfor
 enddef
 
@@ -49,13 +60,15 @@ suite.highlight_follows_reading_candidate_and_cancel_without_markers = (): void 
   assert.equals(getbufline(number, 1), ['前漢字後'])
   assert.equals(prop_list(1, {bufnr: number})[0].length, 6)
   view.Clear()
-  writer.Apply(ime.SelectCandidate(1))
-  view.Render()
+  const selected = ime.SelectCandidate(1)
+  writer.Apply(selected)
+  view.Render(selected)
   assert.equals(prop_list(1, {bufnr: number})[0].length, 3)
   view.Clear()
-  writer.Apply(ime.CancelConversion())
-  view.Render()
-  view.Render()
+  const cancelled = ime.CancelConversion()
+  writer.Apply(cancelled)
+  view.Render(cancelled)
+  view.Render(cancelled)
   assert.equals(getbufline(number, 1), ['前か後'])
   const properties = prop_list(1, {bufnr: number})
   assert.equals(len(properties), 1)
@@ -73,10 +86,11 @@ suite.commit_removes_highlight_without_changing_text_or_undo_history = (): void 
   const view = presentation.Highlighter.new(writer)
   const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}))
   Apply(writer, view, ime.Feed('K'))
-  Apply(writer, view, ime.Feed('a'))
+  const composed = ime.Feed('a')
+  Apply(writer, view, composed)
   const tick = getbufvar(number, 'changedtick')
   const sequence = get(undotree(number), 'seq_cur', 0)
-  view.Render()
+  view.Render(composed[0])
   assert.equals(getbufvar(number, 'changedtick'), tick)
   assert.equals(get(undotree(number), 'seq_cur', 0), sequence)
   Apply(writer, view, ime.Commit())
@@ -104,8 +118,9 @@ suite.multiline_highlight_excludes_surrounding_text_and_is_cleared_on_cancel = (
   assert.equals(second[0].length, 3)
   assert.equals(prop_list(3, {bufnr: number}), [])
   view.Clear()
-  writer.Apply(ime.CancelConversion())
-  view.Render()
+  const cancelled = ime.CancelConversion()
+  writer.Apply(cancelled)
+  view.Render(cancelled)
   assert.equals(getbufline(number, 1, '$'), ['前か後', '次行'])
   assert.equals(len(prop_list(1, {bufnr: number})), 1)
   assert.equals(prop_list(2, {bufnr: number}), [])
@@ -147,4 +162,61 @@ suite.clear_preserves_other_property_types_and_other_buffers = (): void => {
   assert.equals(len(prop_list(1, {bufnr: first})), 1)
   assert.equals(prop_list(1, {bufnr: first})[0].type, 'other_plugin')
   assert.equals(len(prop_list(1, {bufnr: second})), 1)
+}
+
+suite.okuri_reading_shows_a_virtual_boundary_without_changing_buffer_text = (): void => {
+  const number = Scratch()
+  defer Wipe(number)
+  setbufline(number, 1, '前後')
+  const writer = buffer.Writer.new(number, 1, 4)
+  const view = presentation.Highlighter.new(writer)
+  const compiled = scheme.Compile({}, {}, [scheme.SpecialDefinition.new(['z', 'x'], 'い*う')])
+  const preferences = user_state.State.new()
+  preferences.AddEntry(lookup.CreateQuery('い', 'う'), dictionary.Candidate.new('言', []))
+  const ime = session.Session.new(compiled, '', {}, preferences)
+  Apply(writer, view, ime.Feed('Z'))
+  Apply(writer, view, ime.Feed('X'))
+  assert.equals(getbufline(number, 1), ['前言う後'])
+  assert.equals(len(prop_list(1, {bufnr: number})), 1)
+  Apply(writer, view, [ime.PreviousCandidate()])
+  assert.equals(getbufline(number, 1), ['前いう後'])
+  CheckMarker(number, 1, 7)
+  assert.equals(len(prop_list(1, {bufnr: number})), 2)
+  Apply(writer, view, ime.StartConversion({}, preferences))
+  assert.equals(getbufline(number, 1), ['前言う後'])
+  assert.equals(len(prop_list(1, {bufnr: number})), 1)
+  Apply(writer, view, [ime.PreviousCandidate()])
+  CheckMarker(number, 1, 7)
+  Apply(writer, view, ime.Commit())
+  assert.equals(getbufline(number, 1), ['前いう後'])
+  assert.equals(prop_list(1, {bufnr: number}), [])
+}
+
+suite.okuri_boundary_is_visible_before_the_first_okuri_character = (): void => {
+  const number = Scratch()
+  defer Wipe(number)
+  const writer = buffer.Writer.new(number, 1, 1)
+  const view = presentation.Highlighter.new(writer)
+  const ime = session.Session.new(scheme.Compile({q: ''}, {i: 'i*'}))
+  Apply(writer, view, ime.Feed('Q'))
+  Apply(writer, view, ime.Feed('I'))
+  assert.equals(getbufline(number, 1), ['い'])
+  CheckMarker(number, 1, 4)
+}
+
+suite.okuri_marker_uses_the_reading_endpoint_across_lines = (): void => {
+  const number = Scratch()
+  defer Wipe(number)
+  setbufline(number, 1, '前後')
+  const writer = buffer.Writer.new(number, 1, 4)
+  const view = presentation.Highlighter.new(writer)
+  const compiled = scheme.Compile({}, {}, [scheme.SpecialDefinition.new(['z', 'x'], "い\nい*う")])
+  const ime = session.Session.new(compiled)
+  Apply(writer, view, ime.Feed('Z'))
+  Apply(writer, view, ime.Feed('X'))
+  assert.equals(getbufline(number, 1, '$'), ['前い', 'いう後'])
+  CheckMarker(number, 2, 4)
+  Apply(writer, view, ime.Commit())
+  assert.equals(getbufline(number, 1, '$'), ['前い', 'いう後'])
+  assert.equals(prop_list(1, {bufnr: number, end_lnum: -1}), [])
 }

@@ -1,6 +1,7 @@
 vim9script
 
 import autoload 'caskk/buffer.vim' as buffer
+import autoload 'caskk/session.vim' as session
 
 const PROPERTY_TYPE = 'caskk_preedit'
 
@@ -28,16 +29,25 @@ export class Highlighter
     this._range = null_object
   enddef
 
-  def Render()
+  def Render(result: session.Result)
     const range = this._writer.GetPreeditRange()
     this.Clear()
-    if range is null_object || (range.start.line == range.finish.line && range.start.column == range.finish.column)
+    if range is null_object
       return
     endif
-    prop_add(range.start.line, range.start.column, {
-      bufnr: this._buffer, type: PROPERTY_TYPE,
-      end_lnum: range.finish.line, end_col: range.finish.column,
-    })
+    if range.start.line != range.finish.line || range.start.column != range.finish.column
+      prop_add(range.start.line, range.start.column, {
+        bufnr: this._buffer, type: PROPERTY_TYPE,
+        end_lnum: range.finish.line, end_col: range.finish.column,
+      })
+    endif
+    if result.state.in_preedit && result.state.okuri_started && !result.in_candidate
+      const reading = split(result.state.reading, "\n", true)
+      const line = range.start.line + len(reading) - 1
+      const column = len(reading) == 1 ? range.start.column + strlen(reading[0]) : strlen(reading[-1]) + 1
+      # The boundary is decoration, never part of committed text or undo data.
+      prop_add(line, column, {bufnr: this._buffer, type: PROPERTY_TYPE, text: '*'})
+    endif
     this._range = range
   enddef
 endclass

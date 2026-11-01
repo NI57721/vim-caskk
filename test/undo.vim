@@ -36,7 +36,7 @@ def Handle(key: string)
   for result in results
     view.Clear()
     manager.Apply(result)
-    view.Render()
+    view.Render(result)
   endfor
 enddef
 
@@ -168,6 +168,20 @@ suite.identical_reading_and_candidate_do_not_add_a_redundant_undo_step = (): voi
   assert.equals(getline(1), '')
   execute "normal! \<C-r>"
   assert.equals(getline(1), 'か')
+}
+
+suite.okuri_marker_is_not_restored_when_undoing_a_plain_reading_commit = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  feedkeys("iGHBC\<Esc>", 'xt')
+  assert.equals(getline(1), 'いきます')
+  assert.equals(prop_list(1, {types: ['caskk_preedit'], end_lnum: -1}), [])
+  normal! u
+  assert.equals(getline(1), '')
+  execute "normal! \<C-r>"
+  assert.equals(getline(1), 'いきます')
+  assert.equals(prop_list(1, {types: ['caskk_preedit'], end_lnum: -1}), [])
+  assert.equals(ime.GetSnapshot().in_preedit, false)
 }
 
 suite.external_changes_are_not_joined_into_the_ime_undo_unit = (): void => {
