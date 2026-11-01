@@ -51,11 +51,16 @@ export class Manager
     this._preedit = preedit
   enddef
 
-  def Apply(result: session.Result)
+  # Also used before core input is consumed by the Insert-mode integration.
+  def Check()
     this._CheckTarget()
     if getbufvar(this._buffer, 'changedtick') != this._tick
       throw 'caskk: buffer changed outside the managed undo unit'
     endif
+  enddef
+
+  def Apply(result: session.Result)
+    this.Check()
     if !empty(result.unhandled)
       return
     endif
