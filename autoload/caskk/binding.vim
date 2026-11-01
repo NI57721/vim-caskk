@@ -4,9 +4,11 @@ import autoload 'caskk/scheme.vim' as scheme
 import autoload 'caskk/insert.vim' as insert
 import autoload 'caskk/session.vim' as session
 import autoload 'caskk/user_state.vim' as user_state
+import autoload 'caskk/input/keycode.vim' as keycode
 import 'caskk/dictionary.vim' as dictionary
 
 const ACTIONS = ['StartConversion', 'NextCandidate', 'PreviousCandidate', 'Commit']
+const NATIVE_KEYS = ['<Left>', '<Right>', '<Up>', '<Down>', '<Home>', '<End>', '<CR>']
 
 def Lhs(token: string): string
   if token == ' '
@@ -18,7 +20,7 @@ def Lhs(token: string): string
   elseif token == '<'
     return '<lt>'
   elseif token =~# '^<[0-9A-Za-z_-]\+>$'
-    return token
+    return keytrans(keycode.Encode(token))
   elseif strchars(token) == 1 && char2nr(token) >= 0x21
     return token
   endif
@@ -75,6 +77,7 @@ export class Binding
   const _preferences: user_state.State
   const _actions: dict<string>
   const _keys: dict<string>
+  const _native: dict<bool>
   var _saved: dict<Mapping> = {}
   var _installed: dict<Mapping> = {}
   var _editor: insert.Editor = null_object
@@ -126,7 +129,16 @@ export class Binding
         lhs[key] = physical
       endif
     endfor
+    final native: dict<bool> = {}
+    for key in NATIVE_KEYS
+      const physical = Lhs(key)
+      if index(values(lhs), physical) < 0
+        lhs[key] = physical
+        native[key] = true
+      endif
+    endfor
     this._keys = lhs
+    this._native = native
   enddef
 
   def _CheckTarget()
@@ -232,6 +244,13 @@ export class Binding
 
   def Dispatch(key: string)
     this._CheckTarget()
+    if has_key(this._native, key)
+      # End the IME transaction before native motion or editing. Replay ahead
+      # of later input without remapping back into this binding.
+      this.Leave()
+      feedkeys(keycode.Encode(key), 'in')
+      return
+    endif
     if this._editor is null_object
       this.Enter()
     endif

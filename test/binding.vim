@@ -259,3 +259,84 @@ suite.non_ascii_direct_input_keeps_its_order_with_mapped_combinations = (): void
   assert.equals(getline(1), '前後')
   keys.Disable()
 }
+
+suite.left_arrow_commits_reading_and_restarts_input_at_the_native_cursor = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}))
+  keys.Enable()
+  feedkeys("aKa\<Left>ka\<Esc>", 'xt')
+  assert.equals(getline(1), '前かか後')
+  assert.equals(col('.'), 4)
+  assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
+  normal! u
+  assert.equals(getline(1), '前か後')
+  normal! u
+  assert.equals(getline(1), '前後')
+  keys.Disable()
+}
+
+suite.enter_commits_reading_then_inserts_a_native_line_break = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}))
+  keys.Enable()
+  feedkeys("aKa\<CR>ka\<Esc>", 'xt')
+  assert.equals(getline(1, '$'), ['前か', 'か後'])
+  assert.equals(keys.GetEditor() is null_object, true)
+  keys.Disable()
+}
+
+suite.native_movement_commits_and_learns_the_selected_candidate = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const preferences = user_state.State.new()
+  const entries = merger.Merge([[parser.ParseLine('か /蚊/科/')]])
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries, preferences, {s: 'StartConversion', n: 'NextCandidate'})
+  keys.Enable()
+  feedkeys("aKasn\<Left>ka\<Esc>", 'xt')
+  assert.equals(getline(1), '前か科後')
+  assert.equals(preferences.GetSnapshot().mru[json_encode(['か', ''])], ['科'])
+  keys.Disable()
+}
+
+suite.native_handoff_does_not_lose_an_unfinished_modified_consonant = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}))
+  keys.Enable()
+  feedkeys("aK\<Left>ka\<Esc>", 'xt')
+  assert.equals(getline(1), '前かk後')
+  keys.Disable()
+}
+
+suite.explicit_enter_alias_definition_precedes_native_enter_handoff = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const compiled = scheme.Compile({}, {}, [scheme.SpecialDefinition.new(['<Enter>'], '改')])
+  const keys = binding.Binding.new(compiled)
+  keys.Enable()
+  feedkeys("a\<CR>\<Esc>", 'xt')
+  assert.equals(getline(1, '$'), ['前改後'])
+  keys.Disable()
+}
+
+suite.right_arrow_before_ime_input_preserves_native_motion = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}))
+  keys.Enable()
+  feedkeys("a\<Right>ka\<Esc>", 'xt')
+  assert.equals(getline(1), '前後か')
+  keys.Disable()
+}
+
+suite.explicit_enter_commit_action_precedes_native_line_break = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', {}, null_object, {'<CR>': 'Commit'})
+  keys.Enable()
+  feedkeys("aKa\<CR>ka\<Esc>", 'xt')
+  assert.equals(getline(1, '$'), ['前かか後'])
+  keys.Disable()
+}
