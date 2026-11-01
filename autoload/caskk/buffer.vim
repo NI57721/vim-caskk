@@ -11,6 +11,15 @@ export class Position
   enddef
 endclass
 
+# Immutable snapshot of an exclusive-ended byte range.
+export class Range
+  const start: Position
+  const finish: Position
+
+  def new(this.start, this.finish)
+  enddef
+endclass
+
 # Buffer integration only. The caller supplies results in their original order
 # and uses GetPosition() to position the Insert-mode cursor in a later layer.
 export class Writer
@@ -118,6 +127,15 @@ export class Writer
 
   def GetBufferNumber(): number
     return this._buffer
+  enddef
+
+  def GetPreeditRange(): Range
+    if !this._active
+      return null_object
+    endif
+    this._CheckRange()
+    return Range.new(Position.new(this._start_line, this._start_column),
+      Position.new(this._end_line, this._end_column))
   enddef
 
   def GetPosition(): Position

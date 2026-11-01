@@ -3,6 +3,7 @@ vim9script
 import 'caskk/dictionary.vim' as dictionary
 import autoload 'caskk/buffer.vim' as buffer
 import autoload 'caskk/undo.vim' as undo
+import autoload 'caskk/presentation.vim' as presentation
 import autoload 'caskk/session.vim' as session
 import autoload 'caskk/scheme.vim' as scheme
 import autoload 'caskk/dictionary/merge.vim' as merger
@@ -15,6 +16,7 @@ const assert = themis#helper('assert')
 var ime: session.Session
 var manager: undo.Manager
 var preferences: user_state.State
+var view: presentation.Highlighter
 
 def Handle(key: string)
   var results: list<session.Result> = []
@@ -32,7 +34,9 @@ def Handle(key: string)
     results = ime.Feed(key)
   endif
   for result in results
+    view.Clear()
     manager.Apply(result)
+    view.Render()
   endfor
 enddef
 
@@ -50,7 +54,9 @@ def Setup(): list<number>
     scheme.SpecialDefinition.new(['t'], 'というからには'),
   ])
   ime = session.Session.new(compiled, '', merger.Merge([[parser.ParseLine('いk /行/')]]), preferences)
-  manager = undo.Manager.new(buffer.Writer.new(number, 1, 1))
+  const writer = buffer.Writer.new(number, 1, 1)
+  manager = undo.Manager.new(writer)
+  view = presentation.Highlighter.new(writer)
   for key in ['k', 'a', 'K', 'd', 'S', 'N', 'B', 'C', 'R', 'G', 'H', 'V', 'W', 't']
     execute 'inoremap <buffer> ' .. key .. " <ScriptCmd>Handle('" .. key .. "')<CR>"
   endfor
@@ -125,12 +131,14 @@ suite.consecutive_undo_restores_plain_readings_without_reopening_conversion = ()
     assert.equals(getline(1), expected)
     assert.equals(ime.InCandidate(), false)
     assert.equals(ime.GetSnapshot().in_preedit, false)
+    assert.equals(prop_list(1, {types: ['caskk_preedit'], end_lnum: -1}), [])
   endfor
   for expected in ['いきます', '行きます', '行きますというからには', '行きますというからにはいく', '行きますというからには行く']
     execute "normal! \<C-r>"
     assert.equals(getline(1), expected)
     assert.equals(ime.InCandidate(), false)
     assert.equals(ime.GetSnapshot().in_preedit, false)
+    assert.equals(prop_list(1, {types: ['caskk_preedit'], end_lnum: -1}), [])
   endfor
 }
 
