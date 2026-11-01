@@ -1,5 +1,32 @@
 *caskk.txt*  Japanese input method for Vim HEAD
 
+INPUT SCHEMES                                           *caskk-input-schemes*
+
+Register input grammar separately from Config(): >vim9
+
+    import autoload 'caskk.vim' as Caskk
+    import autoload 'caskk/scheme.vim' as Scheme
+
+    Caskk.RegisterInputScheme('custom', {k: 'k'}, {a: 'a'}, [
+      Scheme.SpecialDefinition.new(['k', 'a', 'n'], 'かん'),
+    ])
+    const compiled = Caskk.GetInputScheme('custom')
+<
+RegisterInputScheme(name, consonants, combinations [, specials]) compiles and
+stores a named scheme.  Consonants and combinations are dictionaries of strings.
+The optional specials list contains SpecialDefinition objects with explicit
+KeyToken lists and output patterns.  Specials take precedence over generated
+consonant/combination rules.  Output patterns support latent okuri boundaries.
+
+GetInputScheme(name) returns the compiled scheme for the supplied name and raises
+an error for an unknown name.  Retrieval does not enable the IME or install maps.
+The returned scheme can be passed to the existing core and integration modules.
+
+Registering an existing name replaces it for subsequent retrievals.  Existing
+sessions continue using their previous scheme, including pending input.  Failed
+compilation retains the previous registration.  Config() calls do not clear
+registered schemes.
+
 CONFIGURATION                                           *caskk-config*
 
 In Vim9 script: >vim9
