@@ -181,3 +181,81 @@ suite.duplicate_physical_keys_roll_back_partially_installed_mappings = (): void 
   assert.equals(keys.IsEnabled(), false)
   assert.equals(maparg('<Space>', 'i'), '旧')
 }
+
+suite.literal_fallback_handles_uppercase_and_sticky_input_without_errors = (): void => {
+  for input in ['Kx', ';kx']
+    const context = Setup()
+    defer Cleanup(context)
+    const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), ';')
+    keys.Enable()
+    feedkeys('a' .. input .. "\<Esc>", 'xt')
+    assert.equals(getline(1), '前kx後')
+    assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
+    normal! u
+    assert.equals(getline(1), '前後')
+    keys.Disable()
+  endfor
+}
+
+suite.literal_punctuation_is_included_in_the_reading_and_its_undo_checkpoint = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const entries = merger.Merge([[parser.ParseLine('か? /可疑/')]])
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries, null_object, {s: 'StartConversion', c: 'Commit'})
+  keys.Enable()
+  feedkeys("aKa?sc\<Esc>", 'xt')
+  assert.equals(getline(1), '前可疑後')
+  normal! u
+  assert.equals(getline(1), '前か?後')
+  normal! u
+  assert.equals(getline(1), '前後')
+  keys.Disable()
+}
+
+suite.unfinished_modified_input_is_inserted_as_lowercase_on_insertleave = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}))
+  keys.Enable()
+  feedkeys("aK\<Esc>", 'xt')
+  assert.equals(getline(1), '前k後')
+  assert.equals(col('.'), 4)
+  assert.equals(keys.GetEditor() is null_object, true)
+  keys.Disable()
+}
+
+suite.explicit_named_printable_keys_take_precedence_over_literal_fallback_maps = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const compiled = scheme.Compile({}, {}, [scheme.SpecialDefinition.new(['<Space>'], '空')])
+  const keys = binding.Binding.new(compiled)
+  keys.Enable()
+  feedkeys("a\<Space>\<Esc>", 'xt')
+  assert.equals(getline(1), '前空後')
+  keys.Disable()
+}
+
+suite.non_ascii_input_stays_in_preedit_before_following_conversion_keys = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const entries = merger.Merge([[parser.ParseLine('かあ? /仮名/')]])
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries, null_object, {s: 'StartConversion', c: 'Commit'})
+  keys.Enable()
+  feedkeys("aKaあ?sc\<Esc>", 'xt')
+  assert.equals(getline(1), '前仮名後')
+  normal! u
+  assert.equals(getline(1), '前かあ?後')
+  keys.Disable()
+}
+
+suite.non_ascii_direct_input_keeps_its_order_with_mapped_combinations = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}))
+  keys.Enable()
+  feedkeys("aあka漢ka\<Esc>", 'xt')
+  assert.equals(getline(1), '前あか漢か後')
+  normal! u
+  assert.equals(getline(1), '前後')
+  keys.Disable()
+}

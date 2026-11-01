@@ -2,6 +2,7 @@ vim9script
 
 import 'caskk/input.vim' as input
 import 'caskk/dictionary.vim' as dictionary
+import 'caskk/composition.vim' as composition
 import autoload 'caskk/conversion.vim' as conversion
 import autoload 'caskk/user_state.vim' as user_state
 import autoload 'caskk/input/normalize.vim' as normalize
@@ -14,7 +15,7 @@ import autoload 'caskk/state.vim' as state_types
 # commit_preedit closes the existing range rather than inserting a second copy.
 # replace_preedit replaces that range; it may also commit the replacement.
 # The state snapshot retains the original reading even during candidate display.
-# Unhandled semantic events are returned without assigning buffer behavior.
+# Unhandled named keys and controls are returned to the Vim integration layer.
 export class Result
   const text: string
   const unhandled: list<input.Event>
@@ -62,6 +63,14 @@ export class Session
     return Result.new(this._selection.CurrentText(), [], this._state.GetSnapshot(), false, true, true)
   enddef
 
+  def _ApplyOutput(composed: composition.Result, auto_convert: bool): Result
+    const text = this._state.Apply(composed)
+    if auto_convert && this._state.in_preedit && this._state.okuri_started && this._state.okuri != ''
+      return this._PrepareConversion(this._entries, this._preferences)
+    endif
+    return Result.new(text, [], this._state.GetSnapshot())
+  enddef
+
   def _Apply(matched_results: list<composer.Result>, auto_convert: bool = true): list<Result>
     final results: list<Result> = []
     for matched in matched_results
@@ -69,15 +78,19 @@ export class Session
         results->extend(this.Commit())
       endif
       if matched.output is null_object
-        results->add(Result.new('', matched.events, this._state.GetSnapshot()))
+        for event in matched.events
+          const code = char2nr(event.key)
+          if strchars(event.key) == 1 && code >= 0x20 && !(code >= 0x7f && code <= 0x9f)
+            # A failed Modified combination falls back to the normalized key,
+            # without starting Preedit or an okuri boundary on its own.
+            results->add(this._ApplyOutput(composition.Result.new(false, event.key, '', false), auto_convert))
+          else
+            results->add(Result.new('', [event], this._state.GetSnapshot()))
+          endif
+        endfor
       else
         const composed = composer.Compose(matched, this._state.in_preedit)
-        const text = this._state.Apply(composed)
-        if auto_convert && this._state.in_preedit && this._state.okuri_started && this._state.okuri != ''
-          results->add(this._PrepareConversion(this._entries, this._preferences))
-        else
-          results->add(Result.new(text, [], this._state.GetSnapshot()))
-        endif
+        results->add(this._ApplyOutput(composed, auto_convert))
       endif
     endfor
     return results

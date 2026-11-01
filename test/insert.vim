@@ -81,6 +81,7 @@ def Setup(): list<number>
     execute 'inoremap <buffer> ' .. key .. " <ScriptCmd>Handle('" .. key .. "')<CR>"
   endfor
   inoremap <buffer> <F2> <ScriptCmd>Handle('attach')<CR>
+  inoremap <buffer> <F11> <ScriptCmd>Handle('<lt>F11>')<CR>
   inoremap <buffer> <Esc> <ScriptCmd>Handle('close')<CR><Esc>
   return [previous, number]
 enddef
@@ -161,11 +162,11 @@ suite.cursor_movement_is_detected_before_consuming_new_input = (): void => {
 suite.unhandled_events_are_returned_to_the_key_dispatch_layer = (): void => {
   const context = Setup()
   defer Cleanup(context)
-  feedkeys("a\<F2>?\<Esc>", 'xt')
+  feedkeys("a\<F2>\<F11>\<Esc>", 'xt')
   assert.equals(errors, [])
   assert.equals(getline(1), '前後')
   assert.equals(len(unhandled), 1)
-  assert.equals(unhandled[0].key, '?')
+  assert.equals(unhandled[0].key, '<F11>')
 }
 
 suite.multiline_candidates_position_the_cursor_before_the_preserved_suffix = (): void => {

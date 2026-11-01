@@ -181,15 +181,15 @@ suite.pending_special_is_flushed_before_dictionary_lookup = (): void => {
   assert.equals(ime.Pending(), [])
 }
 
-suite.unhandled_pending_input_does_not_start_candidate_selection = (): void => {
-  const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}))
-  for key in ['K', 'a', 'k']
+suite.unhandled_named_pending_input_does_not_start_candidate_selection = (): void => {
+  const ime = session.Session.new(scheme.Compile({k: 'k', '<F11>': 'k'}, {a: 'a'}))
+  for key in ['K', 'a', '<F11>']
     ime.Feed(key)
   endfor
   const entries = merger.Merge([[parser.ParseLine('か /蚊/')]])
   const results = ime.StartConversion(entries, user_state.State.new())
   assert.equals(len(results), 1)
-  assert.equals(results[0].unhandled[0].key, 'k')
+  assert.equals(results[0].unhandled[0].key, '<F11>')
   assert.equals(results[0].state.reading, 'か')
   assert.equals(ime.InCandidate(), false)
   assert.equals(ime.GetCandidates() is null_object, true)
@@ -299,12 +299,41 @@ suite.unhandled_input_is_returned_after_the_candidate_commit = (): void => {
   ime.Feed('a')
   const entries = merger.Merge([[parser.ParseLine('か /蚊/')]])
   ime.StartConversion(entries, user_state.State.new())
-  const results = ime.Feed('?')
+  const results = ime.Feed('<F11>')
   assert.equals(len(results), 2)
   assert.equals(results[0].text, '蚊')
   assert.equals(results[0].commit_preedit, true)
   assert.equals(results[1].text, '')
-  assert.equals(results[1].unhandled[0].key, '?')
+  assert.equals(results[1].unhandled[0].key, '<F11>')
+  assert.equals(results[1].state.in_preedit, false)
+}
+
+suite.pending_literal_input_is_included_before_dictionary_lookup = (): void => {
+  const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}))
+  for key in ['K', 'a', 'k']
+    ime.Feed(key)
+  endfor
+  const entries = merger.Merge([[parser.ParseLine('か /蚊/')]])
+  const results = ime.StartConversion(entries, user_state.State.new())
+  assert.equals(len(results), 2)
+  assert.equals(results[0].state.reading, 'かk')
+  assert.equals(results[1].registration_requested, true)
+  assert.equals(ime.GetCandidates().query.reading, 'かk')
+  assert.equals(ime.InCandidate(), false)
+}
+
+suite.literal_input_is_returned_after_the_candidate_commit = (): void => {
+  const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}))
+  ime.Feed('K')
+  ime.Feed('a')
+  const entries = merger.Merge([[parser.ParseLine('か /蚊/')]])
+  ime.StartConversion(entries, user_state.State.new())
+  const results = ime.Feed('?')
+  assert.equals(len(results), 2)
+  assert.equals(results[0].text, '蚊')
+  assert.equals(results[0].commit_preedit, true)
+  assert.equals(results[1].text, '?')
+  assert.equals(results[1].unhandled, [])
   assert.equals(results[1].state.in_preedit, false)
 }
 

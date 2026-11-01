@@ -117,6 +117,15 @@ export class Binding
     for key in keys(tokens)
       lhs[key] = Lhs(key)
     endfor
+    # Capture ordinary punctuation and letters too, so native insertion does
+    # not bypass an active Preedit. Explicit named aliases keep precedence.
+    for code in range(0x20, 0x7e)
+      const key = nr2char(code)
+      const physical = Lhs(key)
+      if !has_key(lhs, key) && index(values(lhs), physical) < 0
+        lhs[key] = physical
+      endif
+    endfor
     this._keys = lhs
   enddef
 
@@ -163,6 +172,7 @@ export class Binding
       endfor
       bindings[id] = this
       this._enabled = true
+      execute 'autocmd caskk_input InsertCharPre <buffer=' .. this._buffer .. '> BeforeCharacter(' .. this._buffer .. ')'
       execute 'autocmd caskk_input InsertLeave,BufLeave,WinLeave <buffer=' .. this._buffer .. '> Leave(' .. this._buffer .. ')'
       execute 'autocmd caskk_input BufWipeout <buffer=' .. this._buffer .. '> Forget(' .. this._buffer .. ')'
       if mode(1) =~# '^i'
@@ -280,6 +290,26 @@ def Dispatch(number: number, key: string)
   if has_key(bindings, string(number))
     bindings[string(number)].Dispatch(key)
   endif
+enddef
+
+# InsertCharPre is text-locked. Suppress native insertion and queue the same
+# semantic input before the remaining typeahead, without editing in the event.
+def BeforeCharacter(number: number)
+  if !has_key(bindings, string(number)) || char2nr(v:char) < 0x80
+    return
+  endif
+  const text = v:char
+  v:char = ''
+  var queued = ''
+  for key in split(text, '\zs')
+    queued ..= "\<Cmd>call caskk#binding#DispatchInput(" .. number .. ', ' .. string(key) .. ")\<CR>"
+  endfor
+  feedkeys(queued, 'in')
+enddef
+
+# Native queued commands need a fully qualified autoload entry point.
+export def DispatchInput(number: number, key: string)
+  Dispatch(number, key)
 enddef
 
 augroup caskk_input

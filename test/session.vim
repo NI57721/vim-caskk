@@ -90,7 +90,7 @@ suite.special_prefix_delays_normal_output = (): void => {
   assert.equals(ime.Pending(), [])
 }
 
-suite.failed_special_returns_normal_text_before_unhandled_input = (): void => {
+suite.failed_special_returns_normal_text_before_literal_input = (): void => {
   const compiled = scheme.Compile({k: 'k'}, {a: 'a'}, [
     scheme.SpecialDefinition.new(['k', 'a', 'b'], '特別'),
   ])
@@ -101,9 +101,8 @@ suite.failed_special_returns_normal_text_before_unhandled_input = (): void => {
   assert.equals(len(results), 2)
   assert.equals(results[0].text, 'か')
   assert.equals(results[0].unhandled, [])
-  assert.equals(results[1].text, '')
-  assert.equals(len(results[1].unhandled), 1)
-  assert.equals(results[1].unhandled[0].key, 'x')
+  assert.equals(results[1].text, 'x')
+  assert.equals(results[1].unhandled, [])
   assert.equals(results[1].state.in_preedit, false)
   assert.equals(ime.Pending(), [])
 }
@@ -177,16 +176,16 @@ suite.custom_sticky_key_and_unhandled_tokens_are_preserved = (): void => {
   assert.equals(results[0].state.reading, '')
 }
 
-suite.unhandled_input_does_not_change_preedit = (): void => {
+suite.unmapped_character_is_appended_to_preedit = (): void => {
   const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}))
   assert.equals(ime.Feed('K'), [])
   const initial = ime.Feed('a')
   assert.equals(initial[0].state.reading, 'か')
   const results = ime.Feed('!')
   assert.equals(len(results), 1)
-  assert.equals(results[0].unhandled[0].key, '!')
+  assert.equals(results[0].unhandled, [])
   assert.equals(results[0].state.in_preedit, true)
-  assert.equals(results[0].state.reading, 'か')
+  assert.equals(results[0].state.reading, 'か!')
   assert.equals(results[0].state.okuri, '')
 }
 
@@ -318,7 +317,7 @@ suite.commit_replays_incomplete_special_without_repeating_direct_output = (): vo
   assert.equals(ime.Commit(), [])
 }
 
-suite.commit_returns_unfinished_consonant_without_losing_modified_information = (): void => {
+suite.commit_appends_unfinished_modified_consonant_to_reading = (): void => {
   const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}))
   assert.equals(ime.Feed('K'), [])
   ime.Feed('a')
@@ -326,11 +325,10 @@ suite.commit_returns_unfinished_consonant_without_losing_modified_information = 
   const results = ime.Commit()
   assert.equals(len(results), 2)
   assert.equals(results[0].text, '')
-  assert.equals(results[0].unhandled[0].key, 'k')
-  assert.equals(results[0].unhandled[0].modified, true)
-  assert.equals(results[0].state.reading, 'か')
+  assert.equals(results[0].unhandled, [])
+  assert.equals(results[0].state.reading, 'かk')
   assert.equals(results[0].commit_preedit, false)
-  assert.equals(results[1].text, 'か')
+  assert.equals(results[1].text, 'かk')
   assert.equals(results[1].commit_preedit, true)
   assert.equals(ime.Pending(), [])
   assert.equals(ime.Feed('k'), [])

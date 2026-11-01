@@ -70,7 +70,7 @@ suite.candidate_commit_and_following_direct_text_are_not_inserted_twice = (): vo
   assert.equals(getbufline(number, 1, '$'), ['前蚊。後'])
   assert.equals(writer.InPreedit(), false)
   Apply(writer, ime.Feed('?'))
-  assert.equals(getbufline(number, 1, '$'), ['前蚊。後'])
+  assert.equals(getbufline(number, 1, '$'), ['前蚊。?後'])
 }
 
 suite.registration_replaces_the_reading_and_commits_the_replacement = (): void => {
