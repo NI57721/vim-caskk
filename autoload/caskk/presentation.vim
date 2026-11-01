@@ -2,6 +2,7 @@ vim9script
 
 import autoload 'caskk/buffer.vim' as buffer
 import autoload 'caskk/session.vim' as session
+import autoload 'caskk/config.vim' as configuration
 
 const PROPERTY_TYPE = 'caskk_preedit'
 
@@ -15,7 +16,7 @@ export class Highlighter
   def new(writer: buffer.Writer)
     this._writer = writer
     this._buffer = writer.GetBufferNumber()
-    highlight default CaskkPreedit term=underline cterm=underline gui=underline
+    configuration.ApplyHighlight()
     if empty(prop_type_get(PROPERTY_TYPE, {bufnr: this._buffer}))
       prop_type_add(PROPERTY_TYPE, {bufnr: this._buffer, highlight: 'CaskkPreedit', combine: true})
     endif

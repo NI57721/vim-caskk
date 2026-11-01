@@ -1,0 +1,46 @@
+*caskk.txt*  Japanese input method for Vim HEAD
+
+CONFIGURATION                                           *caskk-config*
+
+In Vim9 script: >vim9
+
+    import autoload 'caskk.vim' as Caskk
+
+    Caskk.Config({
+      highlight: {
+        preedit: {
+          term: 'underline',
+          cterm: 'underline',
+          gui: 'underline',
+        },
+      },
+    })
+<
+Currently only highlight.preedit is supported.  Input scheme definitions remain
+separate from ordinary configuration.
+
+Each Config() call builds a complete configuration from defaults and the supplied
+values.  Omitted term, cterm, and gui fields default to 'underline'.  Calling
+Config({}) restores the defaults.
+
+term, cterm, and gui accept comma-separated highlight attributes, such as
+'bold,underline'.  Use 'NONE' to disable attributes for that display mode.
+See |highlight-args| for the meaning of Vim highlight attributes.
+
+The following string fields are also supported:
+    ctermfg, ctermbg, ctermul, guifg, guibg, guisp, font, start, stop
+
+For example: >vim9
+
+    Caskk.Config({highlight: {preedit: {cterm: 'bold', guifg: '#123456'}}})
+<
+The plugin manages the CaskkPreedit highlight group for both preedit text and
+the virtual okuri boundary marker.  A separate user highlight definition is not
+required.  Configured attributes are reapplied after |ColorScheme| events and
+when presentation is initialized.  Use Config() as the source of these settings
+rather than separately redefining CaskkPreedit.
+
+Unknown settings, unknown attributes, and invalid colors cause an error.
+The previous configuration and highlight definition are retained on failure.
+
+vim:tw=78:ts=8:noet:ft=help:norl:
