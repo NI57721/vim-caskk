@@ -19,6 +19,8 @@ var errors: list<string> = []
 var positions: list<list<number>> = []
 var marker_counts: list<number> = []
 var unhandled: list<input.Event> = []
+var deletions: list<bool> = []
+var preedit_states: list<bool> = []
 
 def Handle(key: string)
   try
@@ -29,6 +31,7 @@ def Handle(key: string)
     endif
     if key ==# 'P'
       positions->add([line('.'), col('.')])
+      preedit_states->add(editor.GetSnapshot().in_preedit)
       var markers = 0
       for property in prop_list(1, {end_lnum: -1})
         if get(property, 'text', '') ==# '*'
@@ -36,6 +39,10 @@ def Handle(key: string)
         endif
       endfor
       marker_counts->add(markers)
+      return
+    endif
+    if key ==# '<BS>'
+      deletions->add(editor.BackspacePending())
       return
     endif
     var results: list<session.Result> = []
@@ -77,10 +84,13 @@ def Setup(): list<number>
   positions = []
   marker_counts = []
   unhandled = []
+  deletions = []
+  preedit_states = []
   for key in ['k', 'a', 'K', ';', 'Z', 'X', 'd', 'S', 'N', 'B', 'C', 'P', '?']
     execute 'inoremap <buffer> ' .. key .. " <ScriptCmd>Handle('" .. key .. "')<CR>"
   endfor
   inoremap <buffer> <F2> <ScriptCmd>Handle('attach')<CR>
+  inoremap <buffer> <BS> <ScriptCmd>Handle('<lt>BS>')<CR>
   inoremap <buffer> <F11> <ScriptCmd>Handle('<lt>F11>')<CR>
   inoremap <buffer> <Esc> <ScriptCmd>Handle('close')<CR><Esc>
   return [previous, number]
@@ -91,6 +101,36 @@ def Cleanup(context: list<number>)
   execute 'noautocmd keepalt hide buffer ' .. context[0]
   execute 'silent! bwipeout! ' .. context[1]
 enddef
+
+suite.backspace_preserves_modifier_and_cursor_until_replacement_input = (): void => {
+  for keys in ["K\<BS>", ";k\<BS>"]
+    const context = Setup()
+    try
+      feedkeys("a\<F2>" .. keys .. "PkaP\<Esc>", 'xt')
+      assert.equals(errors, [])
+      assert.equals(deletions, [true])
+      assert.equals(positions, [[1, 4], [1, 7]])
+      assert.equals(preedit_states, [false, true])
+      assert.equals(getline(1), '前か後')
+      assert.equals(editor.GetSnapshot().in_preedit, false)
+      normal! u
+      assert.equals(getline(1), '前後')
+    finally
+      Cleanup(context)
+    endtry
+  endfor
+}
+
+suite.backspace_reports_empty_pending_input_without_deleting_buffer_text = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  feedkeys("a\<F2>K\<BS>\<BS>\<BS>Pka\<Esc>", 'xt')
+  assert.equals(errors, [])
+  assert.equals(deletions, [true, true, false])
+  assert.equals(positions, [[1, 4]])
+  assert.equals(preedit_states, [false])
+  assert.equals(getline(1), '前か後')
+}
 
 suite.direct_input_updates_the_real_insert_cursor_between_multibyte_characters = (): void => {
   const context = Setup()

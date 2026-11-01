@@ -25,6 +25,53 @@ def Cleanup(context: list<number>)
   execute 'silent! bwipeout! ' .. context[1]
 enddef
 
+suite.backspace_deletes_pending_key_then_modifier_then_native_text = (): void => {
+  for prefix in ['K', ';k']
+    const context = Setup()
+    try
+      const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), ';')
+      keys.Enable()
+      feedkeys("afoo" .. prefix .. "\<BS>\<BS>\<BS>\<Esc>", 'xt')
+      assert.equals(getline(1), '前fo後')
+      assert.equals(keys.GetEditor() is null_object, true)
+      keys.Disable()
+    finally
+      Cleanup(context)
+    endtry
+  endfor
+}
+
+suite.backspace_without_pending_input_uses_native_multibyte_deletion = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}))
+  keys.Enable()
+  feedkeys("aka\<BS>ka\<Esc>", 'xt')
+  assert.equals(getline(1), '前か後')
+  keys.Disable()
+}
+
+suite.backspace_preserves_restored_modifier_for_following_input = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const entries = merger.Merge([[parser.ParseLine('か /蚊/')]])
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), ';', entries, null_object, {s: 'StartConversion'})
+  keys.Enable()
+  feedkeys("afooK\<BS>kas\<Esc>", 'xt')
+  assert.equals(getline(1), '前foo蚊後')
+  keys.Disable()
+}
+
+suite.explicit_backspace_special_precedes_default_deletion = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const keys = binding.Binding.new(scheme.Compile({}, {}, [scheme.SpecialDefinition.new(['<BS>'], '戻')]))
+  keys.Enable()
+  feedkeys("afoo\<BS>\<Esc>", 'xt')
+  assert.equals(getline(1), '前foo戻後')
+  keys.Disable()
+}
+
 suite.enable_installs_keys_and_actions_and_insertleave_closes_preedit = (): void => {
   const context = Setup()
   defer Cleanup(context)

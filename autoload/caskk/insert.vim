@@ -91,6 +91,11 @@ export class Editor
     return this._Apply(this._session.StartConversion(this._entries, this._preferences))
   enddef
 
+  def BackspacePending(): bool
+    this._CheckInput()
+    return this._session.BackspacePending()
+  enddef
+
   def NextCandidate(): session.Result
     this._CheckInput()
     return this._Apply([this._session.NextCandidate()])[0]

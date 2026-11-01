@@ -8,7 +8,7 @@ import autoload 'caskk/input/keycode.vim' as keycode
 import 'caskk/dictionary.vim' as dictionary
 
 const ACTIONS = ['StartConversion', 'NextCandidate', 'PreviousCandidate', 'Commit']
-const NATIVE_KEYS = ['<Left>', '<Right>', '<Up>', '<Down>', '<Home>', '<End>', '<CR>']
+const NATIVE_KEYS = ['<Left>', '<Right>', '<Up>', '<Down>', '<Home>', '<End>', '<CR>', '<BS>']
 
 def Lhs(token: string): string
   if token == ' '
@@ -245,6 +245,10 @@ export class Binding
   def Dispatch(key: string)
     this._CheckTarget()
     if has_key(this._native, key)
+      if key ==# '<BS>' && this._editor isnot null_object && this._editor.BackspacePending()
+        this._last = []
+        return
+      endif
       # End the IME transaction before native motion or editing. Replay ahead
       # of later input without remapping back into this binding.
       this.Leave()
