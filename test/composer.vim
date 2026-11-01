@@ -8,6 +8,50 @@ import autoload 'caskk/scheme.vim' as scheme
 final suite = themis#suite('input composition')
 const assert = themis#helper('assert')
 
+suite.backspace_removes_an_unfinished_modified_consonant_without_replaying_it = (): void => {
+  const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}))
+  engine.Feed(input.Event.new('k', true))
+  assert.equals(engine.Backspace(), true)
+  assert.equals(engine.Pending(), [])
+  const results = engine.Feed(input.Event.new('a'))
+  assert.equals(results[0].output is null_object, true)
+  assert.equals(results[0].events[0].key, 'a')
+}
+
+suite.backspace_keeps_the_remaining_special_prefix_pending = (): void => {
+  const compiled = scheme.Compile({}, {}, [
+    scheme.SpecialDefinition.new(['a'], '短'),
+    scheme.SpecialDefinition.new(['a', 'b', 'c'], '長'),
+  ])
+  const engine = composer.Composer.new(compiled)
+  engine.Feed(input.Event.new('a'))
+  engine.Feed(input.Event.new('b', true))
+  assert.equals(engine.Backspace(), true)
+  assert.equals(len(engine.Pending()), 1)
+  assert.equals(engine.Pending()[0].key, 'a')
+  assert.equals(engine.Feed(input.Event.new('b')), [])
+  const results = engine.Feed(input.Event.new('c'))
+  assert.equals(results[0].output.text, '長')
+  assert.equals(results[0].events[1].modified, false)
+}
+
+suite.backspace_removes_special_suffix_keys_before_an_older_consonant = (): void => {
+  const compiled = scheme.Compile({k: 'k'}, {a: 'a'}, [scheme.SpecialDefinition.new(['x', 'y', 'z'], '特')])
+  const engine = composer.Composer.new(compiled)
+  for key in ['k', 'x', 'y']
+    engine.Feed(input.Event.new(key))
+  endfor
+  assert.equals(engine.Backspace(), true)
+  assert.equals(len(engine.Pending()), 2)
+  assert.equals(engine.Pending()[0].key, 'k')
+  assert.equals(engine.Pending()[1].key, 'x')
+  assert.equals(engine.Backspace(), true)
+  assert.equals(engine.Pending()[0].key, 'k')
+  assert.equals(engine.Backspace(), true)
+  assert.equals(engine.Pending(), [])
+  assert.equals(engine.Backspace(), false)
+}
+
 suite.normal_combination_waits_for_second_key = (): void => {
   const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}))
   const first = input.Event.new('k')

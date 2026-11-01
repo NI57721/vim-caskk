@@ -6,6 +6,71 @@ import autoload 'caskk/scheme.vim' as scheme
 final suite = themis#suite('input session')
 const assert = themis#helper('assert')
 
+suite.deleting_a_modified_consonant_restores_modifier_waiting = (): void => {
+  const compiled = scheme.Compile({k: 'k'}, {a: 'a'}, [scheme.SpecialDefinition.new(['a'], 'あ')])
+  for keys in [['K'], [';', 'k']]
+    const ime = session.Session.new(compiled, ';')
+    for key in keys
+      ime.Feed(key)
+    endfor
+    assert.equals(ime.BackspacePending(), true)
+    assert.equals(ime.Pending(), [])
+    ime.Feed('a')
+    assert.equals(ime.GetSnapshot().in_preedit, true)
+    assert.equals(ime.GetSnapshot().reading, 'あ')
+  endfor
+}
+
+suite.deleting_restored_modifier_returns_to_direct_input = (): void => {
+  const compiled = scheme.Compile({k: 'k'}, {}, [scheme.SpecialDefinition.new(['a'], 'あ')])
+  const ime = session.Session.new(compiled, ';')
+  ime.Feed('K')
+  assert.equals(ime.BackspacePending(), true)
+  assert.equals(ime.BackspacePending(), true)
+  assert.equals(ime.BackspacePending(), false)
+  const results = ime.Feed('a')
+  assert.equals(results[0].text, 'あ')
+  assert.equals(ime.GetSnapshot().in_preedit, false)
+}
+
+suite.deleting_an_unmodified_key_does_not_restore_modifier_waiting = (): void => {
+  const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}), ';')
+  ime.Feed('k')
+  assert.equals(ime.BackspacePending(), true)
+  assert.equals(ime.BackspacePending(), false)
+  ime.Feed('k')
+  const results = ime.Feed('a')
+  assert.equals(results[0].text, 'か')
+  assert.equals(ime.GetSnapshot().in_preedit, false)
+}
+
+suite.pending_sticky_is_deleted_before_special_prefix_and_modified_prefix_can_be_reentered = (): void => {
+  const compiled = scheme.Compile({}, {}, [scheme.SpecialDefinition.new(['x', 'y'], 'あ')])
+  const ime = session.Session.new(compiled, ';')
+  ime.Feed('x')
+  ime.Feed(';')
+  assert.equals(ime.BackspacePending(), true)
+  assert.equals(ime.Pending()[0].key, 'x')
+  assert.equals(ime.BackspacePending(), true)
+  assert.equals(ime.BackspacePending(), false)
+  ime.Feed('X')
+  assert.equals(ime.BackspacePending(), true)
+  ime.Feed('x')
+  ime.Feed('y')
+  assert.equals(ime.GetSnapshot().reading, 'あ')
+  assert.equals(ime.GetSnapshot().in_preedit, true)
+}
+
+suite.commit_clears_modifier_restored_by_pending_deletion = (): void => {
+  const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}), ';')
+  ime.Feed('K')
+  ime.BackspacePending()
+  assert.equals(ime.Commit(), [])
+  ime.Feed('k')
+  assert.equals(ime.Feed('a')[0].text, 'か')
+  assert.equals(ime.GetSnapshot().in_preedit, false)
+}
+
 suite.redundant_sticky_and_uppercase_input_produce_the_same_preedit = (): void => {
   for keys in ['Ka', ';Ka', 'K;a', ';;;;;ka']
     const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}), ';')

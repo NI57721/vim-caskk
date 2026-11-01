@@ -8,6 +8,23 @@ import autoload 'caskk/scheme/output_pattern.vim' as output_pattern
 final suite = themis#suite('input normalization')
 const assert = themis#helper('assert')
 
+suite.backspace_cancels_a_pending_sticky_modifier = (): void => {
+  const normalizer = normalize.Normalizer.new(';')
+  normalizer.Feed(';')
+  normalizer.Feed(';')
+  assert.equals(normalizer.Backspace(), true)
+  assert.equals(normalizer.Feed('k')[0].modified, false)
+}
+
+suite.backspace_without_a_pending_modifier_does_not_consume_future_input = (): void => {
+  const normalizer = normalize.Normalizer.new(';')
+  assert.equals(normalizer.Backspace(), false)
+  normalizer.Feed(';')
+  normalizer.Feed('k')
+  assert.equals(normalizer.Backspace(), false)
+  assert.equals(normalizer.Feed('a')[0].modified, false)
+}
+
 suite.ascii_uppercase_becomes_modified_lowercase = (): void => {
   const normalizer = normalize.Normalizer.new()
   for code in range(char2nr('A'), char2nr('Z'))

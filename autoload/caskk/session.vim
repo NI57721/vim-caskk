@@ -109,6 +109,22 @@ export class Session
     return results
   enddef
 
+  # Delete only unfinished input; reading and candidate editing are separate.
+  def BackspacePending(): bool
+    if this._normalizer.Backspace()
+      return true
+    endif
+    const pending = this._composer.Pending()
+    if empty(pending)
+      return false
+    endif
+    this._composer.Backspace()
+    if pending[-1].modified
+      this._normalizer.RestoreModifier()
+    endif
+    return true
+  enddef
+
   def Commit(): list<Result>
     this._reading_after_cancel = false
     if this.InCandidate()

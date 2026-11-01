@@ -105,6 +105,19 @@ export class Composer
     return results
   enddef
 
+  # Remove the newest pending key without resolving or replaying it.
+  def Backspace(): bool
+    if !empty(this._special_pending)
+      remove(this._special_pending, -1)
+      return true
+    endif
+    if this._consonant isnot null_object
+      this._consonant = null_object
+      return true
+    endif
+    return false
+  enddef
+
   def Pending(): list<input.Event>
     if this._consonant isnot null_object
       return [this._consonant] + this._special_pending

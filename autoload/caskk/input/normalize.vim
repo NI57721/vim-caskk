@@ -23,6 +23,16 @@ export class Normalizer
     return [event]
   enddef
 
+  def Backspace(): bool
+    const pending = this._modified
+    this._modified = false
+    return pending
+  enddef
+
+  def RestoreModifier()
+    this._modified = true
+  enddef
+
   # Clear unfinished sticky input when the input session ends or is cancelled.
   def Reset()
     this._modified = false
