@@ -72,6 +72,98 @@ suite.explicit_backspace_special_precedes_default_deletion = (): void => {
   keys.Disable()
 }
 
+suite.backspace_commits_reading_and_following_input_starts_in_direct_mode = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const entries = merger.Merge([[parser.ParseLine('かか /科科/')]])
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries, null_object, {s: 'StartConversion'})
+  keys.Enable()
+  feedkeys("aKaka\<BS>kas\<Esc>", 'xt')
+  assert.equals(getline(1), '前かか後')
+  assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
+  assert.equals(keys.GetEditor() is null_object, true)
+  keys.Disable()
+}
+
+suite.backspace_commits_okuri_candidate_and_learns_its_body_before_native_deletion = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const entries = merger.Merge([[parser.ParseLine('いk /行/')]])
+  const preferences = user_state.State.new()
+  const compiled = scheme.Compile({k: 'k'}, {a: 'a', u: 'u'}, [scheme.SpecialDefinition.new(['i'], 'い')])
+  const keys = binding.Binding.new(compiled, '', entries, preferences)
+  keys.Enable()
+  feedkeys("aIKu\<BS>ka\<Esc>", 'xt')
+  assert.equals(getline(1), '前行か後')
+  assert.equals(preferences.GetSnapshot().mru[json_encode(['い', 'く'])], ['行'])
+  assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
+  assert.equals(keys.GetEditor() is null_object, true)
+  keys.Disable()
+}
+
+suite.backspace_bypasses_existing_remap_while_enabled_and_restores_it_on_disable = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  inoremap <buffer> <silent> <nowait> <BS> 旧
+  const before = maparg('<BS>', 'i', false, true)
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), ';')
+  keys.Enable()
+  feedkeys("afooK\<BS>\<BS>\<BS>\<Esc>", 'xt')
+  assert.equals(getline(1), '前fo後')
+  keys.Disable()
+  const restored = maparg('<BS>', 'i', false, true)
+  assert.equals(restored.rhs, before.rhs)
+  assert.equals(restored.silent, before.silent)
+  assert.equals(restored.nowait, before.nowait)
+  feedkeys("a\<BS>\<Esc>", 'xt')
+  assert.equals(getline(1), '前fo旧後')
+}
+
+suite.backspace_handoff_keeps_native_deletion_and_direct_input_as_separate_undo_units = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), ';')
+  keys.Enable()
+  feedkeys("afooK\<BS>\<BS>\<BS>ka\<Esc>", 'xt')
+  assert.equals(getline(1), '前foか後')
+  for expected in ['前fo後', '前foo後', '前後']
+    normal! u
+    assert.equals(getline(1), expected)
+    assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
+    assert.equals(keys.GetEditor() is null_object, true)
+  endfor
+  for expected in ['前foo後', '前fo後', '前foか後']
+    execute "normal! \<C-r>"
+    assert.equals(getline(1), expected)
+  endfor
+  keys.Disable()
+}
+
+suite.backspace_candidate_handoff_preserves_reading_checkpoint_through_undo_and_redo = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const entries = merger.Merge([[parser.ParseLine('いk /行/')]])
+  const preferences = user_state.State.new()
+  const compiled = scheme.Compile({k: 'k'}, {a: 'a', u: 'u'}, [scheme.SpecialDefinition.new(['i'], 'い')])
+  const keys = binding.Binding.new(compiled, '', entries, preferences)
+  keys.Enable()
+  feedkeys("aIKu\<BS>ka\<Esc>", 'xt')
+  assert.equals(getline(1), '前行か後')
+  for expected in ['前行後', '前行く後', '前いく後', '前後']
+    normal! u
+    assert.equals(getline(1), expected)
+    assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
+    assert.equals(keys.GetEditor() is null_object, true)
+  endfor
+  for expected in ['前いく後', '前行く後', '前行後', '前行か後']
+    execute "normal! \<C-r>"
+    assert.equals(getline(1), expected)
+    assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
+  endfor
+  assert.equals(preferences.GetSnapshot().mru[json_encode(['い', 'く'])], ['行'])
+  keys.Disable()
+}
+
 suite.enable_installs_keys_and_actions_and_insertleave_closes_preedit = (): void => {
   const context = Setup()
   defer Cleanup(context)
