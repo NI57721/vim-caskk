@@ -7,6 +7,7 @@ import autoload 'caskk/user_state.vim' as user_state
 import autoload 'caskk/input/keycode.vim' as keycode
 import autoload 'caskk/input/mapping.vim' as mapping
 import 'caskk/dictionary.vim' as dictionary
+import 'caskk/registration.vim' as registration
 
 const NATIVE_KEYS = ['<Left>', '<Right>', '<Up>', '<Down>', '<Home>', '<End>', '<CR>', '<BS>']
 
@@ -274,9 +275,58 @@ export class Binding
   def GetLastResults(): list<session.Result>
     return copy(this._last)
   enddef
+
+  def GetRegistrationRequest(): registration.Request
+    if this._editor is null_object
+      return null_object
+    endif
+    const request = this._editor.GetRegistrationRequest()
+    if request is null_object
+      return null_object
+    endif
+    return registration.Request.new(request.query.reading, request.okuri,
+      request.query.exact_okuri, request.query.lookup_key)
+  enddef
+
+  def CompleteRegistration(text: string, annotations: list<string> = [])
+    this._CheckTarget()
+    if this._editor is null_object
+      throw 'caskk: no current dictionary registration request'
+    endif
+    this._Record([this._editor.Register(dictionary.Candidate.new(text, annotations))])
+  enddef
+
+  def CancelRegistration()
+    this._CheckTarget()
+    if this._editor is null_object
+      throw 'caskk: no current dictionary registration request'
+    endif
+    this._Record([this._editor.CancelRegistration()])
+  enddef
 endclass
 
 var bindings: dict<Binding> = {}
+
+def RequireCurrentBinding(): Binding
+  const id = string(bufnr('%'))
+  if !has_key(bindings, id)
+    throw 'caskk: no current dictionary registration request'
+  endif
+  return bindings[id]
+enddef
+
+export def GetRegistrationRequest(): registration.Request
+  const id = string(bufnr('%'))
+  return has_key(bindings, id) ? bindings[id].GetRegistrationRequest() : null_object
+enddef
+
+export def CompleteRegistration(text: string, annotations: list<string> = [])
+  RequireCurrentBinding().CompleteRegistration(text, annotations)
+enddef
+
+export def CancelRegistration()
+  RequireCurrentBinding().CancelRegistration()
+enddef
 
 export def Enable(compiled: scheme.CompiledScheme, sticky_key: string = '', actions: dict<string> = {},
     entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object)

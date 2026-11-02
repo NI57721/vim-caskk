@@ -64,6 +64,45 @@ wipeout, and Config() do not discard the shared state.  System dictionaries
 remain read-only.  Use LoadState() and SaveState() explicitly to restore and save
 this shared state across Vim sessions.
 
+DICTIONARY REGISTRATION                                 *caskk-registration*
+                                                        *caskk-registration-request*
+                                                        *caskk-complete-registration*
+                                                        *caskk-cancel-registration*
+
+The public API provides integration points for a registration UI:
+
+    Caskk.GetRegistrationRequest()
+    Caskk.CompleteRegistration(text [, annotations])
+    Caskk.CancelRegistration()
+
+GetRegistrationRequest() returns a typed request for the current buffer when
+conversion has no candidates or candidate selection is exhausted.  It returns
+null_object otherwise, including when the buffer is disabled or the request
+has been completed or cancelled.  The request contains copied string fields:
+
+    reading       The reading without okuri.
+    okuri         The complete display suffix, such as 'くらい'.
+    exact_okuri   The first okuri character, such as 'く', or ''.
+    lookup_key    The system dictionary key, such as 'いk'.
+
+CompleteRegistration(text, annotations) accepts a nonempty candidate body and
+an optional list of annotation strings.  Do not include display okuri in text.
+The entry is registered and learned for reading plus exact_okuri, and the buffer
+preedit is replaced and committed with the complete okuri appended.  For example,
+registering '行' for reading 'い' and okuri 'くらい' commits '行くらい' and stores
+only '行' under reading 'い' and exact okuri 'く'.  SaveState() can persist it.
+
+CancelRegistration() clears the request and retains the original reading and
+okuri as preedit without registering or learning a candidate.  Both completion
+and cancellation require the original buffer to be current in Insert mode with
+the tracked cursor position.  Invoke them from Insert-mode callbacks, such as
+<ScriptCmd> mappings; leaving Insert mode finishes the pending input session.
+Missing requests are errors.  Empty candidate text is rejected while keeping
+the request available for retry.
+
+These functions do not open a window or collect registration text.  An automatic
+interactive registration screen is not connected yet.
+
 USER STATE                                              *caskk-load-state*
                                                         *caskk-save-state*
 

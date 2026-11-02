@@ -5,6 +5,7 @@ import autoload 'caskk/scheme.vim' as scheme
 import autoload 'caskk/scheme/registry.vim' as registry
 import autoload 'caskk/binding.vim' as binding
 import autoload 'caskk/user_state/runtime.vim' as user_runtime
+import 'caskk/registration.vim' as registration
 
 const schemes = registry.Registry.new()
 
@@ -41,6 +42,18 @@ enddef
 
 export def IsEnabled(): bool
   return binding.IsEnabled()
+enddef
+
+export def GetRegistrationRequest(): registration.Request
+  return binding.GetRegistrationRequest()
+enddef
+
+export def CompleteRegistration(text: string, annotations: list<string> = [])
+  binding.CompleteRegistration(text, annotations)
+enddef
+
+export def CancelRegistration()
+  binding.CancelRegistration()
 enddef
 
 export def LoadState()
