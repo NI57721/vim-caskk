@@ -23,6 +23,7 @@ export class Editor
   const _undo: undo.Manager
   const _view: presentation.Highlighter
   var _closed: bool = false
+  var _registration_suspended: bool = false
 
   def new(compiled: scheme.CompiledScheme, sticky_key: string = '',
       entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
@@ -49,9 +50,12 @@ export class Editor
     endif
   enddef
 
-  def _CheckInput()
+  def _CheckInput(allow_suspended: bool = false)
     if this._closed
       throw 'caskk: Insert-mode editor is closed'
+    endif
+    if this._registration_suspended && !allow_suspended
+      throw 'caskk: input is suspended for dictionary registration'
     endif
     this._CheckTarget()
     if mode(1) !~# '^i'
@@ -113,6 +117,26 @@ export class Editor
     return this._Apply([this._session.Register(candidate)])[0]
   enddef
 
+  def SuspendRegistration()
+    this._CheckInput()
+    if this.GetRegistrationRequest() is null_object
+      throw 'caskk: no current dictionary registration request'
+    endif
+    this._registration_suspended = true
+  enddef
+
+  def ResumeRegistration()
+    if !this._registration_suspended
+      throw 'caskk: dictionary registration is not suspended'
+    endif
+    this._CheckInput(true)
+    this._registration_suspended = false
+  enddef
+
+  def IsRegistrationSuspended(): bool
+    return this._registration_suspended
+  enddef
+
   def CancelRegistration(): session.Result
     this._CheckInput()
     return this._Apply([this._session.CancelRegistration()])[0]
@@ -144,6 +168,7 @@ export class Editor
     const results = this._Apply(this._session.Commit())
     this._view.Clear()
     this._undo.Close()
+    this._registration_suspended = false
     this._closed = true
     return results
   enddef

@@ -190,7 +190,7 @@ export class Binding
     endif
     this._CheckTarget()
     try
-      this.Leave()
+      this.Leave(true)
     finally
       execute 'autocmd! caskk_input * <buffer=' .. this._buffer .. '>'
       this._Restore()
@@ -210,11 +210,17 @@ export class Binding
 
   def Enter()
     this._CheckTarget()
+    if this._editor isnot null_object && this._editor.IsRegistrationSuspended()
+      throw 'caskk: input is suspended for dictionary registration'
+    endif
     this._editor = insert.Editor.new(this._compiled, this._sticky, this._entries, this._preferences)
   enddef
 
-  def Leave()
+  def Leave(force: bool = false)
     if this._editor is null_object
+      return
+    endif
+    if !force && this._editor.IsRegistrationSuspended()
       return
     endif
     try
@@ -226,6 +232,9 @@ export class Binding
 
   def Dispatch(key: string)
     this._CheckTarget()
+    if this._editor isnot null_object && this._editor.IsRegistrationSuspended()
+      throw 'caskk: input is suspended for dictionary registration'
+    endif
     if has_key(this._native, key)
       if key ==# '<BS>' && this._editor isnot null_object && this._editor.BackspacePending()
         this._last = []
@@ -294,6 +303,22 @@ export class Binding
       throw 'caskk: no current dictionary registration request'
     endif
     this._Record([this._editor.Register(dictionary.Candidate.new(text, annotations))])
+  enddef
+
+  def SuspendRegistration()
+    this._CheckTarget()
+    if this._editor is null_object
+      throw 'caskk: no current dictionary registration request'
+    endif
+    this._editor.SuspendRegistration()
+  enddef
+
+  def ResumeRegistration()
+    this._CheckTarget()
+    if this._editor is null_object
+      throw 'caskk: no suspended dictionary registration'
+    endif
+    this._editor.ResumeRegistration()
   enddef
 
   def CancelRegistration()
