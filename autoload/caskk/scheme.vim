@@ -29,7 +29,11 @@ export def Compile(consonants: dict<string>, combinations: dict<string>,
     specials: list<SpecialDefinition> = []): CompiledScheme
   final patterns: dict<pattern_types.OutputPattern> = {}
   for [key, pattern] in items(combinations)
-    patterns[key] = output_pattern.Parse(pattern)
+    const parsed = output_pattern.Parse(pattern)
+    if parsed.boundary == 0
+      throw 'caskk: combination output cannot start with latent okuri boundary'
+    endif
+    patterns[key] = parsed
   endfor
 
   final rules: list<special.Rule> = []

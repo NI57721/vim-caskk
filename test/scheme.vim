@@ -84,6 +84,16 @@ suite.invalid_pattern_is_rejected_at_compile_time = (): void => {
   assert.equals(caught, 'caskk: output pattern contains multiple latent okuri boundaries')
 }
 
+suite.combination_cannot_start_with_okuri_boundary = (): void => {
+  var caught = ''
+  try
+    scheme.Compile({k: 'k'}, {q: '*a'})
+  catch
+    caught = v:exception
+  endtry
+  assert.equals(caught, 'caskk: combination output cannot start with latent okuri boundary')
+}
+
 suite.unknown_keys_are_rejected = (): void => {
   const table = scheme.Compile({k: 'k'}, {a: 'a'}).table
   var caught = ''
