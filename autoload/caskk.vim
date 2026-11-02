@@ -24,7 +24,8 @@ export def Enable(name: string)
     return
   endif
   const input = configuration.GetInput()
-  binding.Enable(compiled, input.sticky_key, input.mappings, input.entries, user_runtime.Get())
+  binding.Enable(compiled, input.sticky_key, input.mappings, input.entries, user_runtime.Get(),
+    configuration.GetRegistrationAuto())
   try
     if configuration.GetStateAuto()
       user_runtime.InitializeAutomatic(configuration.GetStatePath())

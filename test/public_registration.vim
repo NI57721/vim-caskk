@@ -67,7 +67,7 @@ def Setup(lines: list<string> = []): Fixture
   Caskk.RegisterInputScheme('public-registration', {k: 'k'}, {a: 'a'}, [
     scheme.SpecialDefinition.new(['z', 'x'], 'い*くらい'),
   ])
-  Caskk.Config({state_path: directory .. '/state.jsonl', dictionaries: [directory .. '/system'],
+  Caskk.Config({registration_auto: false, state_path: directory .. '/state.jsonl', dictionaries: [directory .. '/system'],
     mappings: {s: 'StartConversion', n: 'NextCandidate'}})
   Caskk.Enable('public-registration')
   inoremap <buffer> <F3> <ScriptCmd>Handle('complete')<CR>

@@ -96,7 +96,8 @@ def Setup(): Fixture
   mkdir(directory)
   const snapshot = user_runtime.Get().GetSnapshot()
   user_runtime.Get().Restore(user_state.State.new().GetSnapshot())
-  Caskk.Config({state_path: directory .. '/state.jsonl', mappings: {s: 'StartConversion', n: 'NextCandidate'}})
+  Caskk.Config({registration_auto: false, state_path: directory .. '/state.jsonl',
+    mappings: {s: 'StartConversion', n: 'NextCandidate'}})
   Caskk.RegisterInputScheme('registration-window', {k: 'k'}, {a: 'a'}, [
     scheme.SpecialDefinition.new(['d'], '漢字'),
     scheme.SpecialDefinition.new(['z', 'x'], 'い*くらい'),
@@ -298,7 +299,7 @@ suite.cancelling_does_not_commit_an_unconfirmed_candidate_inside_registration = 
   const path = fixture.directory .. '/system'
   writefile(['か /蚊/科/'], path)
   Caskk.Disable()
-  Caskk.Config({dictionaries: [path], mappings: {s: 'StartConversion'}})
+  Caskk.Config({registration_auto: false, dictionaries: [path], mappings: {s: 'StartConversion'}})
   Caskk.Enable('registration-window')
   const before = codec.Encode(user_runtime.Get().GetSnapshot())
   feedkeys("aZX\<F3>\<BS>Kas\<F4>\<Esc>ka\<Esc>", 'xt')
@@ -314,7 +315,7 @@ suite.completing_with_an_inner_conversion_learns_and_registers_the_confirmed_bod
   const path = fixture.directory .. '/system'
   writefile(['か /蚊/科/'], path)
   Caskk.Disable()
-  Caskk.Config({dictionaries: [path], mappings: {s: 'StartConversion'}})
+  Caskk.Config({registration_auto: false, dictionaries: [path], mappings: {s: 'StartConversion'}})
   Caskk.Enable('registration-window')
   feedkeys("aZX\<F3>\<BS>Kas\<CR>\<Esc>", 'xt')
   assert.equals(errors, [])
@@ -330,7 +331,7 @@ suite.configured_open_action_starts_the_window_and_honors_prefill_setting = (): 
   defer Cleanup(fixture)
   const windows = winnr('$')
   Caskk.Disable()
-  Caskk.Config({registration_prefill: false,
+  Caskk.Config({registration_auto: false, registration_prefill: false,
     mappings: {s: 'StartConversion', '<F3>': 'OpenRegistration'}})
   Caskk.Enable('registration-window')
   feedkeys("aKas\<F3>d\<CR>\<Esc>", 'xt')
