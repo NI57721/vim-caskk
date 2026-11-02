@@ -153,6 +153,10 @@ export class Session
     return this._selection isnot null_object && this._selection.IsActive()
   enddef
 
+  def GetCandidateInfo(): conversion.CandidateInfo
+    return this.InCandidate() ? this._selection.GetInfo() : null_object
+  enddef
+
   # A missing dictionary key leaves an empty set here for registration UI.
   # Otherwise no prepared request is represented by null_object.
   def GetCandidates(): conversion.Candidates

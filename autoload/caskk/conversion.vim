@@ -22,6 +22,18 @@ export class Candidates
   enddef
 endclass
 
+# Presentation data only. Index is zero-based; text includes display okuri.
+export class CandidateInfo
+  const index: number
+  const count: number
+  const text: string
+  const annotations: list<string>
+
+  def new(this.index, this.count, this.text, annotations: list<string>)
+    this.annotations = copy(annotations)
+  enddef
+endclass
+
 # One selection lifecycle. Buffer changes and returning to Preedit are handled
 # by the caller; Cancel returns the original reading text to display there.
 export class Selection
@@ -51,6 +63,12 @@ export class Selection
   def CurrentText(): string
     this._CheckActive()
     return this._prepared.TextAt(this._index)
+  enddef
+
+  def GetInfo(): CandidateInfo
+    this._CheckActive()
+    return CandidateInfo.new(this._index, len(this._prepared.candidates),
+      this._prepared.TextAt(this._index), this._prepared.candidates[this._index].annotations)
   enddef
 
   def Select(index: number): string

@@ -40,9 +40,10 @@ class Settings
   const state_auto: bool
   const registration_prefill: bool
   const registration_auto: bool
+  const candidate_popup: bool
 
   def new(this.highlight, this.input, this.state_path, this.state_auto, this.registration_prefill,
-      this.registration_auto)
+      this.registration_auto, this.candidate_popup)
   enddef
 endclass
 
@@ -179,7 +180,7 @@ enddef
 def Parse(options: dict<any>): Settings
   for section in keys(options)
     if index(['highlight', 'sticky_key', 'mappings', 'dictionaries', 'state_path', 'state_auto',
-        'registration_prefill', 'registration_auto'], section) < 0
+        'registration_prefill', 'registration_auto', 'candidate_popup'], section) < 0
       throw 'unknown section: ' .. section
     endif
   endfor
@@ -205,11 +206,15 @@ def Parse(options: dict<any>): Settings
     throw 'registration_auto must be a bool'
   endif
   const registration_auto: bool = get(options, 'registration_auto', true)
+  if type(get(options, 'candidate_popup', true)) != v:t_bool
+    throw 'candidate_popup must be a bool'
+  endif
+  const candidate_popup: bool = get(options, 'candidate_popup', true)
   const sources = ReadDictionaries(get(options, 'dictionaries', []))
   const entries = loader.Load(sources)
   const destination = state_path == '' ? '' : fnamemodify(state_path, ':p')
   return Settings.new(highlight, Input.new(sticky_key, actions, entries), destination, state_auto,
-    registration_prefill, registration_auto)
+    registration_prefill, registration_auto, candidate_popup)
 enddef
 
 var current = Parse({})
@@ -253,6 +258,10 @@ enddef
 
 export def GetRegistrationAuto(): bool
   return current.registration_auto
+enddef
+
+export def GetCandidatePopup(): bool
+  return current.candidate_popup
 enddef
 
 export def Configure(options: dict<any>)

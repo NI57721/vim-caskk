@@ -24,6 +24,7 @@ export class Highlighter
 
   def Clear()
     if this._range isnot null_object && bufloaded(this._buffer)
+        && !empty(prop_type_get(PROPERTY_TYPE, {bufnr: this._buffer}))
       prop_remove({bufnr: this._buffer, type: PROPERTY_TYPE, all: true},
         this._range.start.line, this._range.finish.line)
     endif

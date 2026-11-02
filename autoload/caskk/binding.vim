@@ -248,6 +248,7 @@ export class Binding
     try
       this._Record(this._editor.Close())
     finally
+      this._editor.Abandon()
       this._editor = null_object
     endtry
   enddef
@@ -293,6 +294,9 @@ export class Binding
     endif
     if this._enabled
       remove(bindings, string(this._buffer))
+    endif
+    if this._editor isnot null_object
+      this._editor.Abandon()
     endif
     this._editor = null_object
     this._ClearRegistrationReply()

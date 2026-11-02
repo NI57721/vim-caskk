@@ -10,6 +10,7 @@ import autoload 'caskk/buffer.vim' as buffer
 import autoload 'caskk/undo.vim' as undo
 import autoload 'caskk/presentation.vim' as presentation
 import autoload 'caskk/conversion.vim' as conversion
+import autoload 'caskk/presentation/candidate.vim' as candidate_view
 
 # One Insert-mode attachment. Mappings and native handling of unhandled events
 # belong to a later dispatch layer; original ordered results are returned here.
@@ -22,6 +23,7 @@ export class Editor
   const _writer: buffer.Writer
   const _undo: undo.Manager
   const _view: presentation.Highlighter
+  const _candidate_view: candidate_view.View
   var _closed: bool = false
   var _registration_suspended: bool = false
 
@@ -39,6 +41,7 @@ export class Editor
     this._writer = buffer.Writer.new(this._buffer, line('.'), col('.'))
     this._undo = undo.Manager.new(this._writer)
     this._view = presentation.Highlighter.new(this._writer)
+    this._candidate_view = candidate_view.View.new()
     if initial_reading != ''
       this._Apply([session.Result.new('', [], this._session.GetSnapshot())])
     endif
@@ -87,6 +90,7 @@ export class Editor
         cursor(position.line, byteidxcomp(text, charidx(text, byte, true)) + 1)
       endif
     endfor
+    this._candidate_view.Render(this._session.GetCandidateInfo())
     return results
   enddef
 
@@ -201,6 +205,7 @@ export class Editor
   # No buffer edits or implicit candidate commit are allowed here.
   def Abandon()
     this._view.Clear()
+    this._candidate_view.Close()
     this._registration_suspended = false
     this._closed = true
   enddef
