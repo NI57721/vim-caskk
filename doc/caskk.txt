@@ -254,7 +254,7 @@ In Vim9 script: >vim9
     })
 <
 Supported settings are sticky_key, mappings, dictionaries, state_path, state_auto,
-registration_prefill, registration_auto, and highlight.preedit.  Input scheme
+registration_prefill, registration_auto, candidate_popup, and highlight.preedit. Input scheme
 definitions remain separate from ordinary configuration.
 
 Each Config() call builds a complete configuration from defaults and the supplied
@@ -275,6 +275,15 @@ Input settings are copied when accepted.  Changing the original dictionary does
 not change the configuration.  Changes to sticky_key and mappings take effect
 on the next activation; use Disable() then Enable(name) to update an enabled
 buffer.  Highlight settings continue to apply to presentation independently.
+
+candidate_popup is a boolean that controls the small popup for the selected
+candidate.  It defaults to true.  The popup shows the candidate position,
+display text, and annotations without taking focus.  Existing candidate
+navigation mappings move between candidates.  It closes when candidate
+selection ends or the input session is cleaned up.  Changes take effect on the
+next presentation update.  The popup uses Vim's Pmenu highlight group and is
+limited to a small wrapped window.  It does not show the full candidate list
+or provide annotation editing.
 
 dictionaries is a list of read-only SKK dictionary sources in candidate priority
 order.  The default is an empty list.  Each source is either a nonempty path
