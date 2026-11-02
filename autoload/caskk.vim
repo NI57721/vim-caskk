@@ -31,6 +31,14 @@ export def IsEnabled(): bool
   return binding.IsEnabled()
 enddef
 
+export def LoadState()
+  user_runtime.Load(configuration.GetStatePath())
+enddef
+
+export def SaveState()
+  user_runtime.Save(configuration.GetStatePath())
+enddef
+
 # The heterogeneous user dictionary is validated at the configuration boundary.
 export def Config(options: dict<any>)
   configuration.Configure(options)

@@ -55,15 +55,55 @@ If mapping installation fails, previous mappings are restored and the buffer
 remains disabled so that activation can be retried.
 
 Enable() uses the current sticky_key, mappings, and loaded dictionaries from
-Config().  User-state loading/saving is not yet connected to the public lifecycle
-API.
+Config().
 
 Public activations share in-memory user state across buffers.  Committing a
 candidate learns its priority for the same reading and exact okuri, so subsequent
 conversions in other enabled buffers use that history too.  Disable(), buffer
 wipeout, and Config() do not discard the shared state.  System dictionaries
-remain read-only.  This state currently lasts for the Vim process only; saving
-and restoring it across Vim sessions is not yet connected to the public API.
+remain read-only.  Use LoadState() and SaveState() explicitly to restore and save
+this shared state across Vim sessions.
+
+USER STATE                                              *caskk-load-state*
+                                                        *caskk-save-state*
+
+Set the state_path configuration field, then load or save explicitly: >vim9
+
+    const state_path = '/path/to/existing-directory/caskk-state.jsonl'
+    Caskk.Config({
+      state_path: state_path,
+      sticky_key: ';',
+      mappings: {'<Space>': 'StartConversion', '<F10>': 'Commit'},
+    })
+    if filereadable(state_path)
+      Caskk.LoadState()
+    endif
+    Caskk.Enable('custom')
+    # Later, after committing the input to be learned:
+    Caskk.SaveState()
+<
+state_path is a string and defaults to ''.  LoadState() and SaveState() reject
+an empty path.  Paths are used literally, and the parent directory must already
+exist.  Config() only stores this path; it does not read or write the state file.
+Omitting state_path in a later Config() call resets the path to '', while leaving
+the in-memory user state intact.
+
+LoadState() fully decodes and validates the file before replacing the shared
+in-memory state.  It replaces rather than merges existing entries and history.
+Already enabled buffers use the restored state for subsequent conversions.
+A missing, malformed, or invalidly encoded file raises an error containing its
+path and leaves the current shared state unchanged.
+
+SaveState() writes the current user entries, annotations, MRU history, pinned
+candidates, and demoted candidates.  It saves a snapshot of committed learning
+without committing pending input or the currently displayed candidate.  The
+file uses the internal UTF-8 JSON Lines format, not SKK dictionary syntax.
+
+Saving uses a temporary file beside the destination and replaces the complete
+file after writing.  Saved files are readable and writable by their owner only.
+Failures preserve the in-memory state and remove temporary files.  Errors are
+reported to the caller; there is no automatic loading, autosave, or exit hook
+in this API yet.
 
 CONFIGURATION                                           *caskk-config*
 
@@ -83,8 +123,9 @@ In Vim9 script: >vim9
       },
     })
 <
-Supported settings are sticky_key, mappings, dictionaries, and highlight.preedit.
-Input scheme definitions remain separate from ordinary configuration.
+Supported settings are sticky_key, mappings, dictionaries, state_path, and
+highlight.preedit.  Input scheme definitions remain separate from ordinary
+configuration.
 
 Each Config() call builds a complete configuration from defaults and the supplied
 values.  Omitted term, cterm, and gui fields default to 'underline'.  Calling
