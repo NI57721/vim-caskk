@@ -67,6 +67,8 @@ export class Binding
   var _editor: insert.Editor = null_object
   var _last: list<session.Result> = []
   var _enabled: bool = false
+  var _registration_reply: dictionary.Candidate = null_object
+  var _registration_ticket: number = 0
 
   def new(compiled: scheme.CompiledScheme, sticky_key: string = '',
       entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
@@ -192,6 +194,7 @@ export class Binding
     try
       this.Leave(true)
     finally
+      this._ClearRegistrationReply()
       execute 'autocmd! caskk_input * <buffer=' .. this._buffer .. '>'
       this._Restore()
       remove(bindings, string(this._buffer))
@@ -268,6 +271,7 @@ export class Binding
       remove(bindings, string(this._buffer))
     endif
     this._editor = null_object
+    this._ClearRegistrationReply()
     this._installed = {}
     this._saved = {}
     this._enabled = false
@@ -321,6 +325,71 @@ export class Binding
     this._editor.ResumeRegistration()
   enddef
 
+  def _ClearRegistrationReply()
+    this._registration_reply = null_object
+    this._registration_ticket = 0
+  enddef
+
+  # A null candidate cancels registration. User text never enters the key queue.
+  def QueueRegistrationResult(candidate: dictionary.Candidate = null_object)
+    this._CheckTarget()
+    if this._registration_ticket != 0
+      throw 'caskk: registration result is already queued'
+    endif
+    if this._editor is null_object
+      throw 'caskk: no suspended dictionary registration'
+    endif
+    if candidate isnot null_object && candidate.text == ''
+      throw 'caskk: registered candidate text must not be empty'
+    endif
+    this._editor.PrepareRegistrationResume()
+    this._registration_reply = candidate is null_object ? null_object
+      : dictionary.Candidate.new(candidate.text, candidate.annotations)
+    next_registration_ticket += 1
+    this._registration_ticket = next_registration_ticket
+    feedkeys("\<Cmd>call caskk#binding#ResumeRegistrationResult(" .. this._buffer
+      .. ', ' .. this._registration_ticket .. ")\<CR>", 'in')
+  enddef
+
+  def ResumeQueuedRegistration(ticket: number)
+    if ticket == 0 || ticket != this._registration_ticket
+      return
+    endif
+    try
+      if this._editor is null_object
+        throw 'caskk: no suspended dictionary registration'
+      endif
+      const prefix = this._editor.PrepareRegistrationResume()
+      if prefix == ''
+        this.ApplyQueuedRegistration(ticket)
+      else
+        feedkeys(prefix .. "\<Cmd>call caskk#binding#ApplyRegistrationResult(" .. this._buffer
+          .. ', ' .. ticket .. ")\<CR>", 'in')
+      endif
+    catch
+      const reason = v:exception
+      this._ClearRegistrationReply()
+      throw reason
+    endtry
+  enddef
+
+  def ApplyQueuedRegistration(ticket: number)
+    if ticket == 0 || ticket != this._registration_ticket
+      return
+    endif
+    const candidate = this._registration_reply
+    try
+      this.ResumeRegistration()
+      if candidate is null_object
+        this.CancelRegistration()
+      else
+        this.CompleteRegistration(candidate.text, candidate.annotations)
+      endif
+    finally
+      this._ClearRegistrationReply()
+    endtry
+  enddef
+
   def CancelRegistration()
     this._CheckTarget()
     if this._editor is null_object
@@ -331,6 +400,20 @@ export class Binding
 endclass
 
 var bindings: dict<Binding> = {}
+var next_registration_ticket: number = 0
+
+# Queued commands carry only the target buffer and this reply's generation.
+export def ResumeRegistrationResult(number: number, ticket: number)
+  if has_key(bindings, string(number))
+    bindings[string(number)].ResumeQueuedRegistration(ticket)
+  endif
+enddef
+
+export def ApplyRegistrationResult(number: number, ticket: number)
+  if has_key(bindings, string(number))
+    bindings[string(number)].ApplyQueuedRegistration(ticket)
+  endif
+enddef
 
 def RequireCurrentBinding(): Binding
   const id = string(bufnr('%'))

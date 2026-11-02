@@ -133,6 +133,26 @@ export class Editor
     this._registration_suspended = false
   enddef
 
+  # Restore the insertion point before a queued UI reply enters Insert mode.
+  def PrepareRegistrationResume(): string
+    if !this._registration_suspended
+      throw 'caskk: dictionary registration is not suspended'
+    endif
+    this._CheckTarget()
+    this._undo.Check()
+    const insert_mode = mode(1) =~# '^i'
+    if !insert_mode && mode(1) !~# '^n'
+      throw 'caskk: registration return requires Normal or Insert mode'
+    endif
+    const position = this._writer.GetPosition()
+    cursor(position.line, position.column)
+    if insert_mode
+      return ''
+    endif
+    # Normal mode clamps a position past EOL onto the final character.
+    return position.column > strlen(getline(position.line)) ? 'a' : 'i'
+  enddef
+
   def IsRegistrationSuspended(): bool
     return this._registration_suspended
   enddef
