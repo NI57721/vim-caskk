@@ -5,27 +5,10 @@ import autoload 'caskk/insert.vim' as insert
 import autoload 'caskk/session.vim' as session
 import autoload 'caskk/user_state.vim' as user_state
 import autoload 'caskk/input/keycode.vim' as keycode
+import autoload 'caskk/input/mapping.vim' as mapping
 import 'caskk/dictionary.vim' as dictionary
 
-const ACTIONS = ['StartConversion', 'NextCandidate', 'PreviousCandidate', 'Commit']
 const NATIVE_KEYS = ['<Left>', '<Right>', '<Up>', '<Down>', '<Home>', '<End>', '<CR>', '<BS>']
-
-def Lhs(token: string): string
-  if token == ' '
-    return '<Space>'
-  elseif token == '|'
-    return '<Bar>'
-  elseif token == '\'
-    return '<Bslash>'
-  elseif token == '<'
-    return '<lt>'
-  elseif token =~# '^<[0-9A-Za-z_-]\+>$'
-    return keytrans(keycode.Encode(token))
-  elseif strchars(token) == 1 && char2nr(token) >= 0x21
-    return token
-  endif
-  throw 'caskk: unsupported mapping KeyToken: ' .. token
-enddef
 
 # Preserve raw keycodes and the defining script context in typed fields.
 class Mapping
@@ -111,27 +94,25 @@ export class Binding
       tokens[sticky_key] = true
     endif
     for [key, action] in items(actions)
-      if index(ACTIONS, action) < 0
-        throw 'caskk: unknown binding action: ' .. action
-      endif
+      mapping.ValidateAction(action)
       tokens[key] = true
     endfor
     final lhs: dict<string> = {}
     for key in keys(tokens)
-      lhs[key] = Lhs(key)
+      lhs[key] = mapping.Lhs(key)
     endfor
     # Capture ordinary punctuation and letters too, so native insertion does
     # not bypass an active Preedit. Explicit named aliases keep precedence.
     for code in range(0x20, 0x7e)
       const key = nr2char(code)
-      const physical = Lhs(key)
+      const physical = mapping.Lhs(key)
       if !has_key(lhs, key) && index(values(lhs), physical) < 0
         lhs[key] = physical
       endif
     endfor
     final native: dict<bool> = {}
     for key in NATIVE_KEYS
-      const physical = Lhs(key)
+      const physical = mapping.Lhs(key)
       if index(values(lhs), physical) < 0
         lhs[key] = physical
         native[key] = true
@@ -297,9 +278,9 @@ endclass
 
 var bindings: dict<Binding> = {}
 
-export def Enable(compiled: scheme.CompiledScheme)
+export def Enable(compiled: scheme.CompiledScheme, sticky_key: string = '', actions: dict<string> = {})
   if !has_key(bindings, string(bufnr('%')))
-    const current = Binding.new(compiled)
+    const current = Binding.new(compiled, sticky_key, {}, null_object, actions)
     current.Enable()
   endif
 enddef

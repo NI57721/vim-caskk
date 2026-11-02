@@ -54,9 +54,9 @@ then Enable(name).  An unknown name leaves the current binding untouched.
 If mapping installation fails, previous mappings are restored and the buffer
 remains disabled so that activation can be retried.
 
-This initial lifecycle API uses the input grammar only.  Sticky-key settings,
-dictionary loading, user-state loading/saving, and action mappings are not yet
-connected to the public lifecycle API.  Config() currently covers highlighting.
+Enable() uses the current sticky_key and mappings settings from Config().
+Dictionary loading and user-state loading/saving are not yet connected to the
+public lifecycle API.
 
 CONFIGURATION                                           *caskk-config*
 
@@ -65,6 +65,8 @@ In Vim9 script: >vim9
     import autoload 'caskk.vim' as Caskk
 
     Caskk.Config({
+      sticky_key: ';',
+      mappings: {'<F10>': 'Commit'},
       highlight: {
         preedit: {
           term: 'underline',
@@ -74,12 +76,31 @@ In Vim9 script: >vim9
       },
     })
 <
-Currently only highlight.preedit is supported.  Input scheme definitions remain
-separate from ordinary configuration.
+Supported settings are sticky_key, mappings, and highlight.preedit.  Input scheme
+definitions remain separate from ordinary configuration.
 
 Each Config() call builds a complete configuration from defaults and the supplied
 values.  Omitted term, cterm, and gui fields default to 'underline'.  Calling
 Config({}) restores the defaults.
+
+sticky_key is a single printable character or a supported named KeyToken, such
+as '<F9>'.  Its default is '', which disables sticky input.  The sticky key marks
+the next input as Modified, just like an uppercase letter.
+
+mappings is a dictionary from KeyTokens to action names.  Supported actions are
+StartConversion, NextCandidate, PreviousCandidate, and Commit.  The default is an
+empty dictionary.  Unknown actions, invalid key names, and multiple entries for
+the same physical key (such as ' ' and '<Space>') are rejected.  Conflicts with
+the selected input grammar are checked when Enable() installs the mappings.
+
+Input settings are copied when accepted.  Changing the original dictionary does
+not change the configuration.  Changes to sticky_key and mappings take effect
+on the next activation; use Disable() then Enable(name) to update an enabled
+buffer.  Highlight settings continue to apply to presentation independently.
+
+Config() accepts a heterogeneous dictionary and validates its keys, value types,
+and contents before retaining typed settings.  A failure retains the previous
+input settings as well as the previous highlight settings.
 
 term, cterm, and gui accept comma-separated highlight attributes, such as
 'bold,underline'.  Use 'NONE' to disable attributes for that display mode.

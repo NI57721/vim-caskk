@@ -1,5 +1,7 @@
 vim9script
 
+import autoload 'caskk/input/mapping.vim' as mapping
+
 const GROUP = 'CaskkPreedit'
 const ATTRIBUTES = [
   'bold', 'standout', 'underline', 'undercurl', 'underdouble',
@@ -18,6 +20,23 @@ class Highlight
   enddef
 endclass
 
+export class Input
+  const sticky_key: string
+  const mappings: dict<string>
+
+  def new(this.sticky_key, mappings: dict<string>)
+    this.mappings = copy(mappings)
+  enddef
+endclass
+
+class Settings
+  const highlight: Highlight
+  const input: Input
+
+  def new(this.highlight, this.input)
+  enddef
+endclass
+
 def ParseAttributes(value: string): dict<bool>
   if toupper(trim(value)) ==# 'NONE'
     return {}
@@ -33,13 +52,7 @@ def ParseAttributes(value: string): dict<bool>
   return attributes
 enddef
 
-def Parse(options: dict<dict<dict<string>>>): Highlight
-  for section in keys(options)
-    if section !=# 'highlight'
-      throw 'caskk: invalid configuration: unknown section: ' .. section
-    endif
-  endfor
-  const highlights = get(options, 'highlight', {})
+def ParseHighlight(highlights: dict<dict<string>>): Highlight
   for role in keys(highlights)
     if role !=# 'preedit'
       throw 'caskk: invalid configuration: unknown highlight role: ' .. role
@@ -59,6 +72,73 @@ def Parse(options: dict<dict<dict<string>>>): Highlight
     endif
   endfor
   return Highlight.new(attributes, strings)
+enddef
+
+# Dynamic values are validated and copied only at the configuration boundary.
+def ReadHighlight(raw: any): dict<dict<string>>
+  if type(raw) != v:t_dict
+    throw 'highlight must be a dictionary'
+  endif
+  final highlights: dict<dict<string>> = {}
+  for [role, raw_fields] in items(raw)
+    if type(raw_fields) != v:t_dict
+      throw 'highlight.' .. role .. ' must be a dictionary'
+    endif
+    final fields: dict<string> = {}
+    for [name, value] in items(raw_fields)
+      if type(value) != v:t_string
+        throw 'highlight.' .. role .. '.' .. name .. ' must be a string'
+      endif
+      fields[name] = value
+    endfor
+    highlights[role] = fields
+  endfor
+  return highlights
+enddef
+
+def ReadStickyKey(raw: any): string
+  if type(raw) != v:t_string
+    throw 'sticky_key must be a string'
+  endif
+  const key: string = raw
+  if key != ''
+    mapping.Lhs(key)
+  endif
+  return key
+enddef
+
+def ReadMappings(raw: any): dict<string>
+  if type(raw) != v:t_dict
+    throw 'mappings must be a dictionary'
+  endif
+  final actions: dict<string> = {}
+  final physical_keys: dict<bool> = {}
+  for [key, value] in items(raw)
+    if type(value) != v:t_string
+      throw 'mapping action must be a string: ' .. key
+    endif
+    const action: string = value
+    mapping.ValidateAction(action)
+    const lhs = mapping.Lhs(key)
+    if has_key(physical_keys, lhs)
+      throw 'duplicate physical mapping: ' .. key
+    endif
+    physical_keys[lhs] = true
+    actions[key] = action
+  endfor
+  return actions
+enddef
+
+def Parse(options: dict<any>): Settings
+  for section in keys(options)
+    if index(['highlight', 'sticky_key', 'mappings'], section) < 0
+      throw 'unknown section: ' .. section
+    endif
+  endfor
+  const highlight = ParseHighlight(ReadHighlight(get(options, 'highlight', {})))
+  const sticky_key = ReadStickyKey(get(options, 'sticky_key', ''))
+  const actions = ReadMappings(get(options, 'mappings', {}))
+  return Settings.new(highlight, Input.new(sticky_key, actions))
 enddef
 
 var current = Parse({})
@@ -81,14 +161,27 @@ def Install(highlight: Highlight)
 enddef
 
 export def ApplyHighlight()
-  Install(current)
+  Install(current.highlight)
 enddef
 
-export def Configure(options: dict<dict<dict<string>>>)
-  const parsed = Parse(options)
+export def GetInput(): Input
+  return Input.new(current.input.sticky_key, current.input.mappings)
+enddef
+
+export def Configure(options: dict<any>)
+  var parsed: Settings
+  try
+    parsed = Parse(options)
+  catch
+    const reason = v:exception
+    if stridx(reason, 'caskk: invalid configuration:') == 0
+      throw reason
+    endif
+    throw 'caskk: invalid configuration: ' .. reason
+  endtry
   const previous = hlget(GROUP)
   try
-    Install(parsed)
+    Install(parsed.highlight)
   catch
     const reason = v:exception
     hlset([{name: GROUP, cleared: true}])

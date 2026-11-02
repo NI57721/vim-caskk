@@ -17,7 +17,9 @@ export def GetInputScheme(name: string): scheme.CompiledScheme
 enddef
 
 export def Enable(name: string)
-  binding.Enable(schemes.Get(name))
+  const compiled = schemes.Get(name)
+  const input = configuration.GetInput()
+  binding.Enable(compiled, input.sticky_key, input.mappings)
 enddef
 
 export def Disable()
@@ -28,7 +30,7 @@ export def IsEnabled(): bool
   return binding.IsEnabled()
 enddef
 
-# Currently the public settings cover highlight.preedit attributes and colors.
-export def Config(options: dict<dict<dict<string>>>)
+# The heterogeneous user dictionary is validated at the configuration boundary.
+export def Config(options: dict<any>)
   configuration.Configure(options)
 enddef
