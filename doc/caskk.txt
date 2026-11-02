@@ -148,9 +148,10 @@ cleaned up when the window closes.
 
 Automatic opening is inherited by the registration input itself.  A conversion
 with no candidates there opens a nested registration window; completing or
-cancelling it returns to the outer input.  Cancelling a request does not reopen
-it.  The request/completion/cancellation APIs remain available for custom
-integration with registration_auto set to false.
+cancelling it returns to the outer input.  Closing or wiping an outer input also
+cancels its nested registration without registering pending text.  Cancelling a
+request does not reopen it.  The request/completion/cancellation APIs remain
+available for custom integration with registration_auto set to false.
 
 USER STATE                                              *caskk-load-state*
                                                         *caskk-save-state*

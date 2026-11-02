@@ -13,20 +13,46 @@ const assert = themis#helper('assert')
 
 class Observation
   const buffer: number
+  const window: number
   const text: string
   const highlights: number
   const request: registration.Request
 
-  def new(this.buffer, this.text, this.highlights, this.request)
+  def new(this.buffer, this.window, this.text, this.highlights, this.request)
   enddef
 endclass
 
 var observations: list<Observation> = []
+var origin_buffer: number = 0
+var origin_window: number = 0
 const CAPTURE = "\<Cmd>call CaskkTestAutoRegistrationCapture()\<CR>"
 
 def g:CaskkTestAutoRegistrationCapture()
-  observations->add(Observation.new(bufnr('%'), getline(1),
+  observations->add(Observation.new(bufnr('%'), win_getid(), getline(1),
     len(prop_list(1, {types: ['caskk_preedit']})), Caskk.GetRegistrationRequest()))
+enddef
+
+def g:CaskkTestAutoRegistrationDestroy(target: string)
+  if len(observations) != 2
+    throw 'test: two registration windows must be open'
+  endif
+  if target ==# 'inner-window'
+    close!
+  elseif target ==# 'outer-window'
+    win_execute(observations[0].window, 'close!')
+  elseif target ==# 'outer-buffer'
+    execute 'bwipeout! ' .. observations[0].buffer
+  elseif target ==# 'origin-window'
+    win_execute(origin_window, 'close!')
+  elseif target ==# 'origin-buffer'
+    execute 'bwipeout! ' .. origin_buffer
+  else
+    throw 'test: unknown destruction target: ' .. target
+  endif
+enddef
+
+def DestroyCommand(target: string): string
+  return "\<Cmd>call CaskkTestAutoRegistrationDestroy(" .. string(target) .. ")\<CR>"
 enddef
 
 class Fixture
@@ -48,6 +74,8 @@ def Setup(lines: list<string> = []): Fixture
   bufload(number)
   execute 'noautocmd keepalt hide buffer ' .. number
   const window = win_getid()
+  origin_buffer = number
+  origin_window = window
   setlocal buftype=nofile noswapfile
   setline(1, '前後')
   cursor(1, 1)
@@ -216,4 +244,78 @@ suite.cancelling_nested_registration_keeps_the_outer_input_open = (): void => {
   assert.equals(getline(1), '前漢字後')
   assert.equals(winnr('$'), windows)
   assert.equals(user_runtime.Get().GetSnapshot().mru[json_encode(['か', ''])], ['漢字'])
+}
+
+suite.closing_inner_window_returns_to_outer_registration_and_allows_completion = (): void => {
+  const fixture = Setup()
+  defer Cleanup(fixture)
+  const windows = winnr('$')
+  feedkeys('aKas' .. CAPTURE .. 's' .. CAPTURE .. "\<C-c>" .. DestroyCommand('inner-window')
+    .. CAPTURE .. "\<BS>d\<CR>\<Esc>", 'xt')
+  assert.equals(observations[2].buffer, observations[0].buffer)
+  assert.equals(observations[2].text, 'か')
+  assert.equals(getline(1), '前漢字後')
+  assert.equals(winnr('$'), windows)
+  assert.equals(bufexists(observations[0].buffer), 0)
+  assert.equals(bufexists(observations[1].buffer), 0)
+  const entries = user_runtime.Get().GetSnapshot().entries[json_encode(['か', ''])]
+  assert.equals(len(entries), 1)
+  assert.equals(entries[0].text, '漢字')
+}
+
+suite.closing_outer_window_cancels_both_levels_without_registering = (): void => {
+  const fixture = Setup()
+  defer Cleanup(fixture)
+  const before = codec.Encode(user_runtime.Get().GetSnapshot())
+  const windows = winnr('$')
+  feedkeys('aKas' .. CAPTURE .. 's' .. CAPTURE .. "\<C-c>" .. DestroyCommand('outer-window')
+    .. CAPTURE .. "ka\<Esc>", 'xt')
+  assert.equals(observations[2].buffer, fixture.buffer)
+  assert.equals(getline(1), '前かか後')
+  assert.equals(winnr('$'), windows)
+  assert.equals(bufexists(observations[0].buffer), 0)
+  assert.equals(bufexists(observations[1].buffer), 0)
+  assert.equals(codec.Encode(user_runtime.Get().GetSnapshot()), before)
+}
+
+suite.wiping_outer_input_cancels_both_levels_and_removes_inner_buffer = (): void => {
+  const fixture = Setup()
+  defer Cleanup(fixture)
+  const before = codec.Encode(user_runtime.Get().GetSnapshot())
+  const windows = winnr('$')
+  feedkeys('aKas' .. CAPTURE .. 's' .. CAPTURE .. "\<C-c>" .. DestroyCommand('outer-buffer')
+    .. CAPTURE .. "ka\<Esc>", 'xt')
+  assert.equals(observations[2].buffer, fixture.buffer)
+  assert.equals(getline(1), '前かか後')
+  assert.equals(winnr('$'), windows)
+  assert.equals(bufexists(observations[0].buffer), 0)
+  assert.equals(bufexists(observations[1].buffer), 0)
+  assert.equals(codec.Encode(user_runtime.Get().GetSnapshot()), before)
+}
+
+suite.wiping_origin_during_nested_registration_does_not_leave_orphaned_inputs = (): void => {
+  const fixture = Setup()
+  defer Cleanup(fixture)
+  const before = codec.Encode(user_runtime.Get().GetSnapshot())
+  const windows = winnr('$')
+  feedkeys('aKas' .. CAPTURE .. 's' .. CAPTURE .. "\<C-c>" .. DestroyCommand('origin-buffer'), 'xt')
+  assert.equals(bufexists(fixture.buffer), 0)
+  assert.equals(bufexists(observations[0].buffer), 0)
+  assert.equals(bufexists(observations[1].buffer), 0)
+  assert.equals(winnr('$'), windows)
+  assert.equals(codec.Encode(user_runtime.Get().GetSnapshot()), before)
+}
+
+suite.closing_origin_during_nested_registration_preserves_plain_reading = (): void => {
+  const fixture = Setup()
+  defer Cleanup(fixture)
+  const before = codec.Encode(user_runtime.Get().GetSnapshot())
+  const windows = winnr('$')
+  feedkeys('aKas' .. CAPTURE .. 's' .. CAPTURE .. "\<C-c>" .. DestroyCommand('origin-window'), 'xt')
+  assert.equals(getbufline(fixture.buffer, 1), ['前か後'])
+  assert.equals(prop_list(1, {bufnr: fixture.buffer}), [])
+  assert.equals(bufexists(observations[0].buffer), 0)
+  assert.equals(bufexists(observations[1].buffer), 0)
+  assert.equals(winnr('$'), windows)
+  assert.equals(codec.Encode(user_runtime.Get().GetSnapshot()), before)
 }

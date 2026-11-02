@@ -32,6 +32,8 @@ export class Window
     elseif bufnr('%') == this.buffer
       if bufexists(this.origin_buffer)
         execute 'keepalt hide buffer ' .. this.origin_buffer
+      elseif winnr('$') > 1
+        close!
       else
         enew
       endif
