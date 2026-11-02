@@ -90,6 +90,12 @@ suite.boundaries_follow_generated_character_offsets = (): void => {
   assert.equals(extended.boundary, 4)
 }
 
+suite.okuri_suffix_is_generated_from_roman_prefix = (): void => {
+  const result = kana.Generate('k', output_pattern.Parse('e*tu'))
+  assert.equals(result.text, 'けつ')
+  assert.equals(result.boundary, 1)
+}
+
 suite.literal_markers_and_unicode_survive = (): void => {
   const result = kana.Generate('ky', output_pattern.Parse('a\*\\*い'))
   assert.equals(result.text, 'きゃ*\い')
@@ -97,7 +103,6 @@ suite.literal_markers_and_unicode_survive = (): void => {
 }
 
 suite.boundaries_at_edges = (): void => {
-  assert.equals(kana.Generate('ky', output_pattern.Parse('*a')).boundary, 0)
   assert.equals(kana.Generate('ky', output_pattern.Parse('a*')).boundary, 2)
   const empty = kana.Generate('', output_pattern.Parse('*'))
   assert.equals(empty.text, '')

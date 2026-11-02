@@ -70,6 +70,39 @@ def GenerateCharacter(row: string, character: string): string
   return character
 enddef
 
+def GenerateOkuri(text: string): string
+  final output: list<string> = []
+  var row = ''
+  for codepoint in str2list(text, true)
+    const character = nr2char(codepoint, true)
+    const vowel = index(TABLE.vowels, character)
+    if vowel >= 0
+      if !has_key(TABLE.rows, row)
+        throw 'caskk: invalid combination symbol: ' .. row
+      endif
+      output->add(GenerateCharacter(row, character))
+      row = ''
+    elseif character =~ '[a-z]'
+      row ..= character
+      if !has_key(TABLE.rows, row)
+        throw 'caskk: invalid combination symbol: ' .. row
+      endif
+    elseif has_key(TABLE.symbols, character) && row == ''
+      output->add(TABLE.symbols[character])
+    elseif character =~ '[A-Z]' && row == ''
+      output->add(GenerateCharacter('', character))
+    elseif character !~ '[A-Za-z]' && row == ''
+      output->add(character)
+    else
+      throw 'caskk: invalid combination symbol: ' .. character
+    endif
+  endfor
+  if row != ''
+    throw 'caskk: incomplete okuri prefix: ' .. row
+  endif
+  return join(output, '')
+enddef
+
 # Apply the row to the leading vowel; subsequent vowels have no consonant.
 # The parser has already decoded escapes, so literal * and \ remain text.
 export def Generate(row: string, pattern: pattern_types.OutputPattern): pattern_types.OutputPattern
@@ -82,9 +115,19 @@ export def Generate(row: string, pattern: pattern_types.OutputPattern): pattern_
   var output_offset = 0
   var boundary = -1
 
-  for codepoint in str2list(pattern.text, true)
+  const characters = str2list(pattern.text, true)
+  for index in range(len(characters))
+    const codepoint = characters[index]
     if input_offset == pattern.boundary
       boundary = output_offset
+    endif
+
+    if input_offset == pattern.boundary && pattern.boundary >= 0
+      const suffix = GenerateOkuri(list2str(characters[index :], true))
+      output->add(suffix)
+      output_offset += strchars(suffix)
+      input_offset = len(characters)
+      break
     endif
 
     const character = nr2char(codepoint, true)

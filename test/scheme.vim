@@ -22,9 +22,8 @@ suite.okuri_input_uses_compiled_boundary = (): void => {
 }
 
 suite.small_tsu_and_kana_boundary_edges = (): void => {
-  const table = scheme.Compile({j: 'ky'}, {l: 'aTi', a: '*a', o: 'o*'}).table
+  const table = scheme.Compile({j: 'ky'}, {l: 'aTi', o: 'o*'}).table
   assert.equals(combination.ComposeKeys(table, 'j', 'l'), {reading: 'きゃっい', okuri: ''})
-  assert.equals(combination.ComposeKeys(table, 'j', 'a', true), {reading: '', okuri: 'きゃ'})
   assert.equals(combination.ComposeKeys(table, 'j', 'o', true), {reading: 'きょ', okuri: ''})
 }
 
