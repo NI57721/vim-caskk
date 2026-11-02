@@ -18,6 +18,8 @@ var requests: list<conversion.Candidates> = []
 var errors: list<string> = []
 var positions: list<list<number>> = []
 var texts: list<string> = []
+var initial_reading: string = ''
+var highlight_counts: list<number> = []
 
 def Handle(key: string)
   try
@@ -25,11 +27,12 @@ def Handle(key: string)
       const compiled = scheme.Compile({k: 'k'}, {a: 'a'}, [
         scheme.SpecialDefinition.new(['z', 'x'], 'い*くらい'),
       ])
-      editor = insert.Editor.new(compiled, ';', entries, preferences)
+      editor = insert.Editor.new(compiled, ';', entries, preferences, initial_reading)
     elseif key ==# 'request'
       requests->add(editor.GetRegistrationRequest())
       positions->add([line('.'), col('.')])
       texts->add(getline(1))
+      highlight_counts->add(len(prop_list(1, {types: ['caskk_preedit']})))
     elseif key ==# 'register'
       editor.Register(dictionary.Candidate.new('課', ['登録注釈']))
     elseif key ==# 'okuri'
@@ -74,6 +77,8 @@ def Setup(): list<number>
   errors = []
   positions = []
   texts = []
+  initial_reading = ''
+  highlight_counts = []
   for key in ['k', 'a', 'K', 'Z', 'X', 's', 'n']
     execute 'inoremap <buffer> ' .. key .. " <ScriptCmd>Handle('" .. key .. "')<CR>"
   endfor
@@ -93,6 +98,48 @@ def Cleanup(context: list<number>)
   execute 'noautocmd keepalt hide buffer ' .. context[0]
   execute 'silent! bwipeout! ' .. context[1]
 enddef
+
+suite.initial_reading_is_rendered_at_the_cursor_and_converts_with_normal_undo = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  initial_reading = 'か'
+  entries = merger.Merge([[parser.ParseLine('か /蚊/')]])
+  feedkeys("a\<F2>\<F6>s\<Esc>", 'xt')
+  assert.equals(errors, [])
+  assert.equals(texts, ['前か後'])
+  assert.equals(highlight_counts, [1])
+  assert.equals(positions, [[1, 7]])
+  assert.equals(requests[0] is null_object, true)
+  assert.equals(getline(1), '前蚊後')
+  normal! u
+  assert.equals(getline(1), '前か後')
+  assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
+  normal! u
+  assert.equals(getline(1), '前後')
+}
+
+suite.initial_reading_and_following_plain_input_share_one_preedit_undo_unit = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  initial_reading = 'か'
+  feedkeys("a\<F2>ka\<Esc>", 'xt')
+  assert.equals(errors, [])
+  assert.equals(getline(1), '前かか後')
+  normal! u
+  assert.equals(getline(1), '前後')
+}
+
+suite.initial_asterisk_remains_a_literal_buffer_character = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  initial_reading = 'か*'
+  feedkeys("a\<F2>\<F6>\<Esc>", 'xt')
+  assert.equals(errors, [])
+  assert.equals(texts, ['前か*後'])
+  assert.equals(positions, [[1, 8]])
+  assert.equals(getline(1), '前か*後')
+  assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
+}
 
 suite.register_replaces_reading_and_keeps_cursor_learning_and_undo_boundaries = (): void => {
   const context = Setup()

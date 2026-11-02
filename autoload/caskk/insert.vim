@@ -25,7 +25,8 @@ export class Editor
   var _closed: bool = false
 
   def new(compiled: scheme.CompiledScheme, sticky_key: string = '',
-      entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object)
+      entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
+      initial_reading: string = '')
     if mode(1) !~# '^i'
       throw 'caskk: editor must be started in Insert mode'
     endif
@@ -33,10 +34,13 @@ export class Editor
     this._window = win_getid()
     this._entries = copy(entries)
     this._preferences = preferences is null_object ? user_state.State.new() : preferences
-    this._session = session.Session.new(compiled, sticky_key, this._entries, this._preferences)
+    this._session = session.Session.new(compiled, sticky_key, this._entries, this._preferences, initial_reading)
     this._writer = buffer.Writer.new(this._buffer, line('.'), col('.'))
     this._undo = undo.Manager.new(this._writer)
     this._view = presentation.Highlighter.new(this._writer)
+    if initial_reading != ''
+      this._Apply([session.Result.new('', [], this._session.GetSnapshot())])
+    endif
   enddef
 
   def _CheckTarget()

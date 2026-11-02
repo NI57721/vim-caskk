@@ -44,12 +44,16 @@ export class Session
   var _reading_after_cancel: bool = false
 
   def new(compiled: scheme.CompiledScheme, sticky_key: string = '',
-      entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object)
+      entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
+      initial_reading: string = '')
     this._normalizer = normalize.Normalizer.new(sticky_key)
     this._composer = composer.Composer.new(compiled)
     this._state = state_types.State.new()
     this._entries = copy(entries)
     this._preferences = preferences is null_object ? user_state.State.new() : preferences
+    if initial_reading != ''
+      this._state.Apply(composition.Result.new(true, initial_reading, '', false))
+    endif
   enddef
 
   def _PrepareConversion(entries: dict<dictionary.Entry>, preferences: user_state.State): Result
