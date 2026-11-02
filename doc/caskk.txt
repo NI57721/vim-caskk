@@ -54,9 +54,9 @@ then Enable(name).  An unknown name leaves the current binding untouched.
 If mapping installation fails, previous mappings are restored and the buffer
 remains disabled so that activation can be retried.
 
-Enable() uses the current sticky_key and mappings settings from Config().
-Dictionary loading and user-state loading/saving are not yet connected to the
-public lifecycle API.
+Enable() uses the current sticky_key, mappings, and loaded dictionaries from
+Config().  User-state loading/saving is not yet connected to the public lifecycle
+API.
 
 CONFIGURATION                                           *caskk-config*
 
@@ -76,8 +76,8 @@ In Vim9 script: >vim9
       },
     })
 <
-Supported settings are sticky_key, mappings, and highlight.preedit.  Input scheme
-definitions remain separate from ordinary configuration.
+Supported settings are sticky_key, mappings, dictionaries, and highlight.preedit.
+Input scheme definitions remain separate from ordinary configuration.
 
 Each Config() call builds a complete configuration from defaults and the supplied
 values.  Omitted term, cterm, and gui fields default to 'underline'.  Calling
@@ -97,6 +97,35 @@ Input settings are copied when accepted.  Changing the original dictionary does
 not change the configuration.  Changes to sticky_key and mappings take effect
 on the next activation; use Disable() then Enable(name) to update an enabled
 buffer.  Highlight settings continue to apply to presentation independently.
+
+dictionaries is a list of read-only SKK dictionary sources in candidate priority
+order.  The default is an empty list.  Each source is either a nonempty path
+string (UTF-8), or a dictionary with path and an optional encoding string: >vim9
+
+    Caskk.Config({
+      dictionaries: [
+        '/path/to/SKK-JISYO.utf8',
+        {path: '/path/to/SKK-JISYO.euc', encoding: 'euc-jp'},
+      ],
+      sticky_key: ';',
+      mappings: {'<Space>': 'StartConversion', '<F10>': 'Commit'},
+    })
+<
+Paths are passed directly to Vim's file reader.  Replace the example paths with
+existing files.  Config() eagerly reads, decodes, parses, and merges all sources;
+it does not write to the system dictionaries.  Duplicate candidates are merged,
+preserving the first occurrence's order and combining annotations.
+
+Missing files, decoding failures, or malformed entries reject the entire new
+configuration.  Errors include the source path and, for parse errors, the line
+number.  The previous dictionaries, input settings, and highlight remain usable.
+If highlighting fails after dictionaries were loaded, the previous dictionaries
+are retained too.
+
+Conversion uses the loaded in-memory data.  Editing or removing a source file
+does not change it.  Call Config() again to reload; Disable() then Enable(name)
+applies the new dictionary data to an already enabled buffer.  Omitting
+dictionaries in a Config() call resets the dictionary list to empty.
 
 Config() accepts a heterogeneous dictionary and validates its keys, value types,
 and contents before retaining typed settings.  A failure retains the previous

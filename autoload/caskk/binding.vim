@@ -278,9 +278,10 @@ endclass
 
 var bindings: dict<Binding> = {}
 
-export def Enable(compiled: scheme.CompiledScheme, sticky_key: string = '', actions: dict<string> = {})
+export def Enable(compiled: scheme.CompiledScheme, sticky_key: string = '', actions: dict<string> = {},
+    entries: dict<dictionary.Entry> = {})
   if !has_key(bindings, string(bufnr('%')))
-    const current = Binding.new(compiled, sticky_key, {}, null_object, actions)
+    const current = Binding.new(compiled, sticky_key, entries, null_object, actions)
     current.Enable()
   endif
 enddef

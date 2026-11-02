@@ -19,7 +19,7 @@ enddef
 export def Enable(name: string)
   const compiled = schemes.Get(name)
   const input = configuration.GetInput()
-  binding.Enable(compiled, input.sticky_key, input.mappings)
+  binding.Enable(compiled, input.sticky_key, input.mappings, input.entries)
 enddef
 
 export def Disable()

@@ -1,6 +1,8 @@
 vim9script
 
 import autoload 'caskk/input/mapping.vim' as mapping
+import 'caskk/dictionary.vim' as dictionary
+import autoload 'caskk/dictionary/loader.vim' as loader
 
 const GROUP = 'CaskkPreedit'
 const ATTRIBUTES = [
@@ -23,9 +25,11 @@ endclass
 export class Input
   const sticky_key: string
   const mappings: dict<string>
+  const entries: dict<dictionary.Entry>
 
-  def new(this.sticky_key, mappings: dict<string>)
+  def new(this.sticky_key, mappings: dict<string>, entries: dict<dictionary.Entry>)
     this.mappings = copy(mappings)
+    this.entries = copy(entries)
   enddef
 endclass
 
@@ -129,16 +133,56 @@ def ReadMappings(raw: any): dict<string>
   return actions
 enddef
 
+def ReadDictionaries(raw: any): list<loader.Source>
+  if type(raw) != v:t_list
+    throw 'dictionaries must be a list'
+  endif
+  final sources: list<loader.Source> = []
+  for source in raw
+    var path = ''
+    var encoding = 'utf-8'
+    if type(source) == v:t_string
+      path = source
+    elseif type(source) == v:t_dict
+      for field in keys(source)
+        if index(['path', 'encoding'], field) < 0
+          throw 'unknown dictionary source field: ' .. field
+        endif
+      endfor
+      if type(get(source, 'path', v:none)) != v:t_string
+        throw 'dictionary source path must be a string'
+      endif
+      if type(get(source, 'encoding', 'utf-8')) != v:t_string
+        throw 'dictionary source encoding must be a string'
+      endif
+      path = source.path
+      encoding = get(source, 'encoding', 'utf-8')
+    else
+      throw 'dictionary source must be a path string or dictionary'
+    endif
+    if path == ''
+      throw 'dictionary source path must not be empty'
+    endif
+    if encoding == ''
+      throw 'dictionary source encoding must not be empty'
+    endif
+    sources->add(loader.Source.new(path, encoding))
+  endfor
+  return sources
+enddef
+
 def Parse(options: dict<any>): Settings
   for section in keys(options)
-    if index(['highlight', 'sticky_key', 'mappings'], section) < 0
+    if index(['highlight', 'sticky_key', 'mappings', 'dictionaries'], section) < 0
       throw 'unknown section: ' .. section
     endif
   endfor
   const highlight = ParseHighlight(ReadHighlight(get(options, 'highlight', {})))
   const sticky_key = ReadStickyKey(get(options, 'sticky_key', ''))
   const actions = ReadMappings(get(options, 'mappings', {}))
-  return Settings.new(highlight, Input.new(sticky_key, actions))
+  const sources = ReadDictionaries(get(options, 'dictionaries', []))
+  const entries = loader.Load(sources)
+  return Settings.new(highlight, Input.new(sticky_key, actions, entries))
 enddef
 
 var current = Parse({})
@@ -165,7 +209,7 @@ export def ApplyHighlight()
 enddef
 
 export def GetInput(): Input
-  return Input.new(current.input.sticky_key, current.input.mappings)
+  return Input.new(current.input.sticky_key, current.input.mappings, current.input.entries)
 enddef
 
 export def Configure(options: dict<any>)
