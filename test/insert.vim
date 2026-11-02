@@ -21,6 +21,9 @@ var marker_counts: list<number> = []
 var unhandled: list<input.Event> = []
 var deletions: list<bool> = []
 var preedit_states: list<bool> = []
+var readings: list<string> = []
+var okuris: list<string> = []
+var okuri_started: list<bool> = []
 
 def Handle(key: string)
   try
@@ -32,6 +35,9 @@ def Handle(key: string)
     if key ==# 'P'
       positions->add([line('.'), col('.')])
       preedit_states->add(editor.GetSnapshot().in_preedit)
+      readings->add(editor.GetSnapshot().reading)
+      okuris->add(editor.GetSnapshot().okuri)
+      okuri_started->add(editor.GetSnapshot().okuri_started)
       var markers = 0
       for property in prop_list(1, {end_lnum: -1})
         if get(property, 'text', '') ==# '*'
@@ -86,6 +92,9 @@ def Setup(): list<number>
   unhandled = []
   deletions = []
   preedit_states = []
+  readings = []
+  okuris = []
+  okuri_started = []
   for key in ['k', 'a', 'K', ';', 'Z', 'X', 'd', 'S', 'N', 'B', 'C', 'P', '?']
     execute 'inoremap <buffer> ' .. key .. " <ScriptCmd>Handle('" .. key .. "')<CR>"
   endfor
@@ -115,6 +124,50 @@ suite.backspace_preserves_modifier_and_cursor_until_replacement_input = (): void
       assert.equals(editor.GetSnapshot().in_preedit, false)
       normal! u
       assert.equals(getline(1), '前後')
+    finally
+      Cleanup(context)
+    endtry
+  endfor
+}
+
+suite.standard_romaji_vowels_continue_after_consonant_syllables = (): void => {
+  const context = Setup()
+  try
+    compiled = scheme.Compile({h: 'h', g: 'g'}, {a: 'a', i: 'i', u: 'u', e: 'e', o: 'o'})
+    editor = null_object
+    inoremap <buffer> h <ScriptCmd>Handle('h')<CR>
+    inoremap <buffer> o <ScriptCmd>Handle('o')<CR>
+    inoremap <buffer> g <ScriptCmd>Handle('g')<CR>
+    inoremap <buffer> e <ScriptCmd>Handle('e')<CR>
+    inoremap <buffer> i <ScriptCmd>Handle('i')<CR>
+    inoremap <buffer> u <ScriptCmd>Handle('u')<CR>
+    inoremap <buffer> a <ScriptCmd>Handle('a')<CR>
+    feedkeys("a\<F2>hogeaiueo\<Esc>", 'xt')
+    assert.equals(errors, [])
+    assert.equals(getline(1), '前ほげあいうえお後')
+  finally
+    Cleanup(context)
+  endtry
+}
+
+suite.repeated_m_keys_apply_modified_okuri_rules_in_insert_mode = (): void => {
+  for [keys, expected_text, expected_reading, expected_okuri, expected_boundary] in [
+    ['mm', '前まく後', '', '', false],
+    [';mm', '前まく後', 'まく', '', false],
+    [';m;m', '前まく後', 'ま', 'く', true],
+  ]
+    const context = Setup()
+    try
+      compiled = scheme.Compile({m: 'm'}, {m: 'a*ku'})
+      editor = null_object
+      inoremap <buffer> m <ScriptCmd>Handle('m')<CR>
+      feedkeys("a\<F2>" .. keys .. "P\<Esc>", 'xt')
+      assert.equals(errors, [])
+      assert.equals(getline(1), expected_text)
+      assert.equals(readings, [expected_reading])
+      assert.equals(okuris, [expected_okuri])
+      assert.equals(okuri_started, [expected_boundary])
+      assert.equals(marker_counts, [expected_boundary ? 1 : 0])
     finally
       Cleanup(context)
     endtry
