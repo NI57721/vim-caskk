@@ -8,6 +8,8 @@ import autoload 'caskk/input/keycode.vim' as keycode
 import autoload 'caskk/input/mapping.vim' as mapping
 import 'caskk/dictionary.vim' as dictionary
 import 'caskk/registration.vim' as registration
+import autoload 'caskk/registration/window.vim' as registration_window
+import autoload 'caskk/config.vim' as configuration
 
 const NATIVE_KEYS = ['<Left>', '<Right>', '<Up>', '<Down>', '<Home>', '<End>', '<CR>', '<BS>']
 
@@ -69,16 +71,21 @@ export class Binding
   var _enabled: bool = false
   var _registration_reply: dictionary.Candidate = null_object
   var _registration_ticket: number = 0
+  var _initial_reading: string = ''
+  var _registration_window: registration_window.Window = null_object
+  var _window_result: dictionary.Candidate = null_object
+  var _window_closing: bool = false
 
   def new(compiled: scheme.CompiledScheme, sticky_key: string = '',
       entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
-      actions: dict<string> = {})
+      actions: dict<string> = {}, initial_reading: string = '')
     this._buffer = bufnr('%')
     this._compiled = compiled
     this._sticky = sticky_key
     this._entries = copy(entries)
     this._preferences = preferences is null_object ? user_state.State.new() : preferences
     this._actions = copy(actions)
+    this._initial_reading = initial_reading
     final tokens: dict<bool> = {}
     for key in keys(compiled.table.consonants) + keys(compiled.table.combinations)
       tokens[key] = true
@@ -191,6 +198,9 @@ export class Binding
       return
     endif
     this._CheckTarget()
+    if this._registration_window isnot null_object
+      this.SubmitRegistrationWindow(this._registration_window.buffer, true)
+    endif
     try
       this.Leave(true)
     finally
@@ -216,7 +226,8 @@ export class Binding
     if this._editor isnot null_object && this._editor.IsRegistrationSuspended()
       throw 'caskk: input is suspended for dictionary registration'
     endif
-    this._editor = insert.Editor.new(this._compiled, this._sticky, this._entries, this._preferences)
+    this._editor = insert.Editor.new(this._compiled, this._sticky, this._entries, this._preferences, this._initial_reading)
+    this._initial_reading = ''
   enddef
 
   def Leave(force: bool = false)
@@ -261,12 +272,17 @@ export class Binding
       this._Record([this._editor.PreviousCandidate()])
     elseif action ==# 'Commit'
       this._Record(this._editor.Commit())
+    elseif action ==# 'OpenRegistration'
+      this.OpenRegistrationWindow(configuration.GetRegistrationPrefill())
     else
       this._Record(this._editor.Feed(key))
     endif
   enddef
 
   def Forget()
+    if this._registration_window isnot null_object
+      this.SubmitRegistrationWindow(this._registration_window.buffer, true)
+    endif
     if this._enabled
       remove(bindings, string(this._buffer))
     endif
@@ -299,6 +315,115 @@ export class Binding
     endif
     return registration.Request.new(request.query.reading, request.okuri,
       request.query.exact_okuri, request.query.lookup_key)
+  enddef
+
+  def OpenRegistrationWindow(prefill: bool = true)
+    this._CheckTarget()
+    if this._registration_window isnot null_object
+      throw 'caskk: dictionary registration window is already open'
+    endif
+    this.SuspendRegistration()
+    const request = this.GetRegistrationRequest()
+    try
+      const window = registration_window.Open(request)
+      this._registration_window = window
+      registration_owners[string(this._buffer)] = this
+      const child = Binding.new(this._compiled, this._sticky, this._entries,
+        this._preferences, this._actions, prefill ? request.reading : '')
+      child.Enable()
+      const arguments = this._buffer .. ', ' .. window.buffer
+      for command in ['inoremap', 'nnoremap']
+        execute command .. ' <buffer> <silent> <CR> <Cmd>call caskk#binding#SubmitRegistrationWindow(' .. arguments .. ', v:false)<CR>'
+        execute command .. ' <buffer> <silent> <Esc> <Cmd>call caskk#binding#SubmitRegistrationWindow(' .. arguments .. ', v:true)<CR>'
+      endfor
+      execute 'augroup ' .. window.event_group
+      autocmd!
+      augroup END
+      execute 'autocmd ' .. window.event_group .. ' BufWipeout <buffer=' .. window.buffer .. '> call caskk#binding#SubmitRegistrationWindow(' .. arguments .. ', v:true)'
+      for number in [window.window, window.origin_window]
+        execute 'autocmd ' .. window.event_group .. ' WinClosed ' .. number .. ' call caskk#binding#SubmitRegistrationWindow(' .. arguments .. ', v:true)'
+      endfor
+    catch
+      const reason = v:exception
+      if this._registration_window isnot null_object
+        this.SubmitRegistrationWindow(this._registration_window.buffer, true)
+      elseif this._editor isnot null_object
+        this._editor.PrepareRegistrationResume()
+        if mode(1) =~# '^i'
+          this._editor.ResumeRegistration()
+        else
+          this.QueueRegistrationResult()
+        endif
+      endif
+      throw 'caskk: cannot open registration window: ' .. reason
+    endtry
+  enddef
+
+  def SubmitRegistrationWindow(child: number, cancel: bool)
+    const window = this._registration_window
+    if window is null_object || window.buffer != child || this._window_closing
+      return
+    endif
+    if cancel
+      this._window_result = null_object
+    else
+      if bufnr('%') != child
+        throw 'caskk: registration input buffer is not current'
+      endif
+      if has_key(bindings, string(child))
+        bindings[string(child)].Leave()
+      endif
+      const text = join(getbufline(child, 1, '$'), "\n")
+      if text == ''
+        window.Message('登録語を入力してください  [Enter:登録 Esc:取消]')
+        return
+      endif
+      this._window_result = dictionary.Candidate.new(text, [])
+    endif
+    this._window_closing = true
+    feedkeys("\<Cmd>call caskk#binding#ReturnRegistrationWindow(" .. this._buffer
+      .. ', ' .. child .. ")\<CR>", 'in')
+  enddef
+
+  def ReturnRegistrationWindow(child: number)
+    const window = this._registration_window
+    if window is null_object || window.buffer != child || !this._window_closing
+      return
+    endif
+    const candidate = this._window_result
+    var returned = false
+    try
+      if exists('#' .. window.event_group)
+        execute 'autocmd! ' .. window.event_group
+        execute 'augroup! ' .. window.event_group
+      endif
+      if has_key(bindings, string(child))
+        # Cancellation must not implicitly commit the child's current candidate.
+        bindings[string(child)].Forget()
+      endif
+      returned = window.Close()
+    finally
+      this._registration_window = null_object
+      this._window_result = null_object
+      this._window_closing = false
+      remove(registration_owners, string(this._buffer))
+    endtry
+    if this._editor is null_object
+      return
+    endif
+    if !returned || !this._enabled
+      this._editor.Abandon()
+      this._editor = null_object
+      return
+    endif
+    try
+      this.QueueRegistrationResult(candidate)
+    catch
+      const reason = v:exception
+      this._editor.Abandon()
+      this._editor = null_object
+      throw reason
+    endtry
   enddef
 
   def CompleteRegistration(text: string, annotations: list<string> = [])
@@ -401,6 +526,23 @@ endclass
 
 var bindings: dict<Binding> = {}
 var next_registration_ticket: number = 0
+var registration_owners: dict<Binding> = {}
+
+export def OpenRegistration(prefill: bool = true)
+  RequireCurrentBinding().OpenRegistrationWindow(prefill)
+enddef
+
+export def SubmitRegistrationWindow(parent: number, child: number, cancel: bool)
+  if has_key(registration_owners, string(parent))
+    registration_owners[string(parent)].SubmitRegistrationWindow(child, cancel)
+  endif
+enddef
+
+export def ReturnRegistrationWindow(parent: number, child: number)
+  if has_key(registration_owners, string(parent))
+    registration_owners[string(parent)].ReturnRegistrationWindow(child)
+  endif
+enddef
 
 # Queued commands carry only the target buffer and this reply's generation.
 export def ResumeRegistrationResult(number: number, ticket: number)

@@ -48,6 +48,10 @@ export def GetRegistrationRequest(): registration.Request
   return binding.GetRegistrationRequest()
 enddef
 
+export def OpenRegistration()
+  binding.OpenRegistration(configuration.GetRegistrationPrefill())
+enddef
+
 export def CompleteRegistration(text: string, annotations: list<string> = [])
   binding.CompleteRegistration(text, annotations)
 enddef

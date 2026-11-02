@@ -100,8 +100,45 @@ the tracked cursor position.  Invoke them from Insert-mode callbacks, such as
 Missing requests are errors.  Empty candidate text is rejected while keeping
 the request available for retry.
 
-These functions do not open a window or collect registration text.  An automatic
-interactive registration screen is not connected yet.
+OPENING REGISTRATION                                    *caskk-open-registration*
+                                                        *caskk-registration-prefill*
+
+When a request is pending, OpenRegistration() opens an editable registration
+window at the bottom of the screen.  It must be called from Insert mode in the
+original buffer.  Alternatively configure an OpenRegistration action: >vim9
+
+    Caskk.Config({
+      mappings: {'<Space>': 'StartConversion', '<F6>': 'OpenRegistration'},
+      registration_prefill: true,
+    })
+<
+After conversion requests registration, press F6 to open the window.  The window
+uses the same input grammar, dictionaries, actions, and shared user state as the
+original input.  Enter confirms its text as the candidate body; Escape cancels
+and returns to the original reading.  These keys work in both Insert and Normal
+mode.  The original buffer range and undo boundaries are preserved.
+
+registration_prefill defaults to true.  The window starts with the requested
+reading as highlighted preedit, ready for ordinary IME input and conversion.
+Only the reading is prefilled; display okuri is shown in the title and appended
+by the original session after registration.  Set registration_prefill to false
+to start with an empty input field.  This setting is read when the window opens.
+
+An empty candidate keeps the window open and shows a message so that input can
+be retried.  Cancelling discards the current unconfirmed candidate without
+learning it; IME conversions already committed inside the input field retain
+their normal learning.  This first window accepts candidate text only and does
+not provide annotation editing.
+
+Closing the registration window also cancels.  Disabling or wiping the original
+buffer closes its registration window without applying a late result.  If the
+original window is closed, remaining reading text is kept as plain buffer text
+and the registration UI is removed.  Temporary buffers and window settings are
+cleaned up when the window closes.
+
+Opening a window automatically when conversion requests registration is not
+connected yet.  The request/completion/cancellation APIs remain available for
+custom integration.
 
 USER STATE                                              *caskk-load-state*
                                                         *caskk-save-state*
@@ -204,8 +241,8 @@ In Vim9 script: >vim9
     })
 <
 Supported settings are sticky_key, mappings, dictionaries, state_path, state_auto,
-and highlight.preedit.  Input scheme definitions remain separate from ordinary
-configuration.
+registration_prefill, and highlight.preedit.  Input scheme definitions remain
+separate from ordinary configuration.
 
 Each Config() call builds a complete configuration from defaults and the supplied
 values.  Omitted term, cterm, and gui fields default to 'underline'.  Calling
@@ -216,8 +253,8 @@ as '<F9>'.  Its default is '', which disables sticky input.  The sticky key mark
 the next input as Modified, just like an uppercase letter.
 
 mappings is a dictionary from KeyTokens to action names.  Supported actions are
-StartConversion, NextCandidate, PreviousCandidate, and Commit.  The default is an
-empty dictionary.  Unknown actions, invalid key names, and multiple entries for
+StartConversion, NextCandidate, PreviousCandidate, Commit, and OpenRegistration.
+The default is an empty dictionary.  Unknown actions, invalid key names, and multiple entries for
 the same physical key (such as ' ' and '<Space>') are rejected.  Conflicts with
 the selected input grammar are checked when Enable() installs the mappings.
 

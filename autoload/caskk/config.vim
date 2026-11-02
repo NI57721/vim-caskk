@@ -38,8 +38,9 @@ class Settings
   const input: Input
   const state_path: string
   const state_auto: bool
+  const registration_prefill: bool
 
-  def new(this.highlight, this.input, this.state_path, this.state_auto)
+  def new(this.highlight, this.input, this.state_path, this.state_auto, this.registration_prefill)
   enddef
 endclass
 
@@ -175,7 +176,7 @@ enddef
 
 def Parse(options: dict<any>): Settings
   for section in keys(options)
-    if index(['highlight', 'sticky_key', 'mappings', 'dictionaries', 'state_path', 'state_auto'], section) < 0
+    if index(['highlight', 'sticky_key', 'mappings', 'dictionaries', 'state_path', 'state_auto', 'registration_prefill'], section) < 0
       throw 'unknown section: ' .. section
     endif
   endfor
@@ -193,10 +194,14 @@ def Parse(options: dict<any>): Settings
   if state_auto && state_path == ''
     throw 'state_auto requires a nonempty state_path'
   endif
+  if type(get(options, 'registration_prefill', true)) != v:t_bool
+    throw 'registration_prefill must be a bool'
+  endif
+  const registration_prefill: bool = get(options, 'registration_prefill', true)
   const sources = ReadDictionaries(get(options, 'dictionaries', []))
   const entries = loader.Load(sources)
   const destination = state_path == '' ? '' : fnamemodify(state_path, ':p')
-  return Settings.new(highlight, Input.new(sticky_key, actions, entries), destination, state_auto)
+  return Settings.new(highlight, Input.new(sticky_key, actions, entries), destination, state_auto, registration_prefill)
 enddef
 
 var current = Parse({})
@@ -232,6 +237,10 @@ enddef
 
 export def GetStateAuto(): bool
   return current.state_auto
+enddef
+
+export def GetRegistrationPrefill(): bool
+  return current.registration_prefill
 enddef
 
 export def Configure(options: dict<any>)

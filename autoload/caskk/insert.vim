@@ -197,6 +197,14 @@ export class Editor
     return this._closed
   enddef
 
+  # Release presentation when the original registration window is lost.
+  # No buffer edits or implicit candidate commit are allowed here.
+  def Abandon()
+    this._view.Clear()
+    this._registration_suspended = false
+    this._closed = true
+  enddef
+
   def GetSnapshot(): state_types.Snapshot
     return this._session.GetSnapshot()
   enddef
