@@ -91,6 +91,20 @@ suite.reenable_keeps_the_active_scheme_until_disabled = (): void => {
   Caskk.Disable()
 }
 
+suite.reregistered_scheme_is_used_after_disable_and_reenable = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  Caskk.Enable('lifecycle')
+  feedkeys("aka\<Esc>", 'xt')
+  assert.equals(getline(1), '前か後')
+  Caskk.Disable()
+  Caskk.RegisterInputScheme('lifecycle', {k: 'n'}, {a: 'a'})
+  Caskk.Enable('lifecycle')
+  feedkeys("aka\<Esc>", 'xt')
+  assert.equals(getline(1), '前かな後')
+  Caskk.Disable()
+}
+
 suite.enable_state_is_buffer_local_and_wipeout_releases_it = (): void => {
   const first = Setup()
   defer Cleanup(first)
