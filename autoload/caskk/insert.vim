@@ -9,6 +9,7 @@ import autoload 'caskk/user_state.vim' as user_state
 import autoload 'caskk/buffer.vim' as buffer
 import autoload 'caskk/undo.vim' as undo
 import autoload 'caskk/presentation.vim' as presentation
+import autoload 'caskk/conversion.vim' as conversion
 
 # One Insert-mode attachment. Mappings and native handling of unhandled events
 # belong to a later dispatch layer; original ordered results are returned here.
@@ -94,6 +95,23 @@ export class Editor
   def BackspacePending(): bool
     this._CheckInput()
     return this._session.BackspacePending()
+  enddef
+
+  def GetRegistrationRequest(): conversion.Candidates
+    if this._session.InCandidate()
+      return null_object
+    endif
+    return this._session.GetCandidates()
+  enddef
+
+  def Register(candidate: dictionary.Candidate): session.Result
+    this._CheckInput()
+    return this._Apply([this._session.Register(candidate)])[0]
+  enddef
+
+  def CancelRegistration(): session.Result
+    this._CheckInput()
+    return this._Apply([this._session.CancelRegistration()])[0]
   enddef
 
   def NextCandidate(): session.Result
