@@ -58,6 +58,9 @@ export class Composer
 
     if has_key(this._table.consonants, event.key)
       this._consonant = event
+    elseif has_key(this._table.combinations, event.key)
+      const pattern = kana.Generate('', this._table.combinations[event.key])
+      results->add(Result.new([event], pattern))
     else
       results->add(Result.new([event]))
     endif

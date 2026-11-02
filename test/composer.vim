@@ -14,7 +14,7 @@ suite.backspace_removes_an_unfinished_modified_consonant_without_replaying_it = 
   assert.equals(engine.Backspace(), true)
   assert.equals(engine.Pending(), [])
   const results = engine.Feed(input.Event.new('a'))
-  assert.equals(results[0].output is null_object, true)
+  assert.equals(results[0].output.text, 'あ')
   assert.equals(results[0].events[0].key, 'a')
 }
 
@@ -64,6 +64,14 @@ suite.normal_combination_waits_for_second_key = (): void => {
   assert.equals(results[0].is_special, false)
   assert.equals(results[0].events, [first, second])
   assert.equals(engine.Pending(), [])
+}
+
+suite.vowel_combination_composes_without_a_consonant = (): void => {
+  const engine = composer.Composer.new(scheme.Compile({}, {a: 'a', i: 'i', u: 'u', e: 'e', o: 'o'}))
+  const results = engine.Feed(input.Event.new('a'))
+  assert.equals(len(results), 1)
+  assert.equals(results[0].output.text, 'あ')
+  assert.equals(results[0].events[0].key, 'a')
 }
 
 suite.special_overrides_generated_combination = (): void => {

@@ -116,9 +116,13 @@ suite.modified_combination_without_latent_marker_preserves_reading = (): void =>
   assert.equals(composed.okuri_started, false)
 }
 
-suite.event_composition_requires_a_consonant_and_a_combination = (): void => {
+suite.event_composition_accepts_a_standalone_combination = (): void => {
   const event = input.Event.new('a')
-  for events in [[], [event], [event, event, event]]
+  const standalone = combination.ComposeEvents(output_pattern.Parse('あ'), [event])
+  assert.equals(standalone.start_conversion, true)
+  assert.equals(standalone.reading, 'あ')
+  assert.equals(standalone.okuri, '')
+  for events in [[], [event, event, event]]
     var caught = ''
     try
       combination.ComposeEvents(output_pattern.Parse('かな'), events)

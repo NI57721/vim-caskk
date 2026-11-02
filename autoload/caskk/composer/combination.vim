@@ -29,6 +29,12 @@ enddef
 # Otherwise a Modified combination activates its latent output boundary.
 export def ComposeEvents(pattern: pattern_types.OutputPattern, events: list<input.Event>,
     in_preedit: bool = false): composition.Result
+  if len(events) == 1
+    if pattern.boundary != -1
+      throw 'caskk: standalone combination cannot activate latent okuri boundary'
+    endif
+    return composition.Result.new(!in_preedit, pattern.text, '', false)
+  endif
   if len(events) != 2
     throw 'caskk: combination composition requires exactly two input events'
   endif
