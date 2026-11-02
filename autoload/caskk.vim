@@ -4,6 +4,7 @@ import autoload 'caskk/config.vim' as configuration
 import autoload 'caskk/scheme.vim' as scheme
 import autoload 'caskk/scheme/registry.vim' as registry
 import autoload 'caskk/binding.vim' as binding
+import autoload 'caskk/user_state/runtime.vim' as user_runtime
 
 const schemes = registry.Registry.new()
 
@@ -19,7 +20,7 @@ enddef
 export def Enable(name: string)
   const compiled = schemes.Get(name)
   const input = configuration.GetInput()
-  binding.Enable(compiled, input.sticky_key, input.mappings, input.entries)
+  binding.Enable(compiled, input.sticky_key, input.mappings, input.entries, user_runtime.Get())
 enddef
 
 export def Disable()

@@ -2,11 +2,16 @@ vim9script
 
 import autoload 'caskk.vim' as Caskk
 import autoload 'caskk/scheme.vim' as scheme
+import autoload 'caskk/user_state.vim' as user_state
+import autoload 'caskk/user_state/runtime.vim' as user_runtime
 
 final suite = themis#suite('public system dictionary configuration')
 const assert = themis#helper('assert')
+var previous_state: user_state.Snapshot
 
 def Setup(): list<number>
+  previous_state = user_runtime.Get().GetSnapshot()
+  user_runtime.Get().Restore(user_state.State.new().GetSnapshot())
   const previous = bufnr('%')
   const number = bufadd('')
   bufload(number)
@@ -26,6 +31,7 @@ def Cleanup(context: list<number>)
     Caskk.Disable()
     Caskk.Config({})
   finally
+    user_runtime.Get().Restore(previous_state)
     execute 'noautocmd keepalt hide buffer ' .. context[0]
     execute 'silent! bwipeout! ' .. context[1]
   endtry

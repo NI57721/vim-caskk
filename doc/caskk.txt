@@ -58,6 +58,13 @@ Enable() uses the current sticky_key, mappings, and loaded dictionaries from
 Config().  User-state loading/saving is not yet connected to the public lifecycle
 API.
 
+Public activations share in-memory user state across buffers.  Committing a
+candidate learns its priority for the same reading and exact okuri, so subsequent
+conversions in other enabled buffers use that history too.  Disable(), buffer
+wipeout, and Config() do not discard the shared state.  System dictionaries
+remain read-only.  This state currently lasts for the Vim process only; saving
+and restoring it across Vim sessions is not yet connected to the public API.
+
 CONFIGURATION                                           *caskk-config*
 
 In Vim9 script: >vim9
