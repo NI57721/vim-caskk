@@ -83,8 +83,10 @@ Set the state_path configuration field, then load or save explicitly: >vim9
     Caskk.SaveState()
 <
 state_path is a string and defaults to ''.  LoadState() and SaveState() reject
-an empty path.  Paths are used literally, and the parent directory must already
-exist.  Config() only stores this path; it does not read or write the state file.
+an empty path.  Config() resolves a nonempty path to an absolute path, so changing
+the working directory later does not change the target.  The parent directory
+must already exist.  Config() only stores this path; it does not read or write
+the state file.
 Omitting state_path in a later Config() call resets the path to '', while leaving
 the in-memory user state intact.
 
@@ -102,8 +104,47 @@ file uses the internal UTF-8 JSON Lines format, not SKK dictionary syntax.
 Saving uses a temporary file beside the destination and replaces the complete
 file after writing.  Saved files are readable and writable by their owner only.
 Failures preserve the in-memory state and remove temporary files.  Errors are
-reported to the caller; there is no automatic loading, autosave, or exit hook
-in this API yet.
+reported to the caller.
+
+AUTOMATIC USER STATE                                    *caskk-state-auto*
+
+Set state_auto to true to opt into initialization and exit saving: >vim9
+
+    Caskk.Config({
+      state_path: '/path/to/existing-directory/caskk-state.jsonl',
+      state_auto: true,
+      dictionaries: ['/path/to/SKK-JISYO.utf8'],
+      mappings: {'<Space>': 'StartConversion', '<F10>': 'Commit'},
+    })
+    Caskk.Enable('custom')
+<
+state_auto must be a Boolean and defaults to false.  When true it requires a
+nonempty state_path.  Config() itself still does not load or save state.
+
+The first Enable() initializes the configured path after installing mappings.
+If the file exists, it is loaded before input is accepted.  If it does not
+exist, the current shared in-memory state is retained (empty in a fresh Vim).
+Load failures roll back activation and restore previous mappings.  A failed
+mapping installation does not initialize the file or enable automatic saving.
+
+Repeated activations and Config() calls for the same initialized path do not
+reload the file and overwrite newer in-memory learning.  Use LoadState() for an
+explicit reload.  Selecting a different state_path and activating it initializes
+that path instead; loading it replaces the single shared state for all buffers.
+There is no separate in-memory profile for each path.
+
+At VimLeavePre, the current shared state is saved only if state_auto is still
+true and state_path matches a successfully initialized path.  Successful manual
+LoadState() and SaveState() also initialize that path.  Merely configuring an
+unused path does not create a file.  Omitting state_auto in a later Config()
+call resets it to false and disables automatic exit saving.
+
+A failed explicit reload disables automatic saving for that path until it is
+successfully loaded, saved, or initialized again.  This prevents exit saving
+from overwriting a file that failed validation.  Exit save errors are reported
+with the path; temporary files are cleaned up and missing parent directories
+are not created.  Forced termination and concurrent writers are not handled by
+this lifecycle integration.
 
 CONFIGURATION                                           *caskk-config*
 
@@ -123,8 +164,8 @@ In Vim9 script: >vim9
       },
     })
 <
-Supported settings are sticky_key, mappings, dictionaries, state_path, and
-highlight.preedit.  Input scheme definitions remain separate from ordinary
+Supported settings are sticky_key, mappings, dictionaries, state_path, state_auto,
+and highlight.preedit.  Input scheme definitions remain separate from ordinary
 configuration.
 
 Each Config() call builds a complete configuration from defaults and the supplied

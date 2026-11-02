@@ -37,8 +37,9 @@ class Settings
   const highlight: Highlight
   const input: Input
   const state_path: string
+  const state_auto: bool
 
-  def new(this.highlight, this.input, this.state_path)
+  def new(this.highlight, this.input, this.state_path, this.state_auto)
   enddef
 endclass
 
@@ -174,7 +175,7 @@ enddef
 
 def Parse(options: dict<any>): Settings
   for section in keys(options)
-    if index(['highlight', 'sticky_key', 'mappings', 'dictionaries', 'state_path'], section) < 0
+    if index(['highlight', 'sticky_key', 'mappings', 'dictionaries', 'state_path', 'state_auto'], section) < 0
       throw 'unknown section: ' .. section
     endif
   endfor
@@ -185,9 +186,17 @@ def Parse(options: dict<any>): Settings
     throw 'state_path must be a string'
   endif
   const state_path: string = get(options, 'state_path', '')
+  if type(get(options, 'state_auto', false)) != v:t_bool
+    throw 'state_auto must be a bool'
+  endif
+  const state_auto: bool = get(options, 'state_auto', false)
+  if state_auto && state_path == ''
+    throw 'state_auto requires a nonempty state_path'
+  endif
   const sources = ReadDictionaries(get(options, 'dictionaries', []))
   const entries = loader.Load(sources)
-  return Settings.new(highlight, Input.new(sticky_key, actions, entries), state_path)
+  const destination = state_path == '' ? '' : fnamemodify(state_path, ':p')
+  return Settings.new(highlight, Input.new(sticky_key, actions, entries), destination, state_auto)
 enddef
 
 var current = Parse({})
@@ -219,6 +228,10 @@ enddef
 
 export def GetStatePath(): string
   return current.state_path
+enddef
+
+export def GetStateAuto(): bool
+  return current.state_auto
 enddef
 
 export def Configure(options: dict<any>)

@@ -19,8 +19,20 @@ enddef
 
 export def Enable(name: string)
   const compiled = schemes.Get(name)
+  if binding.IsEnabled()
+    return
+  endif
   const input = configuration.GetInput()
   binding.Enable(compiled, input.sticky_key, input.mappings, input.entries, user_runtime.Get())
+  try
+    if configuration.GetStateAuto()
+      user_runtime.InitializeAutomatic(configuration.GetStatePath())
+    endif
+  catch
+    const reason = v:exception
+    binding.Disable()
+    throw reason
+  endtry
 enddef
 
 export def Disable()
@@ -43,3 +55,14 @@ enddef
 export def Config(options: dict<any>)
   configuration.Configure(options)
 enddef
+
+def SaveAutomaticState()
+  if configuration.GetStateAuto()
+    user_runtime.SaveAutomatic(configuration.GetStatePath())
+  endif
+enddef
+
+augroup caskk_user_state
+  autocmd!
+  autocmd VimLeavePre * SaveAutomaticState()
+augroup END

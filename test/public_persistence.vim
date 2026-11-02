@@ -132,8 +132,9 @@ suite.failed_save_preserves_destination_memory_and_cleans_temporary_files = (): 
   catch
     caught = v:exception
   endtry
-  assert.equals(stridx(caught, 'caskk: cannot save user state: ' .. path .. ':'), 0)
+  assert.equals(stridx(caught, 'caskk: cannot save user state: ' .. fnamemodify(path, ':p') .. ':'), 0)
   assert.equals(readfile(path .. '/sentinel'), ['keep'])
+  assert.equals(readdir(path), ['sentinel'])
   assert.equals(codec.Encode(user_runtime.Get().GetSnapshot()), before)
   assert.equals(readdir(fixture.directory), ['blocked', 'system'])
 }
