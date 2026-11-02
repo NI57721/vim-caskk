@@ -27,6 +27,37 @@ sessions continue using their previous scheme, including pending input.  Failed
 compilation retains the previous registration.  Config() calls do not clear
 registered schemes.
 
+BUFFER LIFECYCLE                                        *caskk-enable*
+                                                        *caskk-disable*
+                                                        *caskk-is-enabled*
+
+After registering a scheme, enable it in the current buffer: >vim9
+
+    Caskk.Enable('custom')
+    echo Caskk.IsEnabled()
+    Caskk.Disable()
+<
+Enable(name) installs buffer-local Insert-mode mappings for the registered
+scheme.  It can be called in Normal or Insert mode.  IsEnabled() reports the
+current buffer's status; leaving Insert mode finishes the current input session
+but keeps the buffer enabled for the next session.
+
+Disable() finishes pending input, commits the reading or selected candidate,
+removes IME presentation, and restores the previous local mappings.  Mappings
+changed by the user while enabled are preserved.  Disabling an inactive buffer
+is a no-op.  Other buffers are unaffected, and wiping a buffer releases its
+binding automatically.
+
+Enable() on an already enabled buffer is a no-op after validating the scheme
+name.  To use another scheme or a re-registered definition, call Disable() and
+then Enable(name).  An unknown name leaves the current binding untouched.
+If mapping installation fails, previous mappings are restored and the buffer
+remains disabled so that activation can be retried.
+
+This initial lifecycle API uses the input grammar only.  Sticky-key settings,
+dictionary loading, user-state loading/saving, and action mappings are not yet
+connected to the public lifecycle API.  Config() currently covers highlighting.
+
 CONFIGURATION                                           *caskk-config*
 
 In Vim9 script: >vim9

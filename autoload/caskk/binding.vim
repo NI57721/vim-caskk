@@ -297,6 +297,24 @@ endclass
 
 var bindings: dict<Binding> = {}
 
+export def Enable(compiled: scheme.CompiledScheme)
+  if !has_key(bindings, string(bufnr('%')))
+    const current = Binding.new(compiled)
+    current.Enable()
+  endif
+enddef
+
+export def Disable()
+  const id = string(bufnr('%'))
+  if has_key(bindings, id)
+    bindings[id].Disable()
+  endif
+enddef
+
+export def IsEnabled(): bool
+  return has_key(bindings, string(bufnr('%')))
+enddef
+
 def Leave(number: number)
   if has_key(bindings, string(number))
     bindings[string(number)].Leave()
