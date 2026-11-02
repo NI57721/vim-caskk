@@ -10,6 +10,43 @@ import autoload 'caskk/user_state/codec.vim' as codec
 final suite = themis#suite('session conversion')
 const assert = themis#helper('assert')
 
+suite.consonant_and_same_key_combination_produce_okuri_text = (): void => {
+  const ime = session.Session.new(scheme.Compile({m: 'm'}, {m: 'a*ku'}))
+  assert.equals(ime.Feed('m'), [])
+  const results = ime.Feed('m')
+  assert.equals(len(results), 1)
+  assert.equals(results[0].text, 'まく')
+}
+
+suite.modified_consonant_and_combination_activate_latent_okuri = (): void => {
+  const ime = session.Session.new(scheme.Compile({m: 'm'}, {m: 'a*ku'}), ';')
+  ime.Feed(';')
+  assert.equals(ime.Feed('m'), [])
+  ime.Feed(';')
+  const results = ime.Feed('m')
+  assert.equals(len(results), 1)
+  assert.equals(results[0].registration_requested, true)
+  assert.equals(results[0].state.in_preedit, true)
+  assert.equals(results[0].state.reading, 'ま')
+  assert.equals(results[0].state.okuri, 'く')
+  assert.equals(ime.GetSnapshot().in_preedit, true)
+  assert.equals(ime.GetSnapshot().reading, 'ま')
+  assert.equals(ime.GetSnapshot().okuri, 'く')
+}
+
+suite.standalone_vowels_continue_kana_input_after_direct_syllables = (): void => {
+  const ime = session.Session.new(scheme.Compile(
+    {h: 'h', g: 'g'}, {a: 'a', i: 'i', u: 'u', e: 'e', o: 'o'}))
+  var text = ''
+  for key in split('hogeaiueo', '\zs')
+    for result in ime.Feed(key)
+      text ..= result.text
+    endfor
+  endfor
+  text ..= ime.Commit()->mapnew((_, result) => result.text)->join('')
+  assert.equals(text, 'ほげあいうえお')
+}
+
 suite.next_candidate_moves_in_ranked_order_without_learning = (): void => {
   const entries = merger.Merge([[parser.ParseLine('か /蚊/科/課/')]])
   const preferences = user_state.State.new()
