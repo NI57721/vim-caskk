@@ -122,6 +122,25 @@ suite.modified_small_tsu_consonant_starts_okuri_in_preedit = (): void => {
   keys.Disable()
 }
 
+suite.nonconsonant_combination_key_is_literal_in_direct_state = (): void => {
+  for key in ['1', '!']
+    const context = Setup()
+    try
+      const compiled = scheme.Compile({k: 'k'}, {a: 'a', '1': 'e*Tte', '!': 'ka'})
+      const keys = binding.Binding.new(compiled)
+      inoremap <buffer> <F11> <ScriptCmd>CapturePendingBuffer()<CR>
+      keys.Enable()
+      feedkeys("a" .. key .. "\<F11>\<Esc>", 'xt')
+      assert.equals(g:caskk_pending_snapshot, '前' .. key .. '後')
+      assert.equals(g:caskk_pending_properties, [])
+      iunmap <buffer> <F11>
+      keys.Disable()
+    finally
+      Cleanup(context)
+    endtry
+  endfor
+}
+
 suite.backspace_without_pending_input_uses_native_multibyte_deletion = (): void => {
   const context = Setup()
   defer Cleanup(context)
