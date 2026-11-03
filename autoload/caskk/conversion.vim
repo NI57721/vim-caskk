@@ -113,8 +113,9 @@ export class Selection
 endclass
 
 # Prepare one conversion request without committing, learning, or buffer I/O.
-export def Prepare(entries: dict<dictionary.Entry>, preferences: user_state.State, reading: string, okuri: string = ''): Candidates
-  const query = lookup.CreateQuery(reading, okuri)
+export def Prepare(entries: dict<dictionary.Entry>, preferences: user_state.State, reading: string,
+    okuri: string = '', small_tsu_okuri_as_t: bool = true): Candidates
+  const query = lookup.CreateQuery(reading, okuri, small_tsu_okuri_as_t)
   const system_candidates = lookup.Lookup(entries, query)
   const ranked = preferences.Rank(query, system_candidates)
   return Candidates.new(query, okuri, ranked)

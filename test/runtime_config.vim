@@ -119,6 +119,7 @@ suite.invalid_input_types_keys_and_actions_preserve_all_previous_settings = (): 
     {sticky_key: '<NotAKey>'}, {mappings: []}, {mappings: {'<F10>': 1}},
     {mappings: {'<F10>': 'MissingAction'}}, {mappings: {'two': 'Commit'}},
     {mappings: {'<NotAKey>': 'Commit'}},
+    {small_tsu_okuri_as_t: 'yes'},
     {mappings: {' ': 'Commit', '<Space>': 'Convert'}},
     {sticky_key: ':', highlight: []}, {highlight: {preedit: []}},
     {highlight: {preedit: {cterm: 1}}},
@@ -164,4 +165,26 @@ suite.named_sticky_key_and_explicit_enter_action_use_real_keycodes = (): void =>
   Caskk.Enable('configured')
   feedkeys("a\<F9>ka\<CR>ka\<Esc>", 'xt')
   assert.equals(getline(1, '$'), ['前かか後'])
+}
+
+suite.small_tsu_dictionary_prefix_is_enabled_by_default_and_can_be_disabled = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const path = tempname()
+  defer delete(path)
+  writefile(['けっt /蹴/', 'けx /標準/'], path)
+  Caskk.RegisterInputScheme('small-tsu-prefix', {k: 'k'}, {q: 'e*Tte'})
+
+  for [options, expected] in [
+    [{dictionaries: [path]}, '前蹴って後'],
+    [{dictionaries: [path], small_tsu_okuri_as_t: false}, '前標準って後'],
+  ]
+    setline(1, '前後')
+    cursor(1, 1)
+    Caskk.Config(options)
+    Caskk.Enable('small-tsu-prefix')
+    feedkeys("aKQ\<Esc>", 'xt')
+    assert.equals(getline(1), expected)
+    Caskk.Disable()
+  endfor
 }

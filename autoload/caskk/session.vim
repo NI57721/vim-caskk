@@ -39,6 +39,7 @@ export class Session
   const _state: state_types.State
   const _entries: dict<dictionary.Entry>
   const _preferences: user_state.State
+  const _small_tsu_okuri_as_t: bool
   var _prepared: conversion.Candidates = null_object
   var _selection: conversion.Selection = null_object
   var _request_preferences: user_state.State = null_object
@@ -47,12 +48,13 @@ export class Session
 
   def new(compiled: scheme.CompiledScheme, sticky_key: string = '',
       entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
-      initial_reading: string = '')
+      initial_reading: string = '', small_tsu_okuri_as_t: bool = true)
     this._normalizer = normalize.Normalizer.new(sticky_key)
     this._composer = composer.Composer.new(compiled)
     this._state = state_types.State.new()
     this._entries = copy(entries)
     this._preferences = preferences is null_object ? user_state.State.new() : preferences
+    this._small_tsu_okuri_as_t = small_tsu_okuri_as_t
     if initial_reading != ''
       this._state.Apply(composition.Result.new(true, initial_reading, '', false))
     endif
@@ -60,7 +62,8 @@ export class Session
 
   def _PrepareConversion(entries: dict<dictionary.Entry>, preferences: user_state.State): Result
     this._reading_after_cancel = false
-    this._prepared = conversion.Prepare(entries, preferences, this._state.reading, this._state.okuri)
+    this._prepared = conversion.Prepare(entries, preferences, this._state.reading, this._state.okuri,
+      this._small_tsu_okuri_as_t)
     this._request_preferences = preferences
     if empty(this._prepared.candidates)
       return Result.new('', [], this._state.GetSnapshot(), false, false, false, true)

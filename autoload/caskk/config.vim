@@ -26,8 +26,10 @@ export class Input
   const sticky_key: string
   const mappings: dict<string>
   const entries: dict<dictionary.Entry>
+  const small_tsu_okuri_as_t: bool
 
-  def new(this.sticky_key, mappings: dict<string>, entries: dict<dictionary.Entry>)
+  def new(this.sticky_key, mappings: dict<string>, entries: dict<dictionary.Entry>,
+      this.small_tsu_okuri_as_t)
     this.mappings = copy(mappings)
     this.entries = copy(entries)
   enddef
@@ -180,6 +182,7 @@ enddef
 def Parse(options: dict<any>): Settings
   for section in keys(options)
     if index(['highlight', 'sticky_key', 'mappings', 'dictionaries', 'state_path', 'state_auto',
+        'small_tsu_okuri_as_t',
         'registration_prefill', 'registration_auto', 'candidate_popup'], section) < 0
       throw 'unknown section: ' .. section
     endif
@@ -210,10 +213,14 @@ def Parse(options: dict<any>): Settings
     throw 'candidate_popup must be a bool'
   endif
   const candidate_popup: bool = get(options, 'candidate_popup', true)
+  if type(get(options, 'small_tsu_okuri_as_t', true)) != v:t_bool
+    throw 'small_tsu_okuri_as_t must be a bool'
+  endif
+  const small_tsu_okuri_as_t: bool = get(options, 'small_tsu_okuri_as_t', true)
   const sources = ReadDictionaries(get(options, 'dictionaries', []))
   const entries = loader.Load(sources)
   const destination = state_path == '' ? '' : fnamemodify(state_path, ':p')
-  return Settings.new(highlight, Input.new(sticky_key, actions, entries), destination, state_auto,
+  return Settings.new(highlight, Input.new(sticky_key, actions, entries, small_tsu_okuri_as_t), destination, state_auto,
     registration_prefill, registration_auto, candidate_popup)
 enddef
 
@@ -241,7 +248,8 @@ export def ApplyHighlight()
 enddef
 
 export def GetInput(): Input
-  return Input.new(current.input.sticky_key, current.input.mappings, current.input.entries)
+  return Input.new(current.input.sticky_key, current.input.mappings, current.input.entries,
+    current.input.small_tsu_okuri_as_t)
 enddef
 
 export def GetStatePath(): string

@@ -45,7 +45,7 @@ suite.ddskk_standard_okuri_prefixes_are_used = (): void => {
   ]
   for group in groups
     for kana in split(group[1], '\zs')
-      const query = lookup.CreateQuery('よみ', kana)
+      const query = lookup.CreateQuery('よみ', kana, false)
       assert.equals(query.reading, 'よみ')
       assert.equals(query.exact_okuri, kana)
       assert.equals(query.lookup_key, 'よみ' .. group[0])
@@ -81,12 +81,15 @@ suite.full_display_okuri_is_retained_while_exact_identity_is_shortened = (): voi
   assert.equals(ime.Commit(), 'いくらい')
 }
 
-suite.small_tsu_uses_standard_prefix_without_opt_in = (): void => {
+suite.small_tsu_uses_t_prefix_by_default_and_can_use_standard_x_prefix = (): void => {
   for okuri in ['っ', 'って']
     const query = lookup.CreateQuery('か', okuri)
     assert.equals(query.reading, 'か')
     assert.equals(query.exact_okuri, 'っ')
-    assert.equals(query.lookup_key, 'かx')
+    assert.equals(query.lookup_key, 'かっt')
+
+    const standard = lookup.CreateQuery('か', okuri, false)
+    assert.equals(standard.lookup_key, 'かx')
   endfor
 }
 

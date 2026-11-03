@@ -65,6 +65,7 @@ export class Binding
   const _keys: dict<string>
   const _native: dict<bool>
   const _registration_auto: bool
+  const _small_tsu_okuri_as_t: bool
   var _saved: dict<Mapping> = {}
   var _installed: dict<Mapping> = {}
   var _editor: insert.Editor = null_object
@@ -79,7 +80,8 @@ export class Binding
 
   def new(compiled: scheme.CompiledScheme, sticky_key: string = '',
       entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
-      actions: dict<string> = {}, initial_reading: string = '', registration_auto: bool = false)
+      actions: dict<string> = {}, initial_reading: string = '', registration_auto: bool = false,
+      small_tsu_okuri_as_t: bool = true)
     this._buffer = bufnr('%')
     this._compiled = compiled
     this._sticky = sticky_key
@@ -88,6 +90,7 @@ export class Binding
     this._actions = copy(actions)
     this._initial_reading = initial_reading
     this._registration_auto = registration_auto
+    this._small_tsu_okuri_as_t = small_tsu_okuri_as_t
     final tokens: dict<bool> = {}
     for key in keys(compiled.table.consonants) + keys(compiled.table.combinations)
       tokens[key] = true
@@ -281,7 +284,8 @@ export class Binding
     if this._editor isnot null_object && this._editor.IsRegistrationSuspended()
       throw 'caskk: input is suspended for dictionary registration'
     endif
-    this._editor = insert.Editor.new(this._compiled, this._sticky, this._entries, this._preferences, this._initial_reading)
+    this._editor = insert.Editor.new(this._compiled, this._sticky, this._entries, this._preferences,
+      this._initial_reading, this._small_tsu_okuri_as_t)
     this._initial_reading = ''
   enddef
 
@@ -394,7 +398,8 @@ export class Binding
       this._registration_window = window
       registration_owners[string(this._buffer)] = this
       const child = Binding.new(this._compiled, this._sticky, this._entries,
-        this._preferences, this._actions, prefill ? request.reading : '', this._registration_auto)
+        this._preferences, this._actions, prefill ? request.reading : '', this._registration_auto,
+        this._small_tsu_okuri_as_t)
       child.Enable()
       const arguments = this._buffer .. ', ' .. window.buffer
       for command in ['inoremap', 'nnoremap']
@@ -645,9 +650,10 @@ enddef
 
 export def Enable(compiled: scheme.CompiledScheme, sticky_key: string = '', actions: dict<string> = {},
     entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
-    registration_auto: bool = false)
+    registration_auto: bool = false, small_tsu_okuri_as_t: bool = true)
   if !has_key(bindings, string(bufnr('%')))
-    const current = Binding.new(compiled, sticky_key, entries, preferences, actions, '', registration_auto)
+    const current = Binding.new(compiled, sticky_key, entries, preferences, actions, '', registration_auto,
+      small_tsu_okuri_as_t)
     current.Enable()
   endif
 enddef

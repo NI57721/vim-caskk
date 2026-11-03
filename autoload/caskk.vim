@@ -26,7 +26,7 @@ export def Enable(name: string)
   endif
   const input = configuration.GetInput()
   binding.Enable(compiled, input.sticky_key, input.mappings, input.entries, user_runtime.Get(),
-    configuration.GetRegistrationAuto())
+    configuration.GetRegistrationAuto(), input.small_tsu_okuri_as_t)
   try
     if configuration.GetStateAuto()
       user_runtime.InitializeAutomatic(configuration.GetStatePath())

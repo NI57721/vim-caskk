@@ -17,7 +17,7 @@ const OKURI_PREFIXES: dict<string> = {
   'ゑ': 'x', 'を': 'w', 'ん': 'n',
 }
 
-export def CreateQuery(reading: string, okuri: string): dictionary.Query
+export def CreateQuery(reading: string, okuri: string, small_tsu_okuri_as_t: bool = true): dictionary.Query
   const exact_okuri = strcharpart(okuri, 0, 1)
   if exact_okuri == ''
     return dictionary.Query.new(reading, exact_okuri, reading)
@@ -25,7 +25,8 @@ export def CreateQuery(reading: string, okuri: string): dictionary.Query
   if !has_key(OKURI_PREFIXES, exact_okuri)
     throw 'caskk: unsupported SKK okuri: ' .. exact_okuri
   endif
-  return dictionary.Query.new(reading, exact_okuri, reading .. OKURI_PREFIXES[exact_okuri])
+  const prefix = exact_okuri ==# 'っ' && small_tsu_okuri_as_t ? 'っt' : OKURI_PREFIXES[exact_okuri]
+  return dictionary.Query.new(reading, exact_okuri, reading .. prefix)
 enddef
 
 # Search already loaded entries without I/O or inferred morphological filtering.

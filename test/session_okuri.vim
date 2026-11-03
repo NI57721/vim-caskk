@@ -59,6 +59,24 @@ suite.modified_standalone_vowel_starts_vowel_initial_okuri = (): void => {
   assert.equals(ime.GetCandidates().query.lookup_key, 'あまi')
 }
 
+suite.small_tsu_okuri_uses_t_suffix_lookup_by_default = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('けっt /蹴/')]])
+  const compiled = scheme.Compile({k: 'k'}, {q: 'e*Tte'})
+  for keys in [['K', 'Q'], [';', 'k', ';', 'q']]
+    const ime = session.Session.new(compiled, ';', entries)
+    var results: list<session.Result> = []
+    for key in keys
+      results = ime.Feed(key)
+    endfor
+    assert.equals(len(results), 1)
+    assert.equals(results[0].text, '蹴って')
+    assert.equals(results[0].in_candidate, true)
+    assert.equals(results[0].state.reading, 'け')
+    assert.equals(results[0].state.okuri, 'って')
+    assert.equals(ime.GetCandidates().query.lookup_key, 'けっt')
+  endfor
+}
+
 suite.completed_okuri_immediately_displays_the_first_ranked_candidate = (): void => {
   const entries = merger.Merge([[parser.ParseLine('いk /行/往/')]])
   const compiled = scheme.Compile({q: '', k: 'k'}, {i: 'i', u: 'u'})
