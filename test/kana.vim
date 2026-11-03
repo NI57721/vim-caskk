@@ -40,9 +40,15 @@ suite.tail_vowels_are_in_the_vowel_row = (): void => {
 suite.small_kana_rows = (): void => {
   assert.equals(kana.Generate('x', output_pattern.Parse('a')).text, 'ぁ')
   assert.equals(kana.Generate('xy', output_pattern.Parse('a')).text, 'ゃ')
+  assert.equals(kana.Generate('xy', output_pattern.Parse('i')).text, 'ぃ')
   assert.equals(kana.Generate('xy', output_pattern.Parse('u')).text, 'ゅ')
+  assert.equals(kana.Generate('xy', output_pattern.Parse('e')).text, 'ぇ')
   assert.equals(kana.Generate('xy', output_pattern.Parse('o')).text, 'ょ')
   assert.equals(kana.Generate('xw', output_pattern.Parse('a')).text, 'ゎ')
+  assert.equals(kana.Generate('xw', output_pattern.Parse('i')).text, 'ぃ')
+  assert.equals(kana.Generate('xw', output_pattern.Parse('u')).text, 'ぅ')
+  assert.equals(kana.Generate('xw', output_pattern.Parse('e')).text, 'ぇ')
+  assert.equals(kana.Generate('xw', output_pattern.Parse('o')).text, 'ぉ')
 }
 
 suite.shortened_i_and_small_kana_boundaries = (): void => {
@@ -52,18 +58,6 @@ suite.shortened_i_and_small_kana_boundaries = (): void => {
   const small = kana.Generate('xy', output_pattern.Parse('a*iN'))
   assert.equals(small.text, 'ゃいん')
   assert.equals(small.boundary, 1)
-}
-
-suite.undefined_small_kana_is_rejected = (): void => {
-  for [row, vowel] in [['xy', 'i'], ['xy', 'e'], ['xw', 'i'], ['xw', 'u'], ['xw', 'e'], ['xw', 'o']]
-    var caught = ''
-    try
-      kana.Generate(row, output_pattern.Parse(vowel))
-    catch
-      caught = v:exception
-    endtry
-    assert.equals(caught, 'caskk: undefined kana: ' .. row .. vowel)
-  endfor
 }
 
 suite.nasal_and_small_tsu_symbols = (): void => {
