@@ -154,7 +154,7 @@ suite.unknown_scheme_preserves_existing_enable_state_and_mappings = (): void => 
 suite.failed_enable_restores_mappings_and_allows_retry = (): void => {
   const context = Setup()
   defer Cleanup(context)
-  Caskk.RegisterInputScheme('lifecycle-duplicate', {}, {}, {' ': '空', '<Space>': '間'})
+  Caskk.RegisterInputScheme('lifecycle-duplicate', {}, {' ': 'a'}, {' ': '間'})
   inoremap <buffer> <Space> 旧
   var caught = ''
   try

@@ -55,10 +55,42 @@ export def ConsonantKeys(key: string): list<string>
   return InputKeys(key)
 enddef
 
+def SpecialKeys(sequence: string): list<string>
+  final keys: list<string> = []
+  var index = 0
+  while index < strchars(sequence)
+    const character = strcharpart(sequence, index, 1)
+    const codepoint = char2nr(character)
+    if codepoint == 0x80 && index + 2 < strchars(sequence)
+      const encoded = strcharpart(sequence, index, 3)
+      const named = keytrans(encoded)
+      if named =~# '^<[0-9A-Za-z_-]\+>$'
+        keys->add(named)
+        index += 3
+        continue
+      endif
+    elseif codepoint < 0x20 || codepoint == 0x7f
+      const named = keytrans(character)
+      if named =~# '^<[0-9A-Za-z_-]\+>$'
+        keys->add(named)
+        index += 1
+        continue
+      endif
+    elseif codepoint == 0x20
+      keys->add('<Space>')
+      index += 1
+      continue
+    endif
+    keys->add(character =~# '^[A-Z]$' ? tolower(character) : character)
+    index += 1
+  endwhile
+  return keys
+enddef
+
 export def SpecialDefinitions(definitions: dict<string>): list<SpecialDefinition>
   final specials: list<SpecialDefinition> = []
   for [sequence, output] in items(definitions)
-    specials->add(SpecialDefinition.new(InputKeys(sequence), output))
+    specials->add(SpecialDefinition.new(SpecialKeys(sequence), output))
   endfor
   return specials
 enddef

@@ -19,9 +19,9 @@ suite.registered_scheme_composes_normal_input_and_prioritizes_specials = (): voi
 
 suite.special_rules_accept_key_sequences_as_a_dictionary = (): void => {
   Caskk.RegisterInputScheme('public-special-dictionary', {}, {},
-    {jsn: 'ません', '<C-K>': 'ケー', '<F10>jsn': '複合'})
+    {jsn: 'ません', "\<C-K>": 'ケー', "\<F10>jsn": '複合', '<C-K>': '文字列'})
   const compiled = Caskk.GetInputScheme('public-special-dictionary')
-  assert.equals(len(compiled.specials), 3)
+  assert.equals(len(compiled.specials), 4)
   const ime = session.Session.new(compiled)
   assert.equals(ime.Feed('j'), [])
   assert.equals(ime.Feed('s'), [])
@@ -32,6 +32,12 @@ suite.special_rules_accept_key_sequences_as_a_dictionary = (): void => {
   assert.equals(mixed.Feed('j'), [])
   assert.equals(mixed.Feed('s'), [])
   assert.equals(mixed.Feed('n')[0].text, '複合')
+  const literal = session.Session.new(compiled)
+  assert.equals(literal.Feed('<'), [])
+  assert.equals(literal.Feed('C'), [])
+  assert.equals(literal.Feed('-'), [])
+  assert.equals(literal.Feed('K'), [])
+  assert.equals(literal.Feed('>')[0].text, '文字列')
 }
 
 suite.nasal_and_sokuon_consonant_values_emit_kana_directly = (): void => {

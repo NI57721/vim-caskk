@@ -18,9 +18,11 @@ also be used to map a key directly to 「ん」 or 「っ」, respectively.  For
 <
 The optional specials dictionary maps input key sequences to output patterns.
 Ordinary characters in a key are separate physical keys, so `kan` means `k`,
-`a`, then `n`.  Vim key notation such as `<C-K>` is one physical key and can
-appear alone or within a sequence.  Specials take precedence over generated
-consonant/combination rules.  Output patterns support latent okuri boundaries.
+`a`, then `n`.  Write a Vim key as a double-quoted Vim key expression, such as
+`"\<C-K>"`; Vim expands it to the encoded key before Caskk compiles the scheme.
+A single-quoted `'<C-K>'` remains five ordinary keys: `<`, `C`, `-`, `K`, `>`.
+Specials take precedence over generated consonant/combination rules.  Output
+patterns support latent okuri boundaries.
 
 GetInputScheme(name) returns the compiled scheme for the supplied name and raises
 an error for an unknown name.  Retrieval does not enable the IME or install maps.
