@@ -83,8 +83,22 @@ export class Composer
       for replayed in match.replay
         this._Replay(replayed, results)
       endfor
-      this._special_pending = match.pending
+      if match.output isnot null_object && this._consonant isnot null_object
+          && len(match.events) == 1
+          && has_key(this._table.combinations, match.events[0].key)
+        this._Replay(match.events[0], results)
+        remaining = match.rest
+        continue
+      endif
       if match.output is null_object
+        var pending = copy(match.pending)
+        if !empty(pending) && this._CompletesPendingCombination(pending[0])
+          this._Replay(pending[0], results)
+          pending = pending[1 :]
+          remaining = pending
+          continue
+        endif
+        this._special_pending = pending
         break
       endif
 

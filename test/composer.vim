@@ -92,6 +92,51 @@ suite.pending_consonant_combination_does_not_wait_for_a_longer_special = (): voi
   assert.equals(len(results), 1)
   assert.equals(results[0].output.text, 'じゃう')
   assert.equals(results[0].is_special, false)
+  const composed = composer.Compose(results[0])
+  assert.equals(composed.reading, 'じゃう')
+  assert.equals(composed.okuri, '')
+}
+
+suite.replayed_consonant_combination_precedes_other_special_prefixes = (): void => {
+  const compiled = scheme.Compile({j: 'zy'}, {'-': 'a*u'}, [
+    scheme.SpecialDefinition.new(['-', 'a'], 'ー'),
+    scheme.SpecialDefinition.new(['j', 's'], 'ます'),
+  ])
+  const engine = composer.Composer.new(compiled)
+  assert.equals(engine.Feed(input.Event.new('j')), [])
+  const results = engine.Feed(input.Event.new('-'))
+  assert.equals(len(results), 1)
+  assert.equals(results[0].output.text, 'じゃう')
+  assert.equals(results[0].is_special, false)
+}
+
+suite.replayed_consonant_combination_precedes_three_key_specials = (): void => {
+  const compiled = scheme.Compile({j: 'zy'}, {'-': 'a*u'}, [
+    scheme.SpecialDefinition.new(['-', 'a'], 'ー'),
+    scheme.SpecialDefinition.new(['j', 's', 'n'], 'ません'),
+  ])
+  const engine = composer.Composer.new(compiled)
+  assert.equals(engine.Feed(input.Event.new('j')), [])
+  const results = engine.Feed(input.Event.new('-'))
+  assert.equals(len(results), 1)
+  assert.equals(results[0].output.text, 'じゃう')
+  assert.equals(results[0].is_special, false)
+  const composed = composer.Compose(results[0])
+  assert.equals(composed.reading, 'じゃう')
+  assert.equals(composed.okuri, '')
+}
+
+suite.replayed_consonant_combination_precedes_exact_single_key_special = (): void => {
+  const compiled = scheme.Compile({j: 'zy'}, {'-': 'i*yo'}, [
+    scheme.SpecialDefinition.new(['-'], 'ー'),
+    scheme.SpecialDefinition.new(['j', 's', 'n'], 'ません'),
+  ])
+  const engine = composer.Composer.new(compiled)
+  assert.equals(engine.Feed(input.Event.new('j')), [])
+  const results = engine.Feed(input.Event.new('-'))
+  assert.equals(len(results), 1)
+  assert.equals(results[0].output.text, 'じよ')
+  assert.equals(results[0].is_special, false)
 }
 
 suite.vowel_combination_composes_without_a_consonant = (): void => {
