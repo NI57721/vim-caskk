@@ -1,7 +1,6 @@
 vim9script
 
 import autoload 'caskk.vim' as Caskk
-import autoload 'caskk/scheme.vim' as scheme
 import autoload 'caskk/session.vim' as session
 
 final suite = themis#suite('public input scheme API')
@@ -12,12 +11,27 @@ suite.registered_scheme_composes_normal_input_and_prioritizes_specials = (): voi
   const ordinary = session.Session.new(Caskk.GetInputScheme('public-normal'))
   ordinary.Feed('k')
   assert.equals(ordinary.Feed('a')[0].text, 'か')
-  Caskk.RegisterInputScheme('public-special', {k: 'k'}, {a: 'a'}, [
-    scheme.SpecialDefinition.new(['k', 'a'], '特別'),
-  ])
+  Caskk.RegisterInputScheme('public-special', {k: 'k'}, {a: 'a'}, {'ka': '特別'})
   const special = session.Session.new(Caskk.GetInputScheme('public-special'))
   special.Feed('k')
   assert.equals(special.Feed('a')[0].text, '特別')
+}
+
+suite.special_rules_accept_key_sequences_as_a_dictionary = (): void => {
+  Caskk.RegisterInputScheme('public-special-dictionary', {}, {},
+    {jsn: 'ません', '<C-K>': 'ケー', '<F10>jsn': '複合'})
+  const compiled = Caskk.GetInputScheme('public-special-dictionary')
+  assert.equals(len(compiled.specials), 3)
+  const ime = session.Session.new(compiled)
+  assert.equals(ime.Feed('j'), [])
+  assert.equals(ime.Feed('s'), [])
+  assert.equals(ime.Feed('n')[0].text, 'ません')
+  assert.equals(session.Session.new(compiled).Feed('<C-K>')[0].text, 'ケー')
+  const mixed = session.Session.new(compiled)
+  assert.equals(mixed.Feed('<F10>'), [])
+  assert.equals(mixed.Feed('j'), [])
+  assert.equals(mixed.Feed('s'), [])
+  assert.equals(mixed.Feed('n')[0].text, '複合')
 }
 
 suite.nasal_and_sokuon_consonant_values_emit_kana_directly = (): void => {

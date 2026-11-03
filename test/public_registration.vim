@@ -64,9 +64,7 @@ def Setup(lines: list<string> = []): Fixture
   user_runtime.Get().Restore(user_state.State.new().GetSnapshot())
   requests = []
   errors = []
-  Caskk.RegisterInputScheme('public-registration', {k: 'k'}, {a: 'a'}, [
-    scheme.SpecialDefinition.new(['z', 'x'], 'い*くらい'),
-  ])
+  Caskk.RegisterInputScheme('public-registration', {k: 'k'}, {a: 'a'}, {zx: 'い*くらい'})
   Caskk.Config({registration_auto: false, state_path: directory .. '/state.jsonl', dictionaries: [directory .. '/system'],
     mappings: {s: 'Convert', n: 'NextCandidate'}})
   Caskk.Enable('public-registration')

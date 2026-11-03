@@ -25,15 +25,42 @@ endclass
 
 # A consonant definition is a sequence of physical keys. Named Vim KeyTokens
 # remain atomic; ordinary strings are split into their Unicode characters.
-export def ConsonantKeys(key: string): list<string>
-  if key =~# '^<[0-9A-Za-z_-]\+>$' || strchars(key) == 1
-    return [key]
-  endif
+export def InputKeys(sequence: string): list<string>
   final keys: list<string> = []
-  for index in range(0, strchars(key) - 1)
-    keys->add(strcharpart(key, index, 1))
-  endfor
+  var index = 0
+  while index < strchars(sequence)
+    const character = strcharpart(sequence, index, 1)
+    if character ==# '<'
+      var end = index + 1
+      while end < strchars(sequence) && strcharpart(sequence, end, 1) !=# '>'
+        end += 1
+      endwhile
+      if end < strchars(sequence)
+        const named = strcharpart(sequence, index, end - index + 1)
+        if named =~# '^<[0-9A-Za-z_-]\+>$'
+          keys->add(named)
+          index = end + 1
+          continue
+        endif
+      endif
+    endif
+    keys->add(character)
+    index += 1
+  endwhile
   return keys
+enddef
+
+# Consonant definitions share the same physical sequence notation.
+export def ConsonantKeys(key: string): list<string>
+  return InputKeys(key)
+enddef
+
+export def SpecialDefinitions(definitions: dict<string>): list<SpecialDefinition>
+  final specials: list<SpecialDefinition> = []
+  for [sequence, output] in items(definitions)
+    specials->add(SpecialDefinition.new(InputKeys(sequence), output))
+  endfor
+  return specials
 enddef
 
 # Compile all output patterns without retaining caller-owned containers.

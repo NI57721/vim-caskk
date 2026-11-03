@@ -5,11 +5,8 @@ INPUT SCHEMES                                           *caskk-input-schemes*
 Register input grammar separately from Config(): >vim9
 
     import autoload 'caskk.vim' as Caskk
-    import autoload 'caskk/scheme.vim' as Scheme
-
-    Caskk.RegisterInputScheme('custom', {k: 'k'}, {a: 'a'}, [
-      Scheme.SpecialDefinition.new(['k', 'a', 'n'], 'かん'),
-    ])
+    Caskk.RegisterInputScheme('custom', {k: 'k'}, {a: 'a'},
+      {kan: 'かん', '<C-K>': 'ケー'})
     const compiled = Caskk.GetInputScheme('custom')
 <
 RegisterInputScheme(name, consonants, combinations [, specials]) compiles and
@@ -19,8 +16,10 @@ also be used to map a key directly to 「ん」 or 「っ」, respectively.  For
 >
     Caskk.RegisterInputScheme('custom', {q: 'N', l: 'T'}, {})
 <
-The optional specials list contains SpecialDefinition objects with explicit
-KeyToken lists and output patterns.  Specials take precedence over generated
+The optional specials dictionary maps input key sequences to output patterns.
+Ordinary characters in a key are separate physical keys, so `kan` means `k`,
+`a`, then `n`.  Vim key notation such as `<C-K>` is one physical key and can
+appear alone or within a sequence.  Specials take precedence over generated
 consonant/combination rules.  Output patterns support latent okuri boundaries.
 
 GetInputScheme(name) returns the compiled scheme for the supplied name and raises

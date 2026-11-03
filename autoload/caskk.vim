@@ -10,8 +10,8 @@ import 'caskk/registration.vim' as registration
 const schemes = registry.Registry.new()
 
 export def RegisterInputScheme(name: string, consonants: dict<string>,
-    combinations: dict<string>, specials: list<scheme.SpecialDefinition> = [])
-  schemes.Register(name, consonants, combinations, specials)
+    combinations: dict<string>, specials: dict<string> = {})
+  schemes.Register(name, consonants, combinations, scheme.SpecialDefinitions(specials))
   binding.DisableAll()
 enddef
 

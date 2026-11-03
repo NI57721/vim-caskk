@@ -85,10 +85,8 @@ def Setup(lines: list<string> = [], registration_prefill: bool = true): Fixture
   const snapshot = user_runtime.Get().GetSnapshot()
   user_runtime.Get().Restore(user_state.State.new().GetSnapshot())
   observations = []
-  Caskk.RegisterInputScheme('automatic-registration', {k: 'k'}, {a: 'a'}, [
-    scheme.SpecialDefinition.new(['d'], '漢字'),
-    scheme.SpecialDefinition.new(['z', 'x'], 'い*くらい'),
-  ])
+  Caskk.RegisterInputScheme('automatic-registration', {k: 'k'}, {a: 'a'},
+    {d: '漢字', zx: 'い*くらい'})
   Caskk.Config({registration_prefill: registration_prefill,
     state_path: directory .. '/state.jsonl', dictionaries: [directory .. '/system'],
     mappings: {s: 'Convert', n: 'NextCandidate', '<F6>': 'OpenRegistration'}})
