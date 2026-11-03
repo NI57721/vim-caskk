@@ -43,6 +43,22 @@ suite.redundant_sticky_and_uppercase_modifiers_produce_the_same_okuri_conversion
   endfor
 }
 
+suite.modified_standalone_vowel_starts_vowel_initial_okuri = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('あまi /甘/')]])
+  const compiled = scheme.Compile({m: 'm'}, {a: 'a', m: 'a*ku', i: 'i'})
+  const ime = session.Session.new(compiled, ';', entries)
+  var results: list<session.Result> = []
+  for key in [';', 'a', 'm', 'a', ';', 'i']
+    results = ime.Feed(key)
+  endfor
+  assert.equals(len(results), 1)
+  assert.equals(results[0].text, '甘い')
+  assert.equals(results[0].in_candidate, true)
+  assert.equals(results[0].state.reading, 'あま')
+  assert.equals(results[0].state.okuri, 'い')
+  assert.equals(ime.GetCandidates().query.lookup_key, 'あまi')
+}
+
 suite.completed_okuri_immediately_displays_the_first_ranked_candidate = (): void => {
   const entries = merger.Merge([[parser.ParseLine('いk /行/往/')]])
   const compiled = scheme.Compile({q: '', k: 'k'}, {i: 'i', u: 'u'})

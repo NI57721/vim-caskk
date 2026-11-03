@@ -33,6 +33,9 @@ export def ComposeEvents(pattern: pattern_types.OutputPattern, events: list<inpu
     if pattern.boundary != -1
       throw 'caskk: standalone combination cannot activate latent okuri boundary'
     endif
+    if in_preedit && events[0].modified
+      return composition.Result.new(false, '', pattern.text, true)
+    endif
     return composition.Result.new(!in_preedit, pattern.text, '', false)
   endif
   if len(events) != 2
