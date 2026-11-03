@@ -99,6 +99,34 @@ export class Composer
     return input.Event.new(key, modified)
   enddef
 
+  # If the longest consonant row cannot generate this combination's kana,
+  # resolve the earliest valid consonant/combination pair and replay its tail.
+  def _ReplayFirstValidPair(events: list<input.Event>, results: list<Result>): bool
+    for length in range(1, len(events) - 1)
+      const key = this._ConsonantKey(events[0 : length - 1])
+      if key == '' || !has_key(this._table.combinations, events[length].key)
+        continue
+      endif
+      var pattern: pattern_types.OutputPattern = null_object
+      try
+        pattern = kana.Generate(this._table.consonants[key],
+          this._table.combinations[events[length].key])
+      catch
+        if v:exception =~# '^caskk: undefined kana:'
+          continue
+        endif
+        throw v:exception
+      endtry
+      results->add(Result.new([this._LogicalConsonant(key, events[0 : length - 1]),
+        events[length]], pattern))
+      for replayed in events[length + 1 :]
+        this._Replay(replayed, results)
+      endfor
+      return true
+    endfor
+    return false
+  enddef
+
   # Normal replay must bypass special matching to avoid retrying a failed prefix.
   def _Replay(event: input.Event, results: list<Result>)
     if !empty(this._consonant)
@@ -119,12 +147,25 @@ export class Composer
       endfor
       if matched_key != ''
         const matched_events = this._consonant[0 : matched_length - 1]
+        const buffered_events = copy(this._consonant) + [event]
         const remainder = this._consonant[matched_length : ] + [event]
         this._consonant = []
         if !empty(remainder) && has_key(this._table.combinations, remainder[0].key)
           const combination_event = remainder[0]
-          const pattern = kana.Generate(this._table.consonants[matched_key],
-            this._table.combinations[combination_event.key])
+          var pattern: pattern_types.OutputPattern = null_object
+          try
+            pattern = kana.Generate(this._table.consonants[matched_key],
+              this._table.combinations[combination_event.key])
+          catch
+            const reason = v:exception
+            if reason !~# '^caskk: undefined kana:'
+              throw reason
+            endif
+            if this._ReplayFirstValidPair(buffered_events, results)
+              return
+            endif
+            throw reason
+          endtry
           results->add(Result.new([this._LogicalConsonant(matched_key, matched_events),
             combination_event], pattern))
           for replayed in remainder[1 :]

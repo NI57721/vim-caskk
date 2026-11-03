@@ -105,6 +105,23 @@ suite.normal_input_returns_direct_text_after_the_second_key = (): void => {
   assert.equals(ime.Pending(), [])
 }
 
+suite.undefined_long_consonant_combination_falls_back_to_valid_shorter_pairs = (): void => {
+  const compiled = scheme.Compile({x: 'sy', xx: 'x', xxw: 'xw', w: 'w'},
+    {a: 'a', x: 'e*ru', w: 'e*i', p: 'o*u'})
+  const defined = session.Session.new(compiled)
+  assert.equals(defined.Feed('x'), [])
+  assert.equals(defined.Feed('x'), [])
+  assert.equals(defined.Feed('w'), [])
+  assert.equals(defined.Feed('a')[0].text, 'ゎ')
+
+  const ime = session.Session.new(compiled)
+  assert.equals(ime.Feed('x'), [])
+  assert.equals(ime.Feed('x'), [])
+  assert.equals(ime.Feed('w'), [])
+  const result = ime.Feed('p')
+  assert.equals(mapnew(result, (_, item) => item.text), ['しぇる', 'をう'])
+}
+
 suite.uppercase_and_sticky_keys_start_normal_okuri = (): void => {
   const compiled = scheme.Compile({k: 'k', j: 'z'}, {l: 'aN', i: 'i'})
   for keys in [['K', 'l', 'J', 'i'], [';', 'k', 'l', ';', 'j', 'i']]
