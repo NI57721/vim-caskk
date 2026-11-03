@@ -66,6 +66,34 @@ suite.normal_combination_waits_for_second_key = (): void => {
   assert.equals(engine.Pending(), [])
 }
 
+suite.pending_consonant_combination_precedes_same_key_special = (): void => {
+  const compiled = scheme.Compile({j: 'zy'}, {'-': 'a*u'}, [
+    scheme.SpecialDefinition.new(['-'], 'ー'),
+  ])
+  const engine = composer.Composer.new(compiled)
+  assert.equals(engine.Feed(input.Event.new('j')), [])
+  const results = engine.Feed(input.Event.new('-'))
+  assert.equals(len(results), 1)
+  assert.equals(results[0].output.text, 'じゃう')
+  assert.equals(results[0].is_special, false)
+  const standalone = engine.Feed(input.Event.new('-'))
+  assert.equals(len(standalone), 1)
+  assert.equals(standalone[0].output.text, 'ー')
+  assert.equals(standalone[0].is_special, true)
+}
+
+suite.pending_consonant_combination_does_not_wait_for_a_longer_special = (): void => {
+  const compiled = scheme.Compile({j: 'zy'}, {'-': 'a*u'}, [
+    scheme.SpecialDefinition.new(['-', 'a'], '長いspecial'),
+  ])
+  const engine = composer.Composer.new(compiled)
+  assert.equals(engine.Feed(input.Event.new('j')), [])
+  const results = engine.Feed(input.Event.new('-'))
+  assert.equals(len(results), 1)
+  assert.equals(results[0].output.text, 'じゃう')
+  assert.equals(results[0].is_special, false)
+}
+
 suite.vowel_combination_composes_without_a_consonant = (): void => {
   const engine = composer.Composer.new(scheme.Compile({}, {a: 'a', i: 'i', u: 'u', e: 'e', o: 'o'}))
   const results = engine.Feed(input.Event.new('a'))
@@ -287,15 +315,15 @@ suite.suffix_special_takes_precedence_over_replayed_consonant = (): void => {
   assert.equals(engine.Pending(), [])
 }
 
-suite.special_can_start_while_normal_consonant_is_pending = (): void => {
-  const definitions = [scheme.SpecialDefinition.new(['a', 'b'], '特別')]
+suite.special_can_start_on_a_non_combination_key_while_consonant_is_pending = (): void => {
+  const definitions = [scheme.SpecialDefinition.new(['x', 'y'], '特別')]
   const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}, definitions))
   const first = input.Event.new('k')
-  const second = input.Event.new('a')
+  const second = input.Event.new('x')
   assert.equals(engine.Feed(first), [])
   assert.equals(engine.Feed(second), [])
   assert.equals(engine.Pending(), [first, second])
-  const results = engine.Feed(input.Event.new('b'))
+  const results = engine.Feed(input.Event.new('y'))
   assert.equals(len(results), 2)
   assert.equals(results[0].events, [first])
   assert.equals(results[0].output is null_object, true)
@@ -303,16 +331,17 @@ suite.special_can_start_while_normal_consonant_is_pending = (): void => {
   assert.equals(engine.Pending(), [])
 }
 
-suite.failed_special_can_complete_preceding_normal_consonant = (): void => {
+suite.pending_combination_completes_before_a_special_prefix_can_fail = (): void => {
   const definitions = [scheme.SpecialDefinition.new(['a', 'b'], '特別')]
   const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}, definitions))
   assert.equals(engine.Feed(input.Event.new('k')), [])
-  assert.equals(engine.Feed(input.Event.new('a')), [])
+  const combined = engine.Feed(input.Event.new('a'))
+  assert.equals(len(combined), 1)
+  assert.equals(combined[0].output.text, 'か')
   const results = engine.Feed(input.Event.new('x'))
-  assert.equals(len(results), 2)
-  assert.equals(results[0].output.text, 'か')
-  assert.equals(results[1].output is null_object, true)
-  assert.equals(results[1].events[0].key, 'x')
+  assert.equals(len(results), 1)
+  assert.equals(results[0].output is null_object, true)
+  assert.equals(results[0].events[0].key, 'x')
   assert.equals(engine.Pending(), [])
 }
 
@@ -498,13 +527,13 @@ suite.flush_reprocesses_remaining_specials_in_order = (): void => {
   assert.equals(engine.Pending(), [])
 }
 
-suite.flush_can_complete_consonant_waiting_before_special_prefix = (): void => {
+suite.combination_completes_before_flush_when_key_starts_a_special = (): void => {
   const definitions = [scheme.SpecialDefinition.new(['a', 'b'], '特別')]
   const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}, definitions))
   assert.equals(engine.Feed(input.Event.new('k')), [])
-  assert.equals(engine.Feed(input.Event.new('a')), [])
-  const results = engine.Flush()
-  assert.equals(len(results), 1)
-  assert.equals(results[0].output.text, 'か')
+  const combined = engine.Feed(input.Event.new('a'))
+  assert.equals(len(combined), 1)
+  assert.equals(combined[0].output.text, 'か')
+  assert.equals(engine.Flush(), [])
   assert.equals(engine.Pending(), [])
 }

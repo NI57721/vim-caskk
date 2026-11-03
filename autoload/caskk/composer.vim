@@ -66,6 +66,14 @@ export class Composer
     endif
   enddef
 
+  def _CompletesPendingCombination(event: input.Event): bool
+    if this._consonant is null_object || !empty(this._special_pending)
+        || !has_key(this._table.combinations, event.key)
+      return false
+    endif
+    return true
+  enddef
+
   def _Process(events: list<input.Event>, end_of_input: bool): list<Result>
     var remaining = events
     this._special_pending = []
@@ -95,6 +103,11 @@ export class Composer
   # A feed may resolve several normal combinations after a failed special.
   # Results are returned in input order, before any still-pending suffix.
   def Feed(event: input.Event): list<Result>
+    if this._CompletesPendingCombination(event)
+      final results: list<Result> = []
+      this._Replay(event, results)
+      return results
+    endif
     return this._Process(this._special_pending + [event], false)
   enddef
 
