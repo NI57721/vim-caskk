@@ -229,6 +229,54 @@ export class Binding
     endif
   enddef
 
+  def _CanRunAction(action: string): bool
+    if this._editor is null_object
+      return false
+    endif
+    const snapshot = this._editor.GetSnapshot()
+    const has_pending = !empty(this._editor.Pending())
+    const has_candidate = this._editor.IsInCandidate()
+    if action ==# 'StartConversion'
+      return !has_candidate && (snapshot.in_preedit || has_pending)
+    elseif action ==# 'NextCandidate' || action ==# 'PreviousCandidate'
+      return has_candidate
+    elseif action ==# 'Commit'
+      return has_candidate || snapshot.in_preedit || has_pending
+    elseif action ==# 'OpenRegistration'
+      return this.GetRegistrationRequest() isnot null_object
+    endif
+    return false
+  enddef
+
+  def _FallbackActionKey(key: string)
+    const literal = key ==# '<Space>' ? ' '
+      : strchars(key) == 1 && char2nr(key) >= 0x20 && char2nr(key) != 0x7f ? key : ''
+    if literal !=# ''
+      if this._editor is null_object
+        this.Enter()
+      endif
+      this._Record(this._editor.Feed(literal))
+      return
+    endif
+    this.Leave()
+    execute 'silent! iunmap <buffer> ' .. this._keys[key]
+    this._saved[key].Restore()
+    feedkeys(keycode.Encode(key) .. "\<Cmd>call caskk#binding#ReinstallActionMapping("
+      .. this._buffer .. ', ' .. string(key) .. ")\<CR>", 'im')
+  enddef
+
+  def ReinstallActionMapping(key: string)
+    if !this._enabled
+      return
+    endif
+    var argument = substitute(string(key), '<', '<lt>', 'g')
+    argument = substitute(argument, '\\', '<Bslash>', 'g')
+    argument = substitute(argument, '|', '<Bar>', 'g')
+    execute 'inoremap <buffer> <silent> ' .. this._keys[key]
+      .. ' <ScriptCmd>Dispatch(' .. this._buffer .. ', ' .. argument .. ')<CR>'
+    this._installed[key] = Mapping.new(this._keys[key])
+  enddef
+
   def Enter()
     this._CheckTarget()
     if this._editor isnot null_object && this._editor.IsRegistrationSuspended()
@@ -273,7 +321,9 @@ export class Binding
       this.Enter()
     endif
     const action = get(this._actions, key, '')
-    if action ==# 'StartConversion'
+    if action !=# '' && !this._CanRunAction(action)
+      this._FallbackActionKey(key)
+    elseif action ==# 'StartConversion'
       this._Record(this._editor.StartConversion())
     elseif action ==# 'NextCandidate'
       this._Record([this._editor.NextCandidate()])
@@ -684,6 +734,12 @@ enddef
 # Native queued commands need a fully qualified autoload entry point.
 export def DispatchInput(number: number, key: string)
   Dispatch(number, key)
+enddef
+
+export def ReinstallActionMapping(number: number, key: string)
+  if has_key(bindings, string(number))
+    bindings[string(number)].ReinstallActionMapping(key)
+  endif
 enddef
 
 augroup caskk_input

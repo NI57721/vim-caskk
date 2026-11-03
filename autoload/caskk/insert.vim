@@ -248,6 +248,10 @@ export class Editor
     return this._session.GetSnapshot()
   enddef
 
+  def IsInCandidate(): bool
+    return this._session.InCandidate()
+  enddef
+
   def Pending(): list<input.Event>
     return this._session.Pending()
   enddef

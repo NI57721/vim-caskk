@@ -100,7 +100,7 @@ suite.backspace_commits_reading_and_following_input_starts_in_direct_mode = (): 
   const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries, null_object, {s: 'StartConversion'})
   keys.Enable()
   feedkeys("aKaka\<BS>kas\<Esc>", 'xt')
-  assert.equals(getline(1), '前かか後')
+  assert.equals(getline(1), '前かかs後')
   assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
   assert.equals(keys.GetEditor() is null_object, true)
   keys.Disable()
@@ -202,6 +202,38 @@ suite.enable_installs_keys_and_actions_and_insertleave_closes_preedit = (): void
   keys.Disable()
   assert.equals(maparg('k', 'i'), '')
   assert.equals(keys.IsEnabled(), false)
+}
+
+suite.unavailable_printable_actions_fall_back_to_ordinary_input = (): void => {
+  const actions = {'<Space>': 'StartConversion', n: 'NextCandidate', p: 'PreviousCandidate', c: 'Commit', r: 'OpenRegistration'}
+  for [key, action] in items(actions)
+    const context = Setup()
+    try
+      final configured: dict<string> = {}
+      configured[key] = action
+      const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', {},
+        null_object, configured)
+      keys.Enable()
+      feedkeys('a' .. (key ==# '<Space>' ? "\<Space>" : key) .. "\<Esc>", 'xt')
+      assert.equals(getline(1), '前' .. (key ==# '<Space>' ? ' ' : key) .. '後')
+      keys.Disable()
+    finally
+      Cleanup(context)
+    endtry
+  endfor
+}
+
+suite.unavailable_special_key_action_falls_back_to_vim_input = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  inoremap <buffer> <F7> Vim
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', {},
+    null_object, {'<F7>': 'NextCandidate'})
+  keys.Enable()
+  feedkeys("a\<F7>ka\<Esc>", 'xt')
+  assert.equals(getline(1), '前Vimか後')
+  assert.equals(keys.GetEditor() is null_object, true)
+  keys.Disable()
 }
 
 suite.local_expression_mapping_is_restored_with_its_original_flags = (): void => {
