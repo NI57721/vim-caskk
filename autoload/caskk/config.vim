@@ -25,12 +25,15 @@ endclass
 export class Input
   const sticky_key: string
   const keyboard_layout: string
+  const keyboard_layout_overrides: dict<string>
   const mappings: dict<string>
   const entries: dict<dictionary.Entry>
   const small_tsu_okuri_as_t: bool
 
-  def new(this.sticky_key, this.keyboard_layout, mappings: dict<string>, entries: dict<dictionary.Entry>,
+  def new(this.sticky_key, this.keyboard_layout, keyboard_layout_overrides: dict<string>,
+      mappings: dict<string>, entries: dict<dictionary.Entry>,
       this.small_tsu_okuri_as_t)
+    this.keyboard_layout_overrides = copy(keyboard_layout_overrides)
     this.mappings = copy(mappings)
     this.entries = copy(entries)
   enddef
@@ -127,6 +130,31 @@ def ReadKeyboardLayout(raw: any): string
   return raw
 enddef
 
+def ReadKeyboardLayoutOverrides(raw: any): dict<string>
+  if type(raw) != v:t_dict
+    throw 'keyboard_layout_overrides must be a dictionary'
+  endif
+  final overrides: dict<string> = {}
+  final symbols: dict<bool> = {}
+  for [base, shifted] in items(raw)
+    if strchars(base) != 1 || char2nr(base) <= 0x20 || char2nr(base) == 0x7f
+      throw 'keyboard_layout_overrides keys must be one printable character'
+    endif
+    if type(shifted) != v:t_string || strchars(shifted) != 1
+      throw 'keyboard_layout_overrides values must be one character'
+    endif
+    if char2nr(shifted) <= 0x20 || char2nr(shifted) == 0x7f
+      throw 'keyboard_layout_overrides values must be printable characters'
+    endif
+    if has_key(symbols, shifted)
+      throw 'keyboard_layout_overrides shifted symbols must be unique'
+    endif
+    symbols[shifted] = true
+    overrides[base] = shifted
+  endfor
+  return overrides
+enddef
+
 def ReadMappings(raw: any): dict<string>
   if type(raw) != v:t_dict
     throw 'mappings must be a dictionary'
@@ -189,7 +217,7 @@ enddef
 
 def Parse(options: dict<any>): Settings
   for section in keys(options)
-    if index(['highlight', 'sticky_key', 'keyboard_layout', 'mappings', 'dictionaries', 'state_path', 'state_auto',
+    if index(['highlight', 'sticky_key', 'keyboard_layout', 'keyboard_layout_overrides', 'mappings', 'dictionaries', 'state_path', 'state_auto',
         'small_tsu_okuri_as_t',
         'registration_prefill', 'registration_auto', 'candidate_popup'], section) < 0
       throw 'unknown section: ' .. section
@@ -198,6 +226,7 @@ def Parse(options: dict<any>): Settings
   const highlight = ParseHighlight(ReadHighlight(get(options, 'highlight', {})))
   const sticky_key = ReadStickyKey(get(options, 'sticky_key', ''))
   const keyboard_layout = ReadKeyboardLayout(get(options, 'keyboard_layout', 'US'))
+  const keyboard_layout_overrides = ReadKeyboardLayoutOverrides(get(options, 'keyboard_layout_overrides', {}))
   const actions = ReadMappings(get(options, 'mappings', {}))
   if type(get(options, 'state_path', '')) != v:t_string
     throw 'state_path must be a string'
@@ -229,7 +258,8 @@ def Parse(options: dict<any>): Settings
   const sources = ReadDictionaries(get(options, 'dictionaries', []))
   const entries = loader.Load(sources)
   const destination = state_path == '' ? '' : fnamemodify(state_path, ':p')
-  return Settings.new(highlight, Input.new(sticky_key, keyboard_layout, actions, entries, small_tsu_okuri_as_t), destination, state_auto,
+  return Settings.new(highlight, Input.new(sticky_key, keyboard_layout, keyboard_layout_overrides,
+    actions, entries, small_tsu_okuri_as_t), destination, state_auto,
     registration_prefill, registration_auto, candidate_popup)
 enddef
 
@@ -257,7 +287,8 @@ export def ApplyHighlight()
 enddef
 
 export def GetInput(): Input
-  return Input.new(current.input.sticky_key, current.input.keyboard_layout, current.input.mappings, current.input.entries,
+  return Input.new(current.input.sticky_key, current.input.keyboard_layout,
+    current.input.keyboard_layout_overrides, current.input.mappings, current.input.entries,
     current.input.small_tsu_okuri_as_t)
 enddef
 

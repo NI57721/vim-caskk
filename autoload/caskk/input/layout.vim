@@ -17,7 +17,18 @@ const SHIFTED_KEYS = {
   },
 }
 
-export def Normalize(layout: string, key: string): input.Event
+export def Normalize(layout: string, key: string, overrides: dict<string> = {}): input.Event
+  for [base, shifted] in items(overrides)
+    if shifted ==# key
+      return input.Event.new(base, true)
+    endif
+  endfor
+
   const keys = get(SHIFTED_KEYS, layout, {})
-  return has_key(keys, key) ? input.Event.new(keys[key], true) : input.Event.new(key)
+  if has_key(keys, key)
+    const base = keys[key]
+    # A user override replaces this base key's built-in shifted symbol.
+    return has_key(overrides, base) ? input.Event.new(key) : input.Event.new(base, true)
+  endif
+  return input.Event.new(key)
 enddef

@@ -67,6 +67,7 @@ export class Binding
   const _registration_auto: bool
   const _small_tsu_okuri_as_t: bool
   const _keyboard_layout: string
+  const _keyboard_layout_overrides: dict<string>
   var _saved: dict<Mapping> = {}
   var _installed: dict<Mapping> = {}
   var _editor: insert.Editor = null_object
@@ -82,7 +83,8 @@ export class Binding
   def new(compiled: scheme.CompiledScheme, sticky_key: string = '',
       entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
       actions: dict<string> = {}, initial_reading: string = '', registration_auto: bool = false,
-      small_tsu_okuri_as_t: bool = true, keyboard_layout: string = '')
+      small_tsu_okuri_as_t: bool = true, keyboard_layout: string = '',
+      keyboard_layout_overrides: dict<string> = {})
     this._buffer = bufnr('%')
     this._compiled = compiled
     this._sticky = sticky_key
@@ -93,6 +95,7 @@ export class Binding
     this._registration_auto = registration_auto
     this._small_tsu_okuri_as_t = small_tsu_okuri_as_t
     this._keyboard_layout = keyboard_layout
+    this._keyboard_layout_overrides = copy(keyboard_layout_overrides)
     final tokens: dict<bool> = {}
     for key in keys(compiled.table.combinations)
       tokens[key] = true
@@ -292,7 +295,8 @@ export class Binding
       throw 'caskk: input is suspended for dictionary registration'
     endif
     this._editor = insert.Editor.new(this._compiled, this._sticky, this._entries, this._preferences,
-      this._initial_reading, this._small_tsu_okuri_as_t, this._keyboard_layout)
+      this._initial_reading, this._small_tsu_okuri_as_t, this._keyboard_layout,
+      this._keyboard_layout_overrides)
     this._initial_reading = ''
   enddef
 
@@ -406,7 +410,7 @@ export class Binding
       registration_owners[string(this._buffer)] = this
       const child = Binding.new(this._compiled, this._sticky, this._entries,
         this._preferences, this._actions, prefill ? request.reading : '', this._registration_auto,
-        this._small_tsu_okuri_as_t, this._keyboard_layout)
+        this._small_tsu_okuri_as_t, this._keyboard_layout, this._keyboard_layout_overrides)
       child.Enable()
       const arguments = this._buffer .. ', ' .. window.buffer
       for command in ['inoremap', 'nnoremap']
@@ -657,10 +661,11 @@ enddef
 
 export def Enable(compiled: scheme.CompiledScheme, sticky_key: string = '', actions: dict<string> = {},
     entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
-    registration_auto: bool = false, small_tsu_okuri_as_t: bool = true, keyboard_layout: string = '')
+    registration_auto: bool = false, small_tsu_okuri_as_t: bool = true, keyboard_layout: string = '',
+    keyboard_layout_overrides: dict<string> = {})
   if !has_key(bindings, string(bufnr('%')))
     const current = Binding.new(compiled, sticky_key, entries, preferences, actions, '', registration_auto,
-      small_tsu_okuri_as_t, keyboard_layout)
+      small_tsu_okuri_as_t, keyboard_layout, keyboard_layout_overrides)
     current.Enable()
   endif
 enddef

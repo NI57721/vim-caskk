@@ -118,6 +118,10 @@ suite.invalid_input_types_keys_and_actions_preserve_all_previous_settings = (): 
     {sticky_key: 1}, {sticky_key: []}, {sticky_key: 'two'},
     {sticky_key: '<NotAKey>'}, {mappings: []}, {mappings: {'<F10>': 1}},
     {keyboard_layout: 1}, {keyboard_layout: 'UK'},
+    {keyboard_layout_overrides: []},
+    {keyboard_layout_overrides: {1: '??'}},
+    {keyboard_layout_overrides: {1: 2}},
+    {keyboard_layout_overrides: {1: '?', 2: '?'}},
     {mappings: {'<F10>': 'MissingAction'}}, {mappings: {'two': 'Commit'}},
     {mappings: {'<NotAKey>': 'Commit'}},
     {small_tsu_okuri_as_t: 'yes'},
@@ -210,5 +214,22 @@ suite.keyboard_layout_config_maps_shifted_number_row_to_okuri_boundary = (): voi
   Caskk.Enable('layout-okuri')
   cursor(1, 1)
   feedkeys("ak\"\<Esc>", 'xt')
+  assert.equals(getline(1), '前蹴って後')
+}
+
+suite.keyboard_layout_override_replaces_one_shifted_symbol_through_public_config = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const path = tempname()
+  defer delete(path)
+  writefile(['けっt /蹴/'], path)
+  Caskk.RegisterInputScheme({name: 'layout-override-okuri', consonants: {k: 'k'},
+    combinations: {1: 'e*Tte', 2: 'e*Tte'}})
+  var overrides = {1: '?'}
+  Caskk.Config({keyboard_layout: 'US', keyboard_layout_overrides: overrides, dictionaries: [path]})
+  overrides['1'] = '!'
+  Caskk.Enable('layout-override-okuri')
+  cursor(1, 1)
+  feedkeys("ak?\<Esc>", 'xt')
   assert.equals(getline(1), '前蹴って後')
 }

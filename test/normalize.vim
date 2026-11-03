@@ -64,6 +64,21 @@ suite.shifted_symbols_normalize_to_modified_keys_for_us_and_jis = (): void => {
   assert.equals(at.modified, false)
 }
 
+suite.user_shifted_key_overrides_replace_only_the_matching_layout_entry = (): void => {
+  const normalizer = normalize.Normalizer.new('', 'US', {1: '?'})
+  const custom = normalizer.Feed('?')[0]
+  assert.equals(custom.key, '1')
+  assert.equals(custom.modified, true)
+
+  const replaced = normalizer.Feed('!')[0]
+  assert.equals(replaced.key, '!')
+  assert.equals(replaced.modified, false)
+
+  const inherited = normalizer.Feed('@')[0]
+  assert.equals(inherited.key, '2')
+  assert.equals(inherited.modified, true)
+}
+
 suite.sticky_key_modifies_only_the_next_token = (): void => {
   const normalizer = normalize.Normalizer.new(';')
   assert.equals(normalizer.Feed(';'), [])

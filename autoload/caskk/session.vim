@@ -48,8 +48,9 @@ export class Session
 
   def new(compiled: scheme.CompiledScheme, sticky_key: string = '',
       entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
-      initial_reading: string = '', small_tsu_okuri_as_t: bool = true, keyboard_layout: string = '')
-    this._normalizer = normalize.Normalizer.new(sticky_key, keyboard_layout)
+      initial_reading: string = '', small_tsu_okuri_as_t: bool = true, keyboard_layout: string = '',
+      keyboard_layout_overrides: dict<string> = {})
+    this._normalizer = normalize.Normalizer.new(sticky_key, keyboard_layout, keyboard_layout_overrides)
     this._composer = composer.Composer.new(compiled)
     this._state = state_types.State.new()
     this._entries = copy(entries)

@@ -8,9 +8,12 @@ import autoload 'caskk/input/layout.vim' as layout
 export class Normalizer
   const _sticky_key: string = ''
   const _keyboard_layout: string = ''
+  const _keyboard_layout_overrides: dict<string>
   var _modified: bool = false
 
-  def new(this._sticky_key = v:none, this._keyboard_layout = v:none)
+  def new(this._sticky_key = v:none, this._keyboard_layout = v:none,
+      keyboard_layout_overrides: dict<string> = {})
+    this._keyboard_layout_overrides = copy(keyboard_layout_overrides)
   enddef
 
   def Feed(key: string): list<input.Event>
@@ -19,7 +22,7 @@ export class Normalizer
       return []
     endif
 
-    const shifted = layout.Normalize(this._keyboard_layout, key)
+    const shifted = layout.Normalize(this._keyboard_layout, key, this._keyboard_layout_overrides)
     const uppercase = key =~# '^[A-Z]$'
     const event = input.Event.new(uppercase ? tolower(key) : shifted.key,
       this._modified || uppercase || shifted.modified)
