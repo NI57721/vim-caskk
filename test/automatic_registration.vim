@@ -67,7 +67,7 @@ class Fixture
   enddef
 endclass
 
-def Setup(lines: list<string> = []): Fixture
+def Setup(lines: list<string> = [], registration_prefill: bool = true): Fixture
   const previous = bufnr('%')
   const existing_buffers = mapnew(getbufinfo(), (_, info) => info.bufnr)
   const number = bufadd('')
@@ -89,7 +89,8 @@ def Setup(lines: list<string> = []): Fixture
     scheme.SpecialDefinition.new(['d'], '漢字'),
     scheme.SpecialDefinition.new(['z', 'x'], 'い*くらい'),
   ])
-  Caskk.Config({state_path: directory .. '/state.jsonl', dictionaries: [directory .. '/system'],
+  Caskk.Config({registration_prefill: registration_prefill,
+    state_path: directory .. '/state.jsonl', dictionaries: [directory .. '/system'],
     mappings: {s: 'StartConversion', n: 'NextCandidate', '<F6>': 'OpenRegistration'}})
   Caskk.Enable('automatic-registration')
   return Fixture.new(previous, number, window, directory, snapshot, existing_buffers)
@@ -221,9 +222,8 @@ suite.registration_input_can_open_a_nested_request_and_return_through_both_windo
 }
 
 suite.automatic_registration_honors_disabled_prefill = (): void => {
-  const fixture = Setup()
+  const fixture = Setup([], false)
   defer Cleanup(fixture)
-  Caskk.Config({registration_prefill: false})
   feedkeys('aKas' .. CAPTURE .. "d\<CR>\<Esc>", 'xt')
   assert.equals(observations[0].buffer != fixture.buffer, true)
   assert.equals(observations[0].text, '')

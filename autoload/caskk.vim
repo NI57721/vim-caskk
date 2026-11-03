@@ -12,6 +12,7 @@ const schemes = registry.Registry.new()
 export def RegisterInputScheme(name: string, consonants: dict<string>,
     combinations: dict<string>, specials: list<scheme.SpecialDefinition> = [])
   schemes.Register(name, consonants, combinations, specials)
+  binding.DisableAll()
 enddef
 
 export def GetInputScheme(name: string): scheme.CompiledScheme
@@ -72,6 +73,7 @@ enddef
 # The heterogeneous user dictionary is validated at the configuration boundary.
 export def Config(options: dict<any>)
   configuration.Configure(options)
+  binding.DisableAll()
 enddef
 
 def SaveAutomaticState()

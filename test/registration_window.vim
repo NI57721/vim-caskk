@@ -69,7 +69,7 @@ enddef
 
 defcompile Handle
 
-def Setup(): Fixture
+def Setup(prefill: bool = true): Fixture
   const existing_buffers = mapnew(getbufinfo(), (_, info) => info.bufnr)
   const previous = bufnr('%')
   origin_buffer = bufadd('')
@@ -96,7 +96,8 @@ def Setup(): Fixture
   mkdir(directory)
   const snapshot = user_runtime.Get().GetSnapshot()
   user_runtime.Get().Restore(user_state.State.new().GetSnapshot())
-  Caskk.Config({registration_auto: false, state_path: directory .. '/state.jsonl',
+  Caskk.Config({registration_auto: false, registration_prefill: prefill,
+    state_path: directory .. '/state.jsonl',
     mappings: {s: 'StartConversion', n: 'NextCandidate'}})
   Caskk.RegisterInputScheme('registration-window', {k: 'k'}, {a: 'a'}, [
     scheme.SpecialDefinition.new(['d'], '漢字'),
@@ -164,9 +165,8 @@ suite.prefilled_registration_uses_ime_input_and_preserves_persistence_and_undo =
 }
 
 suite.prefill_can_be_disabled_without_disabling_the_input_method = (): void => {
-  const fixture = Setup()
+  const fixture = Setup(false)
   defer Cleanup(fixture)
-  Caskk.Config({registration_prefill: false})
   feedkeys("aKas\<F3>d\<CR>\<Esc>", 'xt')
   assert.equals(errors, [])
   assert.equals(initial_texts, [''])
@@ -234,9 +234,8 @@ suite.closing_origin_window_keeps_plain_reading_and_removes_registration_ui = ()
 }
 
 suite.empty_candidate_keeps_registration_open_for_retry = (): void => {
-  const fixture = Setup()
+  const fixture = Setup(false)
   defer Cleanup(fixture)
-  Caskk.Config({registration_prefill: false})
   feedkeys("aKas\<F3>\<CR>\<F4>d\<CR>\<Esc>", 'xt')
   assert.equals(errors, [])
   assert.equals(len(messages), 1)
@@ -265,9 +264,8 @@ suite.registration_can_be_completed_from_normal_mode = (): void => {
 }
 
 suite.invalid_prefill_setting_keeps_previous_ui_configuration = (): void => {
-  const fixture = Setup()
+  const fixture = Setup(false)
   defer Cleanup(fixture)
-  Caskk.Config({registration_prefill: false})
   var caught = ''
   try
     Caskk.Config({registration_prefill: 1})

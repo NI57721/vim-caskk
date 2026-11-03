@@ -58,21 +58,55 @@ suite.config_copies_mappings_and_omitted_input_fields_reset_to_defaults = (): vo
   assert.equals(getline(1), '前か;か後')
 }
 
-suite.config_changes_take_effect_only_after_disabling_and_reenabling_input = (): void => {
+suite.config_update_releases_the_binding_and_next_enable_uses_new_settings = (): void => {
   const context = Setup()
   defer Cleanup(context)
   Caskk.Config({sticky_key: ';', mappings: {'<F10>': 'Commit'}})
   Caskk.Enable('configured')
   Caskk.Config({sticky_key: ':', mappings: {'<F11>': 'Commit'}})
+  assert.equals(Caskk.IsEnabled(), false)
   Caskk.Enable('configured')
-  assert.equals(maparg('<F11>', 'i'), '')
-  feedkeys("a;ka\<F10>\<Esc>", 'xt')
+  assert.equals(maparg('<F11>', 'i', false, true).buffer, 1)
+  feedkeys("a:ka\<F11>\<Esc>", 'xt')
   assert.equals(getline(1), '前か後')
   Caskk.Disable()
   Caskk.Enable('configured')
   assert.equals(maparg('<F10>', 'i'), '')
   feedkeys("a:ka\<F11>\<Esc>", 'xt')
   assert.equals(getline(1), '前かか後')
+}
+
+suite.configuration_update_releases_bindings_in_every_buffer = (): void => {
+  const first = Setup()
+  const second = bufadd('')
+  const configuration_buffer = bufadd('')
+  bufload(second)
+  bufload(configuration_buffer)
+  try
+    Caskk.Config({sticky_key: ';'})
+    Caskk.Enable('configured')
+    execute 'noautocmd keepalt hide buffer ' .. second
+    setlocal buftype=nofile noswapfile
+    setline(1, '前後')
+    Caskk.Enable('configured')
+
+    execute 'noautocmd keepalt hide buffer ' .. configuration_buffer
+    Caskk.Config({sticky_key: ':'})
+    assert.equals(bufnr('%'), configuration_buffer)
+    assert.equals(Caskk.IsEnabled(), false)
+    execute 'noautocmd keepalt hide buffer ' .. first[1]
+    assert.equals(Caskk.IsEnabled(), false)
+    assert.equals(maparg('k', 'i'), '')
+  finally
+    for number in [first[1], second]
+      execute 'noautocmd keepalt hide buffer ' .. number
+      Caskk.Disable()
+    endfor
+    execute 'noautocmd keepalt hide buffer ' .. first[0]
+    execute 'silent! bwipeout! ' .. first[1]
+    execute 'silent! bwipeout! ' .. second
+    execute 'silent! bwipeout! ' .. configuration_buffer
+  endtry
 }
 
 suite.invalid_input_types_keys_and_actions_preserve_all_previous_settings = (): void => {

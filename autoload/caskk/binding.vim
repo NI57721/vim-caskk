@@ -606,6 +606,44 @@ export def Disable()
   endif
 enddef
 
+# Configuration changes invalidate every buffer-local binding. Visit each
+# target buffer so Disable() can close its editor and restore its mappings.
+export def DisableAll()
+  const original_window = win_getid()
+  const original_buffer = bufnr('%')
+  var numbers = mapnew(keys(bindings), (_, id) => str2nr(id))
+  sort(numbers, 'n')
+  try
+    for number in numbers
+      const id = string(number)
+      if !has_key(bindings, id)
+        continue
+      endif
+      if bufnr('%') != number
+        const windows = win_findbuf(number)
+        if !empty(windows)
+          if !win_gotoid(windows[0])
+            throw 'caskk: cannot visit an enabled buffer'
+          endif
+        else
+          execute 'noautocmd keepalt hide buffer ' .. number
+        endif
+      endif
+      if has_key(bindings, id)
+        bindings[id].Disable()
+      endif
+    endfor
+  finally
+    if win_gotoid(original_window)
+      if bufnr('%') != original_buffer && bufexists(original_buffer)
+        execute 'noautocmd keepalt hide buffer ' .. original_buffer
+      endif
+    elseif bufexists(original_buffer)
+      execute 'noautocmd keepalt hide buffer ' .. original_buffer
+    endif
+  endtry
+enddef
+
 export def IsEnabled(): bool
   return has_key(bindings, string(bufnr('%')))
 enddef

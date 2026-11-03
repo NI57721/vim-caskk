@@ -97,8 +97,8 @@ suite.reregistered_scheme_is_used_after_disable_and_reenable = (): void => {
   Caskk.Enable('lifecycle')
   feedkeys("aka\<Esc>", 'xt')
   assert.equals(getline(1), '前か後')
-  Caskk.Disable()
   Caskk.RegisterInputScheme('lifecycle', {k: 'n'}, {a: 'a'})
+  assert.equals(Caskk.IsEnabled(), false)
   Caskk.Enable('lifecycle')
   feedkeys("aka\<Esc>", 'xt')
   assert.equals(getline(1), '前かな後')
@@ -109,7 +109,11 @@ suite.enable_state_is_buffer_local_and_wipeout_releases_it = (): void => {
   const first = Setup()
   defer Cleanup(first)
   Caskk.Enable('lifecycle')
-  const second = Setup()
+  const second_number = bufadd('')
+  bufload(second_number)
+  execute 'noautocmd keepalt hide buffer ' .. second_number
+  setlocal buftype=nofile noswapfile
+  setline(1, '前後')
   try
     assert.equals(Caskk.IsEnabled(), false)
     Caskk.Enable('lifecycle')
@@ -119,7 +123,9 @@ suite.enable_state_is_buffer_local_and_wipeout_releases_it = (): void => {
     feedkeys("aka\<Esc>", 'xt')
     assert.equals(getline(1), '前か後')
   finally
-    Cleanup(second)
+    execute 'noautocmd keepalt hide buffer ' .. first[1]
+    Caskk.Disable()
+    execute 'silent! bwipeout! ' .. second_number
   endtry
   execute 'silent! bwipeout! ' .. first[1]
   assert.equals(Caskk.IsEnabled(), false)

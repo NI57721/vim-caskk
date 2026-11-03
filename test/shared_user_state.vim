@@ -56,7 +56,13 @@ suite.learning_in_another_buffer_updates_an_already_enabled_buffer = (): void =>
   writefile(['べつばっふぁ /第一/第二/'], path)
   Caskk.Config({dictionaries: [path], mappings: {s: 'StartConversion', n: 'NextCandidate'}})
   Caskk.Enable('shared-state')
-  const second = Setup('べつばっふぁ')
+  const previous = bufnr('%')
+  const second_number = bufadd('')
+  bufload(second_number)
+  execute 'noautocmd keepalt hide buffer ' .. second_number
+  setlocal buftype=nofile noswapfile
+  setline(1, '前後')
+  const second = [previous, second_number]
   try
     Caskk.Enable('shared-state')
     feedkeys("aXsn\<Esc>", 'xt')

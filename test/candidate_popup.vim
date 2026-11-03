@@ -52,7 +52,7 @@ class Fixture
   enddef
 endclass
 
-def Setup(): Fixture
+def Setup(candidate_popup: bool = true): Fixture
   const previous = bufnr('%')
   const existing_buffers = mapnew(getbufinfo(), (_, info) => info.bufnr)
   const existing_popups = popup_list()
@@ -75,7 +75,7 @@ def Setup(): Fixture
     scheme.SpecialDefinition.new(['d'], '漢字'),
     scheme.SpecialDefinition.new(['z', 'x'], 'い*くらい'),
   ])
-  Caskk.Config({dictionaries: [directory .. '/system'],
+  Caskk.Config({candidate_popup: candidate_popup, dictionaries: [directory .. '/system'],
     mappings: {s: 'StartConversion', n: 'NextCandidate', p: 'PreviousCandidate', c: 'Commit'}})
   Caskk.Enable('candidate-popup')
   return Fixture.new(previous, number, window, directory, snapshot, existing_buffers, existing_popups)
@@ -183,9 +183,8 @@ suite.wiping_the_input_buffer_closes_the_popup_after_normal_session_commit = ():
 }
 
 suite.disabling_popup_and_rejecting_invalid_setting_does_not_disable_conversion = (): void => {
-  const fixture = Setup()
+  const fixture = Setup(false)
   defer Cleanup(fixture)
-  Caskk.Config({candidate_popup: false})
   var caught = ''
   try
     Caskk.Config({candidate_popup: 1})
