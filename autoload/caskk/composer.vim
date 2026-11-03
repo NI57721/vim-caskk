@@ -57,7 +57,13 @@ export class Composer
     endif
 
     if has_key(this._table.consonants, event.key)
-      this._consonant = event
+      const row = this._table.consonants[event.key]
+      if row ==# 'N' || row ==# 'T'
+        const pattern = kana.Generate('', pattern_types.OutputPattern.new(row, -1))
+        results->add(Result.new([event], pattern, true))
+      else
+        this._consonant = event
+      endif
     elseif has_key(this._table.combinations, event.key)
       const pattern = kana.Generate('', this._table.combinations[event.key])
       results->add(Result.new([event], pattern))

@@ -20,6 +20,17 @@ suite.registered_scheme_composes_normal_input_and_prioritizes_specials = (): voi
   assert.equals(special.Feed('a')[0].text, '特別')
 }
 
+suite.nasal_and_sokuon_consonant_values_emit_kana_directly = (): void => {
+  Caskk.RegisterInputScheme('public-kana-consonants', {q: 'N', l: 'T'}, {})
+  const engine = session.Session.new(Caskk.GetInputScheme('public-kana-consonants'))
+  const nasal = engine.Feed('q')
+  assert.equals(len(nasal), 1)
+  assert.equals(nasal[0].text, 'ん')
+  const sokuon = engine.Feed('l')
+  assert.equals(len(sokuon), 1)
+  assert.equals(sokuon[0].text, 'っ')
+}
+
 suite.reregistration_does_not_change_an_existing_session_or_pending_input = (): void => {
   Caskk.RegisterInputScheme('public-replace', {k: 'k'}, {a: 'a'})
   const previous = session.Session.new(Caskk.GetInputScheme('public-replace'))

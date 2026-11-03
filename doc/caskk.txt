@@ -14,6 +14,11 @@ Register input grammar separately from Config(): >vim9
 <
 RegisterInputScheme(name, consonants, combinations [, specials]) compiles and
 stores a named scheme.  Consonants and combinations are dictionaries of strings.
+Consonant values normally name a kana row; the output symbols 'N' and 'T' may
+also be used to map a key directly to 「ん」 or 「っ」, respectively.  For example:
+>
+    Caskk.RegisterInputScheme('custom', {q: 'N', l: 'T'}, {})
+<
 The optional specials list contains SpecialDefinition objects with explicit
 KeyToken lists and output patterns.  Specials take precedence over generated
 consonant/combination rules.  Output patterns support latent okuri boundaries.
