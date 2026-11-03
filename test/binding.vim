@@ -228,6 +228,39 @@ suite.convert_mapping_starts_advances_and_requests_registration_after_last_candi
   unlet! g:caskk_binding_snapshots
 }
 
+suite.modified_standalone_vowel_does_not_modify_input_after_okuri_candidate_commit = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const entries = merger.Merge([[parser.ParseLine('あまi /甘/')]])
+  const compiled = scheme.Compile({m: 'm'}, {a: 'a', m: 'a*ku', i: 'i'})
+  const keys = binding.Binding.new(compiled, ';', entries, null_object, {'<Space>': 'Convert'})
+  inoremap <buffer> <F11> <ScriptCmd>CapturePendingBuffer()<CR>
+  keys.Enable()
+  feedkeys("a;ama;i\<Space>amai\<F11>\<Esc>", 'xt')
+  assert.equals(g:caskk_pending_snapshot, '前甘いあまい後')
+  assert.equals(g:caskk_pending_properties, [])
+  assert.equals(getline(1), '前甘いあまい後')
+  assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
+  iunmap <buffer> <F11>
+  keys.Disable()
+}
+
+suite.unmodified_okuri_suffix_continues_directly_after_candidate_commit = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const entries = merger.Merge([[parser.ParseLine('むずかs /難/')]])
+  const compiled = scheme.Compile({m: 'm', z: 'z', k: 'k', s: 's'}, {u: 'u', a: 'a', i: 'i'})
+  const keys = binding.Binding.new(compiled, ';', entries)
+  inoremap <buffer> <F11> <ScriptCmd>CapturePendingBuffer()<CR>
+  keys.Enable()
+  feedkeys("a;muzuka;sii\<F11>\<Esc>", 'xt')
+  assert.equals(g:caskk_pending_snapshot, '前難しい後')
+  assert.equals(g:caskk_pending_properties, [])
+  assert.equals(getline(1), '前難しい後')
+  iunmap <buffer> <F11>
+  keys.Disable()
+}
+
 suite.unavailable_printable_actions_fall_back_to_ordinary_input = (): void => {
   const actions = {'<Space>': 'Convert', n: 'NextCandidate', p: 'PreviousCandidate', c: 'Commit', r: 'OpenRegistration'}
   for [key, action] in items(actions)

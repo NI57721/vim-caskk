@@ -43,6 +43,7 @@ export class Session
   var _selection: conversion.Selection = null_object
   var _request_preferences: user_state.State = null_object
   var _reading_after_cancel: bool = false
+  var _direct_input_after_candidate: bool = false
 
   def new(compiled: scheme.CompiledScheme, sticky_key: string = '',
       entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
@@ -94,7 +95,11 @@ export class Session
           endif
         endfor
       else
-        const composed = composer.Compose(matched, this._state.in_preedit)
+        var composed = composer.Compose(matched, this._state.in_preedit)
+        if this._direct_input_after_candidate && !this._state.in_preedit
+          composed = composition.Result.new(false, composed.reading, composed.okuri,
+            composed.okuri_started)
+        endif
         results->add(this._ApplyOutput(composed, auto_convert))
       endif
     endfor
@@ -109,6 +114,9 @@ export class Session
     endif
     this._prepared = null_object
     for event in this._normalizer.Feed(key)
+      if event.modified
+        this._direct_input_after_candidate = false
+      endif
       results->extend(this._Apply(this._composer.Feed(event)))
     endfor
     return results
@@ -138,6 +146,7 @@ export class Session
       this._normalizer.Reset()
       this._selection = null_object
       this._prepared = null_object
+      this._direct_input_after_candidate = true
       return [Result.new(text, [], this._state.GetSnapshot(), true)]
     endif
     this._prepared = null_object

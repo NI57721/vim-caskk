@@ -308,6 +308,24 @@ suite.normal_input_commits_the_selected_candidate_then_keeps_the_new_pending_key
   assert.equals(following[0].state.in_preedit, false)
 }
 
+suite.standalone_vowel_after_candidate_commit_stays_direct_until_modified_input = (): void => {
+  const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a', i: 'i'}), ';')
+  ime.Feed('K')
+  ime.Feed('a')
+  ime.StartConversion(merger.Merge([[parser.ParseLine('か /蚊/')]]), user_state.State.new())
+  const direct = ime.Feed('i')
+  assert.equals(len(direct), 2)
+  assert.equals(direct[0].text, '蚊')
+  assert.equals(direct[1].text, 'い')
+  assert.equals(direct[1].state.in_preedit, false)
+
+  ime.Feed(';')
+  const modified = ime.Feed('i')
+  assert.equals(modified[-1].text, '')
+  assert.equals(modified[-1].state.in_preedit, true)
+  assert.equals(modified[-1].state.reading, 'い')
+}
+
 suite.commit_result_precedes_direct_output_from_the_same_input = (): void => {
   const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}, [scheme.SpecialDefinition.new(['x'], '。')]))
   ime.Feed('K')
