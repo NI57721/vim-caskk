@@ -24,10 +24,11 @@ export class Result
   const in_candidate: bool = false
   const replace_preedit: bool = false
   const registration_requested: bool = false
+  const pending_display: bool = false
 
   def new(this.text, this.unhandled, this.state, this.commit_preedit = v:none,
       this.in_candidate = v:none, this.replace_preedit = v:none,
-      this.registration_requested = v:none)
+      this.registration_requested = v:none, this.pending_display = v:none)
   enddef
 endclass
 

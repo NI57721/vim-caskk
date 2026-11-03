@@ -25,6 +25,11 @@ def Cleanup(context: list<number>)
   execute 'silent! bwipeout! ' .. context[1]
 enddef
 
+def CapturePendingBuffer()
+  g:caskk_pending_snapshot = getline(1)
+  g:caskk_pending_properties = prop_list(1, {types: ['caskk_preedit']})
+enddef
+
 suite.backspace_deletes_pending_key_then_modifier_then_native_text = (): void => {
   for prefix in ['K', ';k']
     const context = Setup()
@@ -39,6 +44,22 @@ suite.backspace_deletes_pending_key_then_modifier_then_native_text = (): void =>
       Cleanup(context)
     endtry
   endfor
+}
+
+suite.pending_consonant_is_visible_until_its_vowel_completes_the_kana = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}))
+  keys.Enable()
+
+  inoremap <buffer> <F12> <ScriptCmd>CapturePendingBuffer()<CR>
+  feedkeys("ak\<F12>a\<Esc>", 'xt')
+  assert.equals(g:caskk_pending_snapshot, '前k後')
+  assert.equals(g:caskk_pending_properties, [])
+  assert.equals(getline(1), '前か後')
+
+  iunmap <buffer> <F12>
+  keys.Disable()
 }
 
 suite.backspace_without_pending_input_uses_native_multibyte_deletion = (): void => {

@@ -32,8 +32,11 @@ export class Highlighter
   enddef
 
   def Render(result: session.Result)
-    const range = this._writer.GetPreeditRange()
     this.Clear()
+    if !result.state.in_preedit && !result.in_candidate
+      return
+    endif
+    const range = this._writer.GetPreeditRange()
     if range is null_object
       return
     endif

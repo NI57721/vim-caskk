@@ -10,6 +10,7 @@ export class Manager
   var _tick: number
   var _unit_open: bool = false
   var _preedit: bool = false
+  var _pending_display: bool = false
   var _reading_state: state_types.Snapshot = null_object
 
   def new(writer: buffer.Writer)
@@ -36,7 +37,7 @@ export class Manager
     const preedit = result.state.in_preedit && !result.commit_preedit
     const changes_text = result.replace_preedit || preedit || (!result.commit_preedit && result.text != '')
     if changes_text
-      if !this._unit_open || (preedit && !this._preedit)
+      if !this._unit_open || (preedit && !this._preedit && !this._pending_display)
         this._Break()
       else
         undojoin
@@ -49,6 +50,7 @@ export class Manager
     endif
     this._tick = tick
     this._preedit = preedit
+    this._pending_display = result.pending_display
   enddef
 
   # Also used before core input is consumed by the Insert-mode integration.
@@ -89,6 +91,7 @@ export class Manager
     this._CheckTarget()
     this._Break()
     this._preedit = false
+    this._pending_display = false
     this._reading_state = null_object
     this._tick = getbufvar(this._buffer, 'changedtick')
   enddef

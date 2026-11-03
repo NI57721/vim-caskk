@@ -26,6 +26,7 @@ export class Editor
   const _candidate_view: candidate_view.View
   var _closed: bool = false
   var _registration_suspended: bool = false
+  var _pending_visible: bool = false
 
   def new(compiled: scheme.CompiledScheme, sticky_key: string = '',
       entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
@@ -96,17 +97,48 @@ export class Editor
 
   def Feed(key: string): list<session.Result>
     this._CheckInput()
-    return this._Apply(this._session.Feed(key))
+    const results = this._session.Feed(key)
+    const applied = this._Apply(results)
+    if !empty(results)
+      this._pending_visible = false
+    endif
+    this._RefreshPendingDisplay()
+    return applied
+  enddef
+
+  # Keep an unfinished key visible in the tracked buffer range. It is
+  # replaced by the composed kana when later input resolves the pending key.
+  def _RefreshPendingDisplay()
+    const pending = this._session.Pending()
+    const snapshot = this._session.GetSnapshot()
+    if !empty(pending)
+      var text = snapshot.in_preedit ? snapshot.reading .. snapshot.okuri : ''
+      for event in pending
+        text ..= event.key
+      endfor
+      this._Apply([session.Result.new(text, [], snapshot, false, false, true, false, true)])
+      this._pending_visible = true
+    elseif this._pending_visible
+      const text = snapshot.in_preedit ? snapshot.reading .. snapshot.okuri : ''
+      this._Apply([session.Result.new(text, [], snapshot, !snapshot.in_preedit, false, true)])
+      this._pending_visible = false
+    endif
   enddef
 
   def StartConversion(): list<session.Result>
     this._CheckInput()
-    return this._Apply(this._session.StartConversion(this._entries, this._preferences))
+    const results = this._Apply(this._session.StartConversion(this._entries, this._preferences))
+    this._pending_visible = false
+    return results
   enddef
 
   def BackspacePending(): bool
     this._CheckInput()
-    return this._session.BackspacePending()
+    const deleted = this._session.BackspacePending()
+    if deleted
+      this._RefreshPendingDisplay()
+    endif
+    return deleted
   enddef
 
   def GetRegistrationRequest(): conversion.Candidates
@@ -178,7 +210,9 @@ export class Editor
 
   def Commit(): list<session.Result>
     this._CheckInput()
-    return this._Apply(this._session.Commit())
+    const results = this._Apply(this._session.Commit())
+    this._pending_visible = false
+    return results
   enddef
 
   # May be called before Esc or by a later InsertLeave handler. Closing does not
