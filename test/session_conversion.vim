@@ -18,6 +18,25 @@ suite.consonant_and_same_key_combination_produce_okuri_text = (): void => {
   assert.equals(results[0].text, 'まく')
 }
 
+suite.us_shifted_number_key_activates_okuri_boundary = (): void => {
+  const compiled = scheme.Compile({k: 'k'}, {1: 'e*Tte'})
+  const ordinary = session.Session.new(compiled, '', {}, null_object, '', true, 'US')
+  assert.equals(ordinary.Feed('k'), [])
+  const plain = ordinary.Feed('1')
+  assert.equals(plain[0].state.in_preedit, false)
+  assert.equals(plain[0].text, 'けって')
+
+  const ime = session.Session.new(compiled,
+    '', {}, null_object, '', true, 'US')
+  assert.equals(ime.Feed('k'), [])
+  const results = ime.Feed('!')
+  assert.equals(len(results), 1)
+  assert.equals(results[0].registration_requested, true)
+  assert.equals(results[0].state.in_preedit, true)
+  assert.equals(results[0].state.reading, 'け')
+  assert.equals(results[0].state.okuri, 'って')
+}
+
 suite.modified_consonant_and_combination_activate_latent_okuri = (): void => {
   const ime = session.Session.new(scheme.Compile({m: 'm'}, {m: 'a*ku'}), ';')
   ime.Feed(';')

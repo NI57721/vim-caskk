@@ -117,6 +117,7 @@ suite.invalid_input_types_keys_and_actions_preserve_all_previous_settings = (): 
   for options in [
     {sticky_key: 1}, {sticky_key: []}, {sticky_key: 'two'},
     {sticky_key: '<NotAKey>'}, {mappings: []}, {mappings: {'<F10>': 1}},
+    {keyboard_layout: 1}, {keyboard_layout: 'UK'},
     {mappings: {'<F10>': 'MissingAction'}}, {mappings: {'two': 'Commit'}},
     {mappings: {'<NotAKey>': 'Commit'}},
     {small_tsu_okuri_as_t: 'yes'},
@@ -187,4 +188,27 @@ suite.small_tsu_dictionary_prefix_is_enabled_by_default_and_can_be_disabled = ()
     assert.equals(getline(1), expected)
     Caskk.Disable()
   endfor
+}
+
+suite.keyboard_layout_config_maps_shifted_number_row_to_okuri_boundary = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const path = tempname()
+  defer delete(path)
+  writefile(['けっt /蹴/'], path)
+  Caskk.RegisterInputScheme({name: 'layout-okuri', consonants: {k: 'k'},
+    combinations: {1: 'e*Tte', 2: 'e*Tte'}})
+  Caskk.Config({keyboard_layout: 'US', dictionaries: [path]})
+  Caskk.Enable('layout-okuri')
+  cursor(1, 1)
+  feedkeys("ak!\<Esc>", 'xt')
+  assert.equals(getline(1), '前蹴って後')
+  Caskk.Disable()
+
+  setline(1, '前後')
+  Caskk.Config({keyboard_layout: 'JIS', dictionaries: [path]})
+  Caskk.Enable('layout-okuri')
+  cursor(1, 1)
+  feedkeys("ak\"\<Esc>", 'xt')
+  assert.equals(getline(1), '前蹴って後')
 }

@@ -267,7 +267,7 @@ In Vim9 script: >vim9
       },
     })
 <
-Supported settings are sticky_key, mappings, dictionaries, state_path, state_auto,
+Supported settings are sticky_key, keyboard_layout, mappings, dictionaries, state_path, state_auto,
 registration_prefill, registration_auto, candidate_popup, and highlight.preedit. Input scheme
 definitions remain separate from ordinary configuration.
 
@@ -278,6 +278,14 @@ Config({}) restores the defaults.
 sticky_key is a single printable character or a supported named KeyToken, such
 as '<F9>'.  Its default is '', which disables sticky input.  The sticky key marks
 the next input as Modified, just like an uppercase letter.
+
+keyboard_layout selects how shifted printable symbols are normalized before
+input-scheme matching.  It accepts 'US' or 'JIS' and defaults to 'US'.  For
+example, '!' becomes Modified('1') on either layout, while '@' becomes
+Modified('2') on US and '"' becomes Modified('2') on JIS.  The layout setting
+does not affect named keys such as '<F10>'.  On JIS, '?' can come from both
+Shift+0 and Shift+/, so it is normalized as Modified('0'); Vim's character
+input does not distinguish those physical keys.
 
 mappings is a dictionary from KeyTokens to action names.  Supported actions are
 Convert, NextCandidate, PreviousCandidate, Commit, and OpenRegistration.

@@ -1,14 +1,16 @@
 vim9script
 
 import 'caskk/input.vim' as input
+import autoload 'caskk/input/layout.vim' as layout
 
 # Input is one physical KeyToken at a time, already named by the integration layer.
-# An empty sticky_key disables sticky input. No layout-specific symbol mapping is done.
+# An empty sticky_key disables sticky input.
 export class Normalizer
   const _sticky_key: string = ''
+  const _keyboard_layout: string = ''
   var _modified: bool = false
 
-  def new(this._sticky_key = v:none)
+  def new(this._sticky_key = v:none, this._keyboard_layout = v:none)
   enddef
 
   def Feed(key: string): list<input.Event>
@@ -17,8 +19,10 @@ export class Normalizer
       return []
     endif
 
+    const shifted = layout.Normalize(this._keyboard_layout, key)
     const uppercase = key =~# '^[A-Z]$'
-    const event = input.Event.new(uppercase ? tolower(key) : key, this._modified || uppercase)
+    const event = input.Event.new(uppercase ? tolower(key) : shifted.key,
+      this._modified || uppercase || shifted.modified)
     this._modified = false
     return [event]
   enddef

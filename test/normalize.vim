@@ -45,6 +45,25 @@ suite.other_tokens_are_preserved = (): void => {
   endfor
 }
 
+suite.shifted_symbols_normalize_to_modified_keys_for_us_and_jis = (): void => {
+  const us = normalize.Normalizer.new('', 'US')
+  for [symbol, key] in [['!', '1'], ['@', '2'], ['#', '3']]
+    const event = us.Feed(symbol)[0]
+    assert.equals(event.key, key)
+    assert.equals(event.modified, true)
+  endfor
+
+  const jis = normalize.Normalizer.new('', 'JIS')
+  for [symbol, key] in [['!', '1'], ['"', '2'], ['#', '3']]
+    const event = jis.Feed(symbol)[0]
+    assert.equals(event.key, key)
+    assert.equals(event.modified, true)
+  endfor
+  const at = jis.Feed('@')[0]
+  assert.equals(at.key, '@')
+  assert.equals(at.modified, false)
+}
+
 suite.sticky_key_modifies_only_the_next_token = (): void => {
   const normalizer = normalize.Normalizer.new(';')
   assert.equals(normalizer.Feed(';'), [])

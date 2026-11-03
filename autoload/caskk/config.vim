@@ -24,11 +24,12 @@ endclass
 
 export class Input
   const sticky_key: string
+  const keyboard_layout: string
   const mappings: dict<string>
   const entries: dict<dictionary.Entry>
   const small_tsu_okuri_as_t: bool
 
-  def new(this.sticky_key, mappings: dict<string>, entries: dict<dictionary.Entry>,
+  def new(this.sticky_key, this.keyboard_layout, mappings: dict<string>, entries: dict<dictionary.Entry>,
       this.small_tsu_okuri_as_t)
     this.mappings = copy(mappings)
     this.entries = copy(entries)
@@ -119,6 +120,13 @@ def ReadStickyKey(raw: any): string
   return key
 enddef
 
+def ReadKeyboardLayout(raw: any): string
+  if type(raw) != v:t_string || index(['US', 'JIS'], raw) < 0
+    throw 'keyboard_layout must be US or JIS'
+  endif
+  return raw
+enddef
+
 def ReadMappings(raw: any): dict<string>
   if type(raw) != v:t_dict
     throw 'mappings must be a dictionary'
@@ -181,7 +189,7 @@ enddef
 
 def Parse(options: dict<any>): Settings
   for section in keys(options)
-    if index(['highlight', 'sticky_key', 'mappings', 'dictionaries', 'state_path', 'state_auto',
+    if index(['highlight', 'sticky_key', 'keyboard_layout', 'mappings', 'dictionaries', 'state_path', 'state_auto',
         'small_tsu_okuri_as_t',
         'registration_prefill', 'registration_auto', 'candidate_popup'], section) < 0
       throw 'unknown section: ' .. section
@@ -189,6 +197,7 @@ def Parse(options: dict<any>): Settings
   endfor
   const highlight = ParseHighlight(ReadHighlight(get(options, 'highlight', {})))
   const sticky_key = ReadStickyKey(get(options, 'sticky_key', ''))
+  const keyboard_layout = ReadKeyboardLayout(get(options, 'keyboard_layout', 'US'))
   const actions = ReadMappings(get(options, 'mappings', {}))
   if type(get(options, 'state_path', '')) != v:t_string
     throw 'state_path must be a string'
@@ -220,7 +229,7 @@ def Parse(options: dict<any>): Settings
   const sources = ReadDictionaries(get(options, 'dictionaries', []))
   const entries = loader.Load(sources)
   const destination = state_path == '' ? '' : fnamemodify(state_path, ':p')
-  return Settings.new(highlight, Input.new(sticky_key, actions, entries, small_tsu_okuri_as_t), destination, state_auto,
+  return Settings.new(highlight, Input.new(sticky_key, keyboard_layout, actions, entries, small_tsu_okuri_as_t), destination, state_auto,
     registration_prefill, registration_auto, candidate_popup)
 enddef
 
@@ -248,7 +257,7 @@ export def ApplyHighlight()
 enddef
 
 export def GetInput(): Input
-  return Input.new(current.input.sticky_key, current.input.mappings, current.input.entries,
+  return Input.new(current.input.sticky_key, current.input.keyboard_layout, current.input.mappings, current.input.entries,
     current.input.small_tsu_okuri_as_t)
 enddef
 
