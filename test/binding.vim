@@ -141,6 +141,26 @@ suite.nonconsonant_combination_key_is_literal_in_direct_state = (): void => {
   endfor
 }
 
+suite.multi_key_consonant_prefixes_resolve_before_combinations = (): void => {
+  for [text, expected] in [['wgi', 'うぃ'], ['wga', 'うぁ'], ['wa', 'わ']]
+    const context = Setup()
+    try
+      const compiled = scheme.Compile({w: 'w', g: 'g', wg: 'wh'},
+        {a: 'a', g: 'i*ta', i: 'i'})
+      const keys = binding.Binding.new(compiled)
+      inoremap <buffer> <F11> <ScriptCmd>CapturePendingBuffer()<CR>
+      keys.Enable()
+      feedkeys("a" .. text .. "\<F11>\<Esc>", 'xt')
+      assert.equals(g:caskk_pending_snapshot, '前' .. expected .. '後')
+      assert.equals(g:caskk_pending_properties, [])
+      iunmap <buffer> <F11>
+      keys.Disable()
+    finally
+      Cleanup(context)
+    endtry
+  endfor
+}
+
 suite.backspace_without_pending_input_uses_native_multibyte_deletion = (): void => {
   const context = Setup()
   defer Cleanup(context)

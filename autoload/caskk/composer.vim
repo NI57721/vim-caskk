@@ -43,25 +43,112 @@ export class Composer
   const _table: table_types.CombinationTable
   const _rules: list<special.Rule>
   var _special_pending: list<input.Event> = []
-  var _consonant: input.Event
+  var _consonant: list<input.Event> = []
 
   def new(compiled: scheme.CompiledScheme)
     this._table = compiled.table
     this._rules = compiled.specials
   enddef
 
+  def _ConsonantKey(events: list<input.Event>): string
+    var matched = ''
+    for key in keys(this._table.consonants)
+      const tokens = scheme.ConsonantKeys(key)
+      if len(tokens) != len(events)
+        continue
+      endif
+      var equal = true
+      for index in range(0, len(tokens) - 1)
+        if tokens[index] !=# events[index].key
+          equal = false
+          break
+        endif
+      endfor
+      if equal
+        matched = key
+      endif
+    endfor
+    return matched
+  enddef
+
+  def _HasConsonantPrefix(events: list<input.Event>): bool
+    for key in keys(this._table.consonants)
+      const tokens = scheme.ConsonantKeys(key)
+      if len(tokens) < len(events)
+        continue
+      endif
+      var matches = true
+      for index in range(0, len(events) - 1)
+        if tokens[index] !=# events[index].key
+          matches = false
+          break
+        endif
+      endfor
+      if matches
+        return true
+      endif
+    endfor
+    return false
+  enddef
+
+  def _LogicalConsonant(key: string, events: list<input.Event>): input.Event
+    var modified = false
+    for event in events
+      modified = modified || event.modified
+    endfor
+    return input.Event.new(key, modified)
+  enddef
+
   # Normal replay must bypass special matching to avoid retrying a failed prefix.
   def _Replay(event: input.Event, results: list<Result>)
-    if this._consonant isnot null_object
-      if has_key(this._table.combinations, event.key)
-        const pattern = kana.Generate(this._table.consonants[this._consonant.key],
-          this._table.combinations[event.key])
-        results->add(Result.new([this._consonant, event], pattern))
-        this._consonant = null_object
+    if !empty(this._consonant)
+      const extended = this._consonant + [event]
+      if this._HasConsonantPrefix(extended)
+        this._consonant = extended
         return
       endif
-      results->add(Result.new([this._consonant]))
-      this._consonant = null_object
+
+      var matched_key = ''
+      var matched_length = 0
+      for length in range(1, len(this._consonant))
+        const key = this._ConsonantKey(this._consonant[0 : length - 1])
+        if key != ''
+          matched_key = key
+          matched_length = length
+        endif
+      endfor
+      if matched_key != ''
+        const matched_events = this._consonant[0 : matched_length - 1]
+        const remainder = this._consonant[matched_length : ] + [event]
+        this._consonant = []
+        if !empty(remainder) && has_key(this._table.combinations, remainder[0].key)
+          const combination_event = remainder[0]
+          const pattern = kana.Generate(this._table.consonants[matched_key],
+            this._table.combinations[combination_event.key])
+          results->add(Result.new([this._LogicalConsonant(matched_key, matched_events),
+            combination_event], pattern))
+          for replayed in remainder[1 :]
+            this._Replay(replayed, results)
+          endfor
+          return
+        endif
+        for unmatched in matched_events
+          results->add(Result.new([unmatched]))
+        endfor
+        for replayed in remainder
+          this._Replay(replayed, results)
+        endfor
+        return
+      endif
+
+      const first = this._consonant[0]
+      const remainder = this._consonant[1 :] + [event]
+      this._consonant = []
+      results->add(Result.new([first]))
+      for replayed in remainder
+        this._Replay(replayed, results)
+      endfor
+      return
     endif
 
     if has_key(this._table.consonants, event.key)
@@ -70,8 +157,10 @@ export class Composer
         const pattern = kana.Generate('', pattern_types.OutputPattern.new(row, -1))
         results->add(Result.new([event], pattern, false, true))
       else
-        this._consonant = event
+        this._consonant = [event]
       endif
+    elseif this._HasConsonantPrefix([event])
+      this._consonant = [event]
     elseif has_key(this._table.combinations, event.key)
       const pattern = kana.Generate('', this._table.combinations[event.key])
       results->add(Result.new([event], pattern))
@@ -81,11 +170,11 @@ export class Composer
   enddef
 
   def _CompletesPendingCombination(event: input.Event): bool
-    if this._consonant is null_object || !empty(this._special_pending)
+    if empty(this._consonant) || !empty(this._special_pending)
         || !has_key(this._table.combinations, event.key)
       return false
     endif
-    return true
+    return !this._HasConsonantPrefix(this._consonant + [event])
   enddef
 
   def _Process(events: list<input.Event>, end_of_input: bool): list<Result>
@@ -97,7 +186,7 @@ export class Composer
       for replayed in match.replay
         this._Replay(replayed, results)
       endfor
-      if match.output isnot null_object && this._consonant isnot null_object
+      if match.output isnot null_object && !empty(this._consonant)
           && len(match.events) == 1
           && has_key(this._table.combinations, match.events[0].key)
         this._Replay(match.events[0], results)
@@ -118,9 +207,11 @@ export class Composer
 
       # A successful special consumes its own keys, leaving no combination key
       # for an earlier unmatched consonant. Return that consonant first.
-      if this._consonant isnot null_object
-        results->add(Result.new([this._consonant]))
-        this._consonant = null_object
+      if !empty(this._consonant)
+        for unmatched in this._consonant
+          results->add(Result.new([unmatched]))
+        endfor
+        this._consonant = []
       endif
       results->add(Result.new(match.events, match.output, true))
       remaining = match.rest
@@ -142,9 +233,11 @@ export class Composer
   # Explicit end of input resolves complete specials and returns unfinished keys.
   def Flush(): list<Result>
     final results = this._Process(this._special_pending, true)
-    if this._consonant isnot null_object
-      results->add(Result.new([this._consonant]))
-      this._consonant = null_object
+    if !empty(this._consonant)
+      for unmatched in this._consonant
+        results->add(Result.new([unmatched]))
+      endfor
+      this._consonant = []
     endif
     return results
   enddef
@@ -155,16 +248,16 @@ export class Composer
       remove(this._special_pending, -1)
       return true
     endif
-    if this._consonant isnot null_object
-      this._consonant = null_object
+    if !empty(this._consonant)
+      remove(this._consonant, -1)
       return true
     endif
     return false
   enddef
 
   def Pending(): list<input.Event>
-    if this._consonant isnot null_object
-      return [this._consonant] + this._special_pending
+    if !empty(this._consonant)
+      return copy(this._consonant) + this._special_pending
     endif
     return copy(this._special_pending)
   enddef

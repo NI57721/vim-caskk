@@ -23,6 +23,19 @@ export class CompiledScheme
   enddef
 endclass
 
+# A consonant definition is a sequence of physical keys. Named Vim KeyTokens
+# remain atomic; ordinary strings are split into their Unicode characters.
+export def ConsonantKeys(key: string): list<string>
+  if key =~# '^<[0-9A-Za-z_-]\+>$' || strchars(key) == 1
+    return [key]
+  endif
+  final keys: list<string> = []
+  for index in range(0, strchars(key) - 1)
+    keys->add(strcharpart(key, index, 1))
+  endfor
+  return keys
+enddef
+
 # Compile all output patterns without retaining caller-owned containers.
 # Dictionary keys and special input elements are already normalized KeyTokens.
 export def Compile(consonants: dict<string>, combinations: dict<string>,

@@ -92,8 +92,13 @@ export class Binding
     this._registration_auto = registration_auto
     this._small_tsu_okuri_as_t = small_tsu_okuri_as_t
     final tokens: dict<bool> = {}
-    for key in keys(compiled.table.consonants) + keys(compiled.table.combinations)
+    for key in keys(compiled.table.combinations)
       tokens[key] = true
+    endfor
+    for key in keys(compiled.table.consonants)
+      for token in scheme.ConsonantKeys(key)
+        tokens[token] = true
+      endfor
     endfor
     for rule in compiled.specials
       for key in rule.keys
