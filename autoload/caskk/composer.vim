@@ -15,8 +15,9 @@ export class Result
   const events: list<input.Event>
   const output: pattern_types.OutputPattern
   const is_special: bool = false
+  const is_symbol: bool = false
 
-  def new(this.events, this.output = v:none, this.is_special = v:none)
+  def new(this.events, this.output = v:none, this.is_special = v:none, this.is_symbol = v:none)
   enddef
 endclass
 
@@ -24,6 +25,13 @@ endclass
 export def Compose(result: Result, in_preedit: bool = false): composition.Result
   if result.output is null_object
     throw 'caskk: cannot compose unmatched input'
+  endif
+  if result.is_symbol
+    if in_preedit && result.events[0].modified
+      return composition.Result.new(false, '', result.output.text, true)
+    endif
+    return composition.Result.new(!in_preedit && result.events[0].modified,
+      result.output.text, '', false)
   endif
   if result.is_special
     return special.Compose(result.output, result.events, in_preedit)
@@ -60,7 +68,7 @@ export class Composer
       const row = this._table.consonants[event.key]
       if row ==# 'N' || row ==# 'T'
         const pattern = kana.Generate('', pattern_types.OutputPattern.new(row, -1))
-        results->add(Result.new([event], pattern, true))
+        results->add(Result.new([event], pattern, false, true))
       else
         this._consonant = event
       endif

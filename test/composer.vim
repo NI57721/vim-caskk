@@ -487,6 +487,20 @@ suite.single_key_special_does_not_implicitly_start_okuri = (): void => {
   assert.equals(composed.okuri_started, false)
 }
 
+suite.modified_nasal_and_sokuon_consonants_start_okuri_in_preedit = (): void => {
+  const compiled = scheme.Compile({q: 'N', l: 'T'}, {})
+  for [key, kana] in [['q', 'ん'], ['l', 'っ']]
+    const engine = composer.Composer.new(compiled)
+    const results = engine.Feed(input.Event.new(key, true))
+    assert.equals(len(results), 1)
+    assert.equals(results[0].is_symbol, true)
+    const composed = composer.Compose(results[0], true)
+    assert.equals(composed.reading, '')
+    assert.equals(composed.okuri, kana)
+    assert.equals(composed.okuri_started, true)
+  endfor
+}
+
 suite.failed_special_is_interpreted_as_normal_input = (): void => {
   const definitions = [scheme.SpecialDefinition.new(['j', 'i', 'x'], '特別')]
   const engine = composer.Composer.new(scheme.Compile({j: 'z'}, {i: 'i'}, definitions))
