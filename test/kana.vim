@@ -96,6 +96,12 @@ suite.okuri_suffix_is_generated_from_roman_prefix = (): void => {
   assert.equals(result.boundary, 1)
 }
 
+suite.romanized_reading_and_okuri_sequences_use_the_consonant_row = (): void => {
+  const result = kana.Generate('m', output_pattern.Parse('itu*keru'))
+  assert.equals(result.text, 'みつける')
+  assert.equals(result.boundary, 2)
+}
+
 suite.literal_markers_and_unicode_survive = (): void => {
   const result = kana.Generate('ky', output_pattern.Parse('a\*\\*い'))
   assert.equals(result.text, 'きゃ*\い')

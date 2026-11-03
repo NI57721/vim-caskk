@@ -34,6 +34,21 @@ suite.modified_consonant_and_combination_activate_latent_okuri = (): void => {
   assert.equals(ime.GetSnapshot().okuri, 'く')
 }
 
+suite.modified_mq_converts_mitsukeru_as_mitsukeru_candidate = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('みつk /見付/')]])
+  const ime = session.Session.new(scheme.Compile({m: 'm'}, {q: 'itu*keru'}),
+    '', entries, user_state.State.new())
+  assert.equals(ime.Feed('M'), [])
+  const results = ime.Feed('Q')
+  assert.equals(len(results), 1)
+  assert.equals(results[0].text, '見付ける')
+  assert.equals(results[0].in_candidate, true)
+  assert.equals(results[0].state.reading, 'みつ')
+  assert.equals(results[0].state.okuri, 'ける')
+  assert.equals(ime.GetCandidates().query.exact_okuri, 'け')
+  assert.equals(ime.GetCandidates().query.lookup_key, 'みつk')
+}
+
 suite.standalone_vowels_continue_kana_input_after_direct_syllables = (): void => {
   const ime = session.Session.new(scheme.Compile(
     {h: 'h', g: 'g'}, {a: 'a', i: 'i', u: 'u', e: 'e', o: 'o'}))

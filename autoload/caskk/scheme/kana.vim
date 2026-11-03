@@ -103,44 +103,57 @@ def GenerateOkuri(text: string): string
   return join(output, '')
 enddef
 
-# Apply the row to the leading vowel; subsequent vowels have no consonant.
+# Generate a romanized output sequence. The configured consonant row applies
+# only to the first character, while later consonant-vowel groups use their
+# own rows (for example, row m plus "itu" becomes "みつ").
+def GenerateReading(text: string, first_row: string): string
+  final output: list<string> = []
+  var row = ''
+  var input_offset = 0
+  for codepoint in str2list(text, true)
+    const character = nr2char(codepoint, true)
+    const vowel = index(TABLE.vowels, character)
+    if vowel >= 0
+      const generated = row != '' ? GenerateCharacter(row, character)
+        : GenerateCharacter(input_offset == 0 ? first_row : '', character)
+      output->add(generated)
+      row = ''
+    elseif character =~ '[a-z]'
+      row ..= character
+      if !has_key(TABLE.rows, row)
+        throw 'caskk: invalid combination symbol: ' .. row
+      endif
+    elseif has_key(TABLE.symbols, character) && row == ''
+      output->add(TABLE.symbols[character])
+    elseif character =~ '[A-Z]' && row == ''
+      output->add(GenerateCharacter('', character))
+    elseif character !~ '[A-Za-z]' && row == ''
+      output->add(character)
+    else
+      throw 'caskk: invalid combination symbol: ' .. character
+    endif
+    input_offset += 1
+  endfor
+  if row != ''
+    throw 'caskk: invalid combination symbol: ' .. row
+  endif
+  return join(output, '')
+enddef
+
+# Apply the consonant row to the initial vowel, then parse later kana rows.
 # The parser has already decoded escapes, so literal * and \ remain text.
 export def Generate(row: string, pattern: pattern_types.OutputPattern): pattern_types.OutputPattern
   if !has_key(TABLE.rows, row)
     throw 'caskk: unknown consonant row: ' .. row
   endif
 
-  final output: list<string> = []
-  var input_offset = 0
-  var output_offset = 0
-  var boundary = -1
-
   const characters = str2list(pattern.text, true)
-  for index in range(len(characters))
-    const codepoint = characters[index]
-    if input_offset == pattern.boundary
-      boundary = output_offset
-    endif
-
-    if input_offset == pattern.boundary && pattern.boundary >= 0
-      const suffix = GenerateOkuri(list2str(characters[index :], true))
-      output->add(suffix)
-      output_offset += strchars(suffix)
-      input_offset = len(characters)
-      break
-    endif
-
-    const character = nr2char(codepoint, true)
-    const generated = GenerateCharacter(input_offset == 0 ? row : '', character)
-
-    output->add(generated)
-    output_offset += strchars(generated)
-    input_offset += 1
-  endfor
-
-  if input_offset == pattern.boundary
-    boundary = output_offset
+  if pattern.boundary >= 0
+    const before = pattern.boundary == 0 ? [] : characters[: pattern.boundary - 1]
+    const after = characters[pattern.boundary :]
+    const reading = GenerateReading(list2str(before, true), row)
+    const okuri = GenerateOkuri(list2str(after, true))
+    return pattern_types.OutputPattern.new(reading .. okuri, strchars(reading))
   endif
-
-  return pattern_types.OutputPattern.new(join(output, ''), boundary)
+  return pattern_types.OutputPattern.new(GenerateReading(pattern.text, row), -1)
 enddef
