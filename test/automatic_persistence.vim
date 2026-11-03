@@ -30,7 +30,7 @@ def Run(directory: string, commands: list<string>): Result
     'execute "set runtimepath^=" .. fnameescape(' .. string(getcwd()) .. ')',
     "import autoload 'caskk.vim' as Caskk",
     'set nomore',
-    "Caskk.RegisterInputScheme('automatic', {k: 'k'}, {a: 'a'})",
+    "Caskk.RegisterInputScheme({name: 'automatic', consonants: {k: 'k'}, combinations: {a: 'a'}})",
     'enew',
     'setlocal buftype=nofile noswapfile',
     "setline(1, '前後')",
@@ -150,7 +150,7 @@ suite.failed_mapping_installation_does_not_initialize_or_save_state = (): void =
   const directory = Directory()
   defer delete(directory, 'rf')
   const result = Run(directory, [Configure(directory),
-    "Caskk.RegisterInputScheme('duplicate', {' ': 'k'}, {'<Space>': 'a'})",
+    "Caskk.RegisterInputScheme({name: 'duplicate', consonants: {' ': 'k'}, combinations: {'<Space>': 'a'}})",
     "Caskk.Enable('duplicate')"])
   assert.equals(result.status != 0, true)
   const error = readfile(directory .. '/error')

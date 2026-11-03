@@ -20,7 +20,8 @@ def Setup(): list<number>
   setline(1, '前後')
   cursor(1, 1)
   Caskk.Config({})
-  Caskk.RegisterInputScheme('dictionary-config', {k: 'k'}, {a: 'a'}, {x: 'かな'})
+  Caskk.RegisterInputScheme({name: 'dictionary-config', consonants: {k: 'k'},
+    combinations: {a: 'a'}, specials: {x: 'かな'}})
   return [previous, number]
 enddef
 

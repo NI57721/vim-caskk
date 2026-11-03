@@ -99,8 +99,8 @@ def Setup(prefill: bool = true): Fixture
   Caskk.Config({registration_auto: false, registration_prefill: prefill,
     state_path: directory .. '/state.jsonl',
     mappings: {s: 'Convert', n: 'NextCandidate'}})
-  Caskk.RegisterInputScheme('registration-window', {k: 'k'}, {a: 'a'},
-    {d: '漢字', zx: 'い*くらい'})
+  Caskk.RegisterInputScheme({name: 'registration-window', consonants: {k: 'k'}, combinations: {a: 'a'},
+    specials: {d: '漢字', zx: 'い*くらい'}})
   Caskk.Enable('registration-window')
   inoremap <buffer> <F3> <ScriptCmd>Handle('open')<CR>
   return Fixture.new(previous, origin_buffer, directory, snapshot, existing_buffers)

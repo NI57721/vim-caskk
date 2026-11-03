@@ -5,16 +5,24 @@ INPUT SCHEMES                                           *caskk-input-schemes*
 Register input grammar separately from Config(): >vim9
 
     import autoload 'caskk.vim' as Caskk
-    Caskk.RegisterInputScheme('custom', {k: 'k'}, {a: 'a'},
-      {kan: 'かん', '<C-K>': 'ケー'})
+    Caskk.RegisterInputScheme({
+      name: 'custom',
+      consonants: {k: 'k'},
+      combinations: {a: 'a'},
+      specials: {kan: 'かん', "\<C-K>": 'ケー'},
+    })
     const compiled = Caskk.GetInputScheme('custom')
 <
-RegisterInputScheme(name, consonants, combinations [, specials]) compiles and
-stores a named scheme.  Consonants and combinations are dictionaries of strings.
+RegisterInputScheme(definition) compiles and stores a named scheme.  The
+definition dictionary requires `name`, `consonants`, and `combinations` fields;
+`specials` is optional.  Consonants, combinations, and specials are dictionaries
+of strings.
 Consonant values normally name a kana row; the output symbols 'N' and 'T' may
 also be used to map a key directly to 「ん」 or 「っ」, respectively.  For example:
 >
-    Caskk.RegisterInputScheme('custom', {q: 'N', l: 'T'}, {})
+    Caskk.RegisterInputScheme({
+      name: 'custom', consonants: {q: 'N', l: 'T'}, combinations: {},
+    })
 <
 The optional specials dictionary maps input key sequences to output patterns.
 Ordinary characters in a key are separate physical keys, so `kan` means `k`,

@@ -9,8 +9,35 @@ import 'caskk/registration.vim' as registration
 
 const schemes = registry.Registry.new()
 
-export def RegisterInputScheme(name: string, consonants: dict<string>,
-    combinations: dict<string>, specials: dict<string> = {})
+def ReadSchemeMap(definition: dict<any>, field: string): dict<string>
+  if !has_key(definition, field) || type(definition[field]) != v:t_dict
+    throw 'caskk: invalid input scheme: ' .. field .. ' must be a dictionary'
+  endif
+  final values: dict<string> = {}
+  for [key, raw_value] in items(definition[field])
+    if type(raw_value) != v:t_string
+      throw 'caskk: invalid input scheme: ' .. field .. ' values must be strings'
+    endif
+    const value: string = raw_value
+    values[key] = value
+  endfor
+  return values
+enddef
+
+export def RegisterInputScheme(definition: dict<any>)
+  for field in keys(definition)
+    if index(['name', 'consonants', 'combinations', 'specials'], field) < 0
+      throw 'caskk: invalid input scheme: unknown field: ' .. field
+    endif
+  endfor
+  if !has_key(definition, 'name') || type(definition.name) != v:t_string
+    throw 'caskk: invalid input scheme: name must be a string'
+  endif
+  const name: string = definition.name
+  const consonants = ReadSchemeMap(definition, 'consonants')
+  const combinations = ReadSchemeMap(definition, 'combinations')
+  final specials: dict<string> = has_key(definition, 'specials')
+    ? ReadSchemeMap(definition, 'specials') : {}
   schemes.Register(name, consonants, combinations, scheme.SpecialDefinitions(specials))
   binding.DisableAll()
 enddef

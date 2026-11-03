@@ -35,7 +35,7 @@ def Setup(): Fixture
   const snapshot = user_runtime.Get().GetSnapshot()
   user_runtime.Get().Restore(user_state.State.new().GetSnapshot())
   Caskk.Config({})
-  Caskk.RegisterInputScheme('persistence', {k: 'k'}, {a: 'a'})
+  Caskk.RegisterInputScheme({name: 'persistence', consonants: {k: 'k'}, combinations: {a: 'a'}})
   return Fixture.new(previous, number, directory, snapshot)
 enddef
 

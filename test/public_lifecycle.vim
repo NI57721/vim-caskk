@@ -14,7 +14,7 @@ def Setup(): list<number>
   setlocal buftype=nofile noswapfile
   setline(1, '前後')
   cursor(1, 1)
-  Caskk.RegisterInputScheme('lifecycle', {k: 'k'}, {a: 'a'})
+  Caskk.RegisterInputScheme({name: 'lifecycle', consonants: {k: 'k'}, combinations: {a: 'a'}})
   return [previous, number]
 enddef
 
@@ -79,7 +79,7 @@ suite.enable_during_insert_accepts_input_at_the_current_position = (): void => {
 suite.reenable_keeps_the_active_scheme_until_disabled = (): void => {
   const context = Setup()
   defer Cleanup(context)
-  Caskk.RegisterInputScheme('lifecycle-other', {k: 'n'}, {a: 'a'})
+  Caskk.RegisterInputScheme({name: 'lifecycle-other', consonants: {k: 'n'}, combinations: {a: 'a'}})
   Caskk.Enable('lifecycle')
   Caskk.Enable('lifecycle-other')
   feedkeys("aka\<Esc>", 'xt')
@@ -97,7 +97,7 @@ suite.reregistered_scheme_is_used_after_disable_and_reenable = (): void => {
   Caskk.Enable('lifecycle')
   feedkeys("aka\<Esc>", 'xt')
   assert.equals(getline(1), '前か後')
-  Caskk.RegisterInputScheme('lifecycle', {k: 'n'}, {a: 'a'})
+  Caskk.RegisterInputScheme({name: 'lifecycle', consonants: {k: 'n'}, combinations: {a: 'a'}})
   assert.equals(Caskk.IsEnabled(), false)
   Caskk.Enable('lifecycle')
   feedkeys("aka\<Esc>", 'xt')
@@ -154,7 +154,8 @@ suite.unknown_scheme_preserves_existing_enable_state_and_mappings = (): void => 
 suite.failed_enable_restores_mappings_and_allows_retry = (): void => {
   const context = Setup()
   defer Cleanup(context)
-  Caskk.RegisterInputScheme('lifecycle-duplicate', {}, {' ': 'a'}, {' ': '間'})
+  Caskk.RegisterInputScheme({name: 'lifecycle-duplicate', consonants: {},
+    combinations: {' ': 'a'}, specials: {' ': '間'}})
   inoremap <buffer> <Space> 旧
   var caught = ''
   try

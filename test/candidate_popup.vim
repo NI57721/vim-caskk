@@ -71,8 +71,8 @@ def Setup(candidate_popup: bool = true): Fixture
   const snapshot = user_runtime.Get().GetSnapshot()
   user_runtime.Get().Restore(user_state.State.new().GetSnapshot())
   observations = []
-  Caskk.RegisterInputScheme('candidate-popup', {k: 'k'}, {a: 'a'},
-    {d: '漢字', zx: 'い*くらい'})
+  Caskk.RegisterInputScheme({name: 'candidate-popup', consonants: {k: 'k'},
+    combinations: {a: 'a'}, specials: {d: '漢字', zx: 'い*くらい'}})
   Caskk.Config({candidate_popup: candidate_popup, dictionaries: [directory .. '/system'],
     mappings: {s: 'Convert', n: 'NextCandidate', p: 'PreviousCandidate', c: 'Commit'}})
   Caskk.Enable('candidate-popup')

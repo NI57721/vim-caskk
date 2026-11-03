@@ -14,7 +14,7 @@ def Setup(): list<number>
   setline(1, '前後')
   cursor(1, 1)
   Caskk.Config({})
-  Caskk.RegisterInputScheme('configured', {k: 'k'}, {a: 'a'})
+  Caskk.RegisterInputScheme({name: 'configured', consonants: {k: 'k'}, combinations: {a: 'a'}})
   return [previous, number]
 enddef
 
@@ -173,7 +173,7 @@ suite.small_tsu_dictionary_prefix_is_enabled_by_default_and_can_be_disabled = ()
   const path = tempname()
   defer delete(path)
   writefile(['けっt /蹴/', 'けx /標準/'], path)
-  Caskk.RegisterInputScheme('small-tsu-prefix', {k: 'k'}, {q: 'e*Tte'})
+  Caskk.RegisterInputScheme({name: 'small-tsu-prefix', consonants: {k: 'k'}, combinations: {q: 'e*Tte'}})
 
   for [options, expected] in [
     [{dictionaries: [path]}, '前蹴って後'],

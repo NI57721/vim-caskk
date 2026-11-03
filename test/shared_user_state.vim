@@ -14,7 +14,8 @@ def Setup(reading: string): list<number>
   setlocal buftype=nofile noswapfile
   setline(1, '前後')
   cursor(1, 1)
-  Caskk.RegisterInputScheme('shared-state', {k: 'k'}, {u: 'u', i: 'i'}, {x: reading})
+  Caskk.RegisterInputScheme({name: 'shared-state', consonants: {k: 'k'},
+    combinations: {u: 'u', i: 'i'}, specials: {x: reading}})
   return [previous, number]
 enddef
 
