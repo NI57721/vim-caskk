@@ -223,6 +223,17 @@ suite.unavailable_printable_actions_fall_back_to_ordinary_input = (): void => {
   endfor
 }
 
+suite.start_conversion_mapping_falls_back_while_only_a_consonant_is_pending = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const keys = binding.Binding.new(scheme.Compile({z: 'z'}, {z: 'a*N'}), '', {},
+    null_object, {'<Space>': 'StartConversion'})
+  keys.Enable()
+  feedkeys("az\<Space>\<Space>\<Esc>", 'xt')
+  assert.equals(getline(1), '前z  後')
+  keys.Disable()
+}
+
 suite.unavailable_special_key_action_falls_back_to_vim_input = (): void => {
   const context = Setup()
   defer Cleanup(context)

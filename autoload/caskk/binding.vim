@@ -234,14 +234,13 @@ export class Binding
       return false
     endif
     const snapshot = this._editor.GetSnapshot()
-    const has_pending = !empty(this._editor.Pending())
     const has_candidate = this._editor.IsInCandidate()
     if action ==# 'StartConversion'
-      return !has_candidate && (snapshot.in_preedit || has_pending)
+      return !has_candidate && snapshot.in_preedit
     elseif action ==# 'NextCandidate' || action ==# 'PreviousCandidate'
       return has_candidate
     elseif action ==# 'Commit'
-      return has_candidate || snapshot.in_preedit || has_pending
+      return has_candidate || snapshot.in_preedit
     elseif action ==# 'OpenRegistration'
       return this.GetRegistrationRequest() isnot null_object
     endif
