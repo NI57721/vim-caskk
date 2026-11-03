@@ -30,6 +30,13 @@ def CapturePendingBuffer()
   g:caskk_pending_properties = prop_list(1, {types: ['caskk_preedit']})
 enddef
 
+def CaptureBindingState()
+  const request = binding.GetRegistrationRequest()
+  g:caskk_binding_snapshots->add([
+    getline(1), request is null_object ? '' : request.reading,
+  ])
+enddef
+
 suite.backspace_deletes_pending_key_then_modifier_then_native_text = (): void => {
   for prefix in ['K', ';k']
     const context = Setup()
@@ -76,7 +83,7 @@ suite.backspace_preserves_restored_modifier_for_following_input = (): void => {
   const context = Setup()
   defer Cleanup(context)
   const entries = merger.Merge([[parser.ParseLine('か /蚊/')]])
-  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), ';', entries, null_object, {s: 'StartConversion'})
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), ';', entries, null_object, {s: 'Convert'})
   keys.Enable()
   feedkeys("afooK\<BS>kas\<Esc>", 'xt')
   assert.equals(getline(1), '前foo蚊後')
@@ -97,7 +104,7 @@ suite.backspace_commits_reading_and_following_input_starts_in_direct_mode = (): 
   const context = Setup()
   defer Cleanup(context)
   const entries = merger.Merge([[parser.ParseLine('かか /科科/')]])
-  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries, null_object, {s: 'StartConversion'})
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries, null_object, {s: 'Convert'})
   keys.Enable()
   feedkeys("aKaka\<BS>kas\<Esc>", 'xt')
   assert.equals(getline(1), '前かかs後')
@@ -189,7 +196,7 @@ suite.enable_installs_keys_and_actions_and_insertleave_closes_preedit = (): void
   const context = Setup()
   defer Cleanup(context)
   const entries = merger.Merge([[parser.ParseLine('か /蚊/科/')]])
-  const actions = {s: 'StartConversion', n: 'NextCandidate', c: 'Commit'}
+  const actions = {s: 'Convert', n: 'NextCandidate', c: 'Commit'}
   const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), ';', entries, user_state.State.new(), actions)
   keys.Enable()
   assert.equals(keys.IsEnabled(), true)
@@ -204,8 +211,25 @@ suite.enable_installs_keys_and_actions_and_insertleave_closes_preedit = (): void
   assert.equals(keys.IsEnabled(), false)
 }
 
+suite.convert_mapping_starts_advances_and_requests_registration_after_last_candidate = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const entries = merger.Merge([[parser.ParseLine('か /蚊/科/')]])
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries,
+    user_state.State.new(), {'<Space>': 'Convert'})
+  g:caskk_binding_snapshots = []
+  inoremap <buffer> <F11> <ScriptCmd>CaptureBindingState()<CR>
+  inoremap <buffer> <F12> <ScriptCmd>CaptureBindingState()<CR>
+  keys.Enable()
+  feedkeys("aKa\<Space>\<Space>\<F11>\<Space>\<F12>\<Esc>", 'xt')
+  assert.equals(getline(1), '前か後')
+  assert.equals(g:caskk_binding_snapshots, [['前科後', ''], ['前か後', 'か']])
+  keys.Disable()
+  unlet! g:caskk_binding_snapshots
+}
+
 suite.unavailable_printable_actions_fall_back_to_ordinary_input = (): void => {
-  const actions = {'<Space>': 'StartConversion', n: 'NextCandidate', p: 'PreviousCandidate', c: 'Commit', r: 'OpenRegistration'}
+  const actions = {'<Space>': 'Convert', n: 'NextCandidate', p: 'PreviousCandidate', c: 'Commit', r: 'OpenRegistration'}
   for [key, action] in items(actions)
     const context = Setup()
     try
@@ -227,7 +251,7 @@ suite.start_conversion_mapping_falls_back_while_only_a_consonant_is_pending = ()
   const context = Setup()
   defer Cleanup(context)
   const keys = binding.Binding.new(scheme.Compile({z: 'z'}, {z: 'a*N'}), '', {},
-    null_object, {'<Space>': 'StartConversion'})
+    null_object, {'<Space>': 'Convert'})
   keys.Enable()
   feedkeys("az\<Space>\<Space>\<Esc>", 'xt')
   assert.equals(getline(1), '前z  後')
@@ -404,7 +428,7 @@ suite.literal_punctuation_is_included_in_the_reading_and_its_undo_checkpoint = (
   const context = Setup()
   defer Cleanup(context)
   const entries = merger.Merge([[parser.ParseLine('か? /可疑/')]])
-  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries, null_object, {s: 'StartConversion', c: 'Commit'})
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries, null_object, {s: 'Convert', c: 'Commit'})
   keys.Enable()
   feedkeys("aKa?sc\<Esc>", 'xt')
   assert.equals(getline(1), '前可疑後')
@@ -442,7 +466,7 @@ suite.non_ascii_input_stays_in_preedit_before_following_conversion_keys = (): vo
   const context = Setup()
   defer Cleanup(context)
   const entries = merger.Merge([[parser.ParseLine('かあ? /仮名/')]])
-  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries, null_object, {s: 'StartConversion', c: 'Commit'})
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries, null_object, {s: 'Convert', c: 'Commit'})
   keys.Enable()
   feedkeys("aKaあ?sc\<Esc>", 'xt')
   assert.equals(getline(1), '前仮名後')
@@ -495,7 +519,7 @@ suite.native_movement_commits_and_learns_the_selected_candidate = (): void => {
   defer Cleanup(context)
   const preferences = user_state.State.new()
   const entries = merger.Merge([[parser.ParseLine('か /蚊/科/')]])
-  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries, preferences, {s: 'StartConversion', n: 'NextCandidate'})
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries, preferences, {s: 'Convert', n: 'NextCandidate'})
   keys.Enable()
   feedkeys("aKasn\<Left>ka\<Esc>", 'xt')
   assert.equals(getline(1), '前か科後')

@@ -119,7 +119,7 @@ suite.invalid_input_types_keys_and_actions_preserve_all_previous_settings = (): 
     {sticky_key: '<NotAKey>'}, {mappings: []}, {mappings: {'<F10>': 1}},
     {mappings: {'<F10>': 'MissingAction'}}, {mappings: {'two': 'Commit'}},
     {mappings: {'<NotAKey>': 'Commit'}},
-    {mappings: {' ': 'Commit', '<Space>': 'StartConversion'}},
+    {mappings: {' ': 'Commit', '<Space>': 'Convert'}},
     {sticky_key: ':', highlight: []}, {highlight: {preedit: []}},
     {highlight: {preedit: {cterm: 1}}},
   ]

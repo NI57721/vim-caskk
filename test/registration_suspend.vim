@@ -174,7 +174,7 @@ def Setup(): list<number>
   return_insertions = 0
   preferences = user_state.State.new()
   compiled = scheme.Compile({k: 'k'}, {a: 'a'}, [scheme.SpecialDefinition.new(['d'], '漢字')])
-  source = binding.Binding.new(compiled, '', {}, preferences, {s: 'StartConversion'})
+  source = binding.Binding.new(compiled, '', {}, preferences, {s: 'Convert'})
   source.Enable()
   inoremap <buffer> <F3> <ScriptCmd>Handle('open')<CR>
   return [previous, source_buffer]

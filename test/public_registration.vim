@@ -68,7 +68,7 @@ def Setup(lines: list<string> = []): Fixture
     scheme.SpecialDefinition.new(['z', 'x'], 'い*くらい'),
   ])
   Caskk.Config({registration_auto: false, state_path: directory .. '/state.jsonl', dictionaries: [directory .. '/system'],
-    mappings: {s: 'StartConversion', n: 'NextCandidate'}})
+    mappings: {s: 'Convert', n: 'NextCandidate'}})
   Caskk.Enable('public-registration')
   inoremap <buffer> <F3> <ScriptCmd>Handle('complete')<CR>
   inoremap <buffer> <F4> <ScriptCmd>Handle('okuri')<CR>

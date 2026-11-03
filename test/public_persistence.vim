@@ -60,7 +60,7 @@ suite.round_trip_preserves_entries_annotations_mru_pin_and_demotion = (): void =
   defer Cleanup(fixture)
   const path = fixture.directory .. '/state.jsonl'
   Caskk.Config({state_path: path, dictionaries: [fixture.directory .. '/system'],
-    mappings: {s: 'StartConversion'}})
+    mappings: {s: 'Convert'}})
   const query = lookup.CreateQuery('か', '')
   const state = user_runtime.Get()
   state.AddEntry(query, dictionary.Candidate.new('課', ['ユーザー登録']))
@@ -84,7 +84,7 @@ suite.loaded_learning_is_used_by_an_already_enabled_buffer = (): void => {
   defer Cleanup(fixture)
   const path = fixture.directory .. '/state.jsonl'
   Caskk.Config({state_path: path, dictionaries: [fixture.directory .. '/system'],
-    mappings: {s: 'StartConversion', n: 'NextCandidate'}})
+    mappings: {s: 'Convert', n: 'NextCandidate'}})
   Caskk.Enable('persistence')
   feedkeys("aKasn\<Esc>", 'xt')
   assert.equals(getline(1), '前科後')
@@ -206,7 +206,7 @@ suite.save_during_selection_does_not_commit_the_candidate = (): void => {
   defer Cleanup(fixture)
   const path = fixture.directory .. '/state.jsonl'
   Caskk.Config({state_path: path, dictionaries: [fixture.directory .. '/system'],
-    mappings: {s: 'StartConversion', n: 'NextCandidate'}})
+    mappings: {s: 'Convert', n: 'NextCandidate'}})
   inoremap <buffer> <F12> <ScriptCmd>SaveCurrent()<CR>
   Caskk.Enable('persistence')
   feedkeys("aKasn\<F12>\<Esc>", 'xt')

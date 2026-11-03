@@ -123,7 +123,7 @@ the original buffer.  Alternatively configure an OpenRegistration action: >vim9
 
     Caskk.Config({
       registration_auto: false,
-      mappings: {'<Space>': 'StartConversion', '<F6>': 'OpenRegistration'},
+      mappings: {'<Space>': 'Convert', '<F6>': 'OpenRegistration'},
       registration_prefill: true,
     })
 <
@@ -167,7 +167,7 @@ Set the state_path configuration field, then load or save explicitly: >vim9
     Caskk.Config({
       state_path: state_path,
       sticky_key: ';',
-      mappings: {'<Space>': 'StartConversion', '<F10>': 'Commit'},
+      mappings: {'<Space>': 'Convert', '<F10>': 'Commit'},
     })
     if filereadable(state_path)
       Caskk.LoadState()
@@ -208,7 +208,7 @@ Set state_auto to true to opt into initialization and exit saving: >vim9
       state_path: '/path/to/existing-directory/caskk-state.jsonl',
       state_auto: true,
       dictionaries: ['/path/to/SKK-JISYO.utf8'],
-      mappings: {'<Space>': 'StartConversion', '<F10>': 'Commit'},
+      mappings: {'<Space>': 'Convert', '<F10>': 'Commit'},
     })
     Caskk.Enable('custom')
 <
@@ -271,7 +271,7 @@ as '<F9>'.  Its default is '', which disables sticky input.  The sticky key mark
 the next input as Modified, just like an uppercase letter.
 
 mappings is a dictionary from KeyTokens to action names.  Supported actions are
-StartConversion, NextCandidate, PreviousCandidate, Commit, and OpenRegistration.
+Convert, NextCandidate, PreviousCandidate, Commit, and OpenRegistration.
 The default is an empty dictionary.  Unknown actions, invalid key names, and multiple entries for
 the same physical key (such as ' ' and '<Space>') are rejected.  Conflicts with
 the selected input grammar are checked when Enable() installs the mappings.
@@ -300,7 +300,7 @@ string (UTF-8), or a dictionary with path and an optional encoding string: >vim9
         {path: '/path/to/SKK-JISYO.euc', encoding: 'euc-jp'},
       ],
       sticky_key: ';',
-      mappings: {'<Space>': 'StartConversion', '<F10>': 'Commit'},
+      mappings: {'<Space>': 'Convert', '<F10>': 'Commit'},
     })
 <
 Paths are passed directly to Vim's file reader.  Replace the example paths with

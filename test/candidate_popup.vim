@@ -76,7 +76,7 @@ def Setup(candidate_popup: bool = true): Fixture
     scheme.SpecialDefinition.new(['z', 'x'], 'い*くらい'),
   ])
   Caskk.Config({candidate_popup: candidate_popup, dictionaries: [directory .. '/system'],
-    mappings: {s: 'StartConversion', n: 'NextCandidate', p: 'PreviousCandidate', c: 'Commit'}})
+    mappings: {s: 'Convert', n: 'NextCandidate', p: 'PreviousCandidate', c: 'Commit'}})
   Caskk.Enable('candidate-popup')
   return Fixture.new(previous, number, window, directory, snapshot, existing_buffers, existing_popups)
 enddef

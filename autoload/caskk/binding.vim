@@ -235,8 +235,8 @@ export class Binding
     endif
     const snapshot = this._editor.GetSnapshot()
     const has_candidate = this._editor.IsInCandidate()
-    if action ==# 'StartConversion'
-      return !has_candidate && snapshot.in_preedit
+    if action ==# 'Convert'
+      return has_candidate || snapshot.in_preedit
     elseif action ==# 'NextCandidate' || action ==# 'PreviousCandidate'
       return has_candidate
     elseif action ==# 'Commit'
@@ -322,8 +322,12 @@ export class Binding
     const action = get(this._actions, key, '')
     if action !=# '' && !this._CanRunAction(action)
       this._FallbackActionKey(key)
-    elseif action ==# 'StartConversion'
-      this._Record(this._editor.StartConversion())
+    elseif action ==# 'Convert'
+      if this._editor.IsInCandidate()
+        this._Record([this._editor.NextCandidate()])
+      else
+        this._Record(this._editor.StartConversion())
+      endif
     elseif action ==# 'NextCandidate'
       this._Record([this._editor.NextCandidate()])
     elseif action ==# 'PreviousCandidate'
