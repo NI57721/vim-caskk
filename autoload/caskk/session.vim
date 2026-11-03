@@ -44,7 +44,7 @@ export class Session
   var _selection: conversion.Selection = null_object
   var _request_preferences: user_state.State = null_object
   var _reading_after_cancel: bool = false
-  var _direct_input_after_candidate: bool = false
+  var _direct_input_continuation: bool = false
 
   def new(compiled: scheme.CompiledScheme, sticky_key: string = '',
       entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
@@ -86,6 +86,16 @@ export class Session
       if this.InCandidate()
         results->extend(this.Commit())
       endif
+      var modified = false
+      for event in matched.events
+        modified = modified || event.modified
+      endfor
+      if modified
+        this._direct_input_continuation = false
+      elseif !this._state.in_preedit && matched.output isnot null_object
+          && matched.output.boundary != -1
+        this._direct_input_continuation = true
+      endif
       if matched.output is null_object
         for event in matched.events
           const code = char2nr(event.key)
@@ -99,7 +109,7 @@ export class Session
         endfor
       else
         var composed = composer.Compose(matched, this._state.in_preedit)
-        if this._direct_input_after_candidate && !this._state.in_preedit
+        if this._direct_input_continuation && !this._state.in_preedit
           composed = composition.Result.new(false, composed.reading, composed.okuri,
             composed.okuri_started)
         endif
@@ -118,7 +128,7 @@ export class Session
     this._prepared = null_object
     for event in this._normalizer.Feed(key)
       if event.modified
-        this._direct_input_after_candidate = false
+        this._direct_input_continuation = false
       endif
       results->extend(this._Apply(this._composer.Feed(event)))
     endfor
@@ -149,7 +159,7 @@ export class Session
       this._normalizer.Reset()
       this._selection = null_object
       this._prepared = null_object
-      this._direct_input_after_candidate = true
+      this._direct_input_continuation = true
       return [Result.new(text, [], this._state.GetSnapshot(), true)]
     endif
     this._prepared = null_object

@@ -69,6 +69,39 @@ suite.pending_consonant_is_visible_until_its_vowel_completes_the_kana = (): void
   keys.Disable()
 }
 
+suite.unmodified_latent_boundary_keeps_following_kana_direct = (): void => {
+  for [following, expected] in [['ka', 'こうか'], ['i', 'こうい']]
+    const context = Setup()
+    try
+      const compiled = scheme.Compile({k: 'k', p: 'p'}, {a: 'a', p: 'o*u', i: 'i'})
+      const keys = binding.Binding.new(compiled, ';')
+      inoremap <buffer> <F11> <ScriptCmd>CapturePendingBuffer()<CR>
+      keys.Enable()
+      feedkeys("akp" .. following .. "\<F11>\<Esc>", 'xt')
+      assert.equals(g:caskk_pending_snapshot, '前' .. expected .. '後')
+      assert.equals(g:caskk_pending_properties, [])
+      iunmap <buffer> <F11>
+      keys.Disable()
+    finally
+      Cleanup(context)
+    endtry
+  endfor
+}
+
+suite.modified_input_after_unmodified_latent_boundary_starts_preedit = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const compiled = scheme.Compile({k: 'k', p: 'p'}, {p: 'o*u', i: 'i'})
+  const keys = binding.Binding.new(compiled, ';')
+  inoremap <buffer> <F11> <ScriptCmd>CapturePendingBuffer()<CR>
+  keys.Enable()
+  feedkeys("akp;i\<F11>\<Esc>", 'xt')
+  assert.equals(g:caskk_pending_snapshot, '前こうい後')
+  assert.equals(empty(g:caskk_pending_properties), false)
+  iunmap <buffer> <F11>
+  keys.Disable()
+}
+
 suite.backspace_without_pending_input_uses_native_multibyte_deletion = (): void => {
   const context = Setup()
   defer Cleanup(context)
