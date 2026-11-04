@@ -211,6 +211,15 @@ export class Session
     return true
   enddef
 
+  def BackspacePreedit(): Result
+    if this.InCandidate() || !this._state.Backspace()
+      return null_object
+    endif
+    const snapshot = this._state.GetSnapshot()
+    return Result.new('', [], snapshot, !snapshot.in_preedit, false, true, false, false,
+      snapshot.in_preedit ? this._DisplayPreedit() : '')
+  enddef
+
   def Commit(): list<Result>
     this._reading_after_cancel = false
     if this.InCandidate()

@@ -59,6 +59,34 @@ suite.backspace_deletes_pending_key_then_modifier_then_native_text = (): void =>
   endfor
 }
 
+suite.backspace_keeps_the_shortened_reading_convertible = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const entries = merger.Merge([[parser.ParseLine('あいうえ /読み/')]])
+  const compiled = scheme.Compile({}, {a: 'a', i: 'i', u: 'u', e: 'e', o: 'o'})
+  const keys = binding.Binding.new(compiled, ';', entries, null_object,
+    {c: 'Convert'})
+  keys.Enable()
+  feedkeys("a;aiueo\<BS>c\<Esc>", 'xt')
+  assert.equals(getline(1), '前読み後')
+  keys.Disable()
+}
+
+suite.ordinary_input_after_preedit_backspace_stays_in_the_reading = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const compiled = scheme.Compile({k: 'k'}, {a: 'a', i: 'i', u: 'u', e: 'e', o: 'o'})
+  const keys = binding.Binding.new(compiled, ';')
+  inoremap <buffer> <F11> <ScriptCmd>CapturePendingBuffer()<CR>
+  keys.Enable()
+  feedkeys("a;aiueo\<BS>kakikukeko\<F11>\<Esc>", 'xt')
+  assert.equals(g:caskk_pending_snapshot, '前あいうえかきくけこ後')
+  assert.equals(empty(g:caskk_pending_properties), false)
+  assert.equals(g:caskk_pending_has_okuri_marker, false)
+  iunmap <buffer> <F11>
+  keys.Disable()
+}
+
 suite.pending_consonant_is_visible_until_its_vowel_completes_the_kana = (): void => {
   const context = Setup()
   defer Cleanup(context)
@@ -192,14 +220,14 @@ suite.explicit_backspace_special_precedes_default_deletion = (): void => {
   keys.Disable()
 }
 
-suite.backspace_commits_reading_and_following_input_starts_in_direct_mode = (): void => {
+suite.backspace_edits_the_preedit_before_following_input_converts_it = (): void => {
   const context = Setup()
   defer Cleanup(context)
   const entries = merger.Merge([[parser.ParseLine('かか /科科/')]])
   const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries, null_object, {s: 'Convert'})
   keys.Enable()
   feedkeys("aKaka\<BS>kas\<Esc>", 'xt')
-  assert.equals(getline(1), '前かかs後')
+  assert.equals(getline(1), '前科科後')
   assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
   assert.equals(keys.GetEditor() is null_object, true)
   keys.Disable()

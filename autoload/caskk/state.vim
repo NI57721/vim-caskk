@@ -55,4 +55,21 @@ export class State
     this.okuri_started = false
     return text
   enddef
+
+  def Backspace(): bool
+    if !this.in_preedit
+      return false
+    endif
+    if this.okuri != ''
+      this.okuri = strcharpart(this.okuri, 0, strchars(this.okuri) - 1)
+    elseif this.reading != ''
+      this.reading = strcharpart(this.reading, 0, strchars(this.reading) - 1)
+    else
+      return false
+    endif
+    if this.reading ==# '' && this.okuri ==# ''
+      this.Commit()
+    endif
+    return true
+  enddef
 endclass

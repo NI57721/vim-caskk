@@ -146,6 +146,20 @@ export class Editor
     return deleted
   enddef
 
+  def Backspace(): bool
+    this._CheckInput()
+    if this._session.BackspacePending()
+      this._RefreshPendingDisplay()
+      return true
+    endif
+    const result = this._session.BackspacePreedit()
+    if result is null_object
+      return false
+    endif
+    this._Apply([result])
+    return true
+  enddef
+
   def GetRegistrationRequest(): conversion.Candidates
     if this._session.InCandidate()
       return null_object
