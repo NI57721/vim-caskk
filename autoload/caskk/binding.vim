@@ -86,6 +86,7 @@ export class Binding
   var _window_result: dictionary.Candidate = null_object
   var _window_closing: bool = false
   var _input_mode: string = input_mode.HIRAGANA
+  var _mode_marker: string = ''
   var _inline_input: session.Session = null_object
   var _inline_text: string = ''
   var _inline_escape_saved: Mapping = null_object
@@ -263,11 +264,7 @@ export class Binding
         && !this._editor.IsRegistrationSuspended() && this._editor.GetRegistrationRequest() isnot null_object
       this.OpenRegistrationWindow(configuration.GetRegistrationPrefill())
     endif
-    if this._editor isnot null_object && this._editor.IsInCandidate()
-      this._mode_view.Close()
-    else
-      this._SyncInputMode()
-    endif
+    this._SyncInputMode()
   enddef
 
   def _SyncInputMode()
@@ -275,9 +272,12 @@ export class Binding
       return
     endif
     const mode = this._editor.GetInputMode()
-    if mode !=# this._input_mode
+    const snapshot = this._editor.GetSnapshot()
+    const marker = this._editor.IsInCandidate() ? '▼' : snapshot.in_preedit ? '▽' : ''
+    if mode !=# this._input_mode || marker !=# this._mode_marker
       this._input_mode = mode
-      this._mode_view.Show(mode)
+      this._mode_marker = marker
+      this._mode_view.Show(mode, marker)
     endif
   enddef
 
@@ -522,7 +522,8 @@ export class Binding
       this._initial_reading, this._small_tsu_okuri_as_t, this._keyboard_layout,
       this._keyboard_layout_overrides, this._input_mode)
     this._initial_reading = ''
-    this._mode_view.Show(this._input_mode)
+    this._mode_marker = ''
+    this._mode_view.Show(this._input_mode, this._mode_marker)
   enddef
 
   def Leave(force: bool = false)
@@ -588,7 +589,8 @@ export class Binding
     elseif this._ModeForAction(action) != ''
       this._editor.SetInputMode(this._ModeForAction(action))
       this._input_mode = this._editor.GetInputMode()
-      this._mode_view.Show(this._input_mode)
+      this._mode_marker = ''
+      this._mode_view.Show(this._input_mode, this._mode_marker)
     else
       this._Record(this._editor.Feed(key))
     endif

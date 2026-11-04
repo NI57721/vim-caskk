@@ -372,7 +372,9 @@ mode_popup is a boolean that controls the short-lived popup showing the active
 input mode.  It defaults to true.  The popup appears when an Insert-mode input
 session starts and when a mode changes, near the cursor without taking focus.
 It closes when the cursor moves, Insert mode ends, or the popup timeout expires.
-The popup uses Vim's Pmenu highlight group.
+The label is prefixed with '▽' while a modified reading is being composed and
+'▼' while conversion candidates are being selected. The popup uses Vim's Pmenu
+highlight group.
 
 mode_popup_labels optionally replaces the default label for each mode.  It is
 a dictionary whose keys are hiragana, abbreviation, katakana,

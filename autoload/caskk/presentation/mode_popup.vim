@@ -16,13 +16,13 @@ export class View
     this._window = 0
   enddef
 
-  def Show(mode: string)
+  def Show(mode: string, marker: string = '')
     this.Close()
     if !configuration.GetModePopup()
       return
     endif
     const labels = configuration.GetModePopupLabels()
-    const label = labels[input_mode.LabelName(mode)]
+    const label = marker .. labels[input_mode.LabelName(mode)]
     const position = {
       line: 'cursor+1', col: 'cursor', pos: 'topleft', posinvert: true,
       padding: [0, 1, 0, 1], highlight: 'Pmenu', moved: 'any',

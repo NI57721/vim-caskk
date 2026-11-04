@@ -76,7 +76,24 @@ suite.candidate_popup_replaces_the_transient_mode_popup = (): void => {
   Setup({dictionaries: [dictionary], mode_popup_time: 10000})
   defer Cleanup()
   feedkeys("aKa\<Space>\<F12>\<Esc>", 'xt')
-  assert.equals(captures, [[['1/2 蚊']]])
+  assert.equals(captures, [[['▼あ'], ['1/2 蚊']]])
+}
+
+suite.modified_preedit_prefixes_the_mode_label_with_start_marker = (): void => {
+  Setup({mode_popup_time: 10000})
+  defer Cleanup()
+  feedkeys("aKa\<F12>\<Esc>", 'xt')
+  assert.equals(captures, [[['▽あ']]])
+}
+
+suite.candidate_selection_prefixes_the_mode_label_with_candidate_marker = (): void => {
+  const dictionary = tempname()
+  defer delete(dictionary)
+  writefile(['か /蚊/'], dictionary)
+  Setup({candidate_popup: false, dictionaries: [dictionary], mode_popup_time: 10000})
+  defer Cleanup()
+  feedkeys("aKa\<Space>\<F12>\<Esc>", 'xt')
+  assert.equals(captures, [[['▼あ']]])
 }
 
 suite.disabled_mode_popup_creates_no_popup = (): void => {
