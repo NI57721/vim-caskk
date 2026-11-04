@@ -294,7 +294,7 @@ In Vim9 script: >vim9
 <
 Supported settings are sticky_key, keyboard_layout, keyboard_layout_overrides, mappings, dictionaries, state_path, state_auto,
 persist_input_mode, registration_prefill, registration_auto, registration_inline, candidate_popup, mode_popup, mode_popup_labels,
-mode_popup_time, and highlight.preedit. Input scheme
+mode_popup_markers, mode_popup_time, and highlight.preedit. Input scheme
 definitions remain separate from ordinary configuration.
 
 Each Config() call builds a complete configuration from defaults and the supplied
@@ -386,6 +386,13 @@ halfwidth_katakana, and fullwidth_alphanumeric.  Defaults are 'あ', 'ab', 'ア'
 Omitted labels retain their defaults.  mode_popup_time is a nonnegative number
 of milliseconds and defaults to 1000.  Set it to 0 to keep the popup until it
 is closed by cursor movement or the input session ending.
+
+mode_popup_markers optionally replaces the marker shown before the mode label.
+Its keys are modified and candidate, defaulting to '▽' and '▼'.  Values are
+strings; an empty string hides that marker.  For example: >vim9
+
+    Caskk.Config({mode_popup_markers: {modified: '＊', candidate: '●'}})
+<
 
 dictionaries is a list of read-only SKK dictionary sources in candidate priority
 order.  The default is an empty list.  Each source is either a nonempty path

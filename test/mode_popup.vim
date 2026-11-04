@@ -96,6 +96,17 @@ suite.candidate_selection_prefixes_the_mode_label_with_candidate_marker = (): vo
   assert.equals(captures, [[['▼あ']]])
 }
 
+suite.modified_and_candidate_markers_can_be_customized = (): void => {
+  const dictionary = tempname()
+  defer delete(dictionary)
+  writefile(['か /蚊/'], dictionary)
+  Setup({dictionaries: [dictionary], mode_popup_markers: {modified: '＊', candidate: '●'},
+    mode_popup_time: 10000})
+  defer Cleanup()
+  feedkeys("aKa\<F12>\<Space>\<F12>\<Esc>", 'xt')
+  assert.equals(captures, [[['＊あ']], [['●あ'], ['1/1 蚊']]])
+}
+
 suite.disabled_mode_popup_creates_no_popup = (): void => {
   Setup({mode_popup: false})
   defer Cleanup()

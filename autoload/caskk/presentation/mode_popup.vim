@@ -16,12 +16,14 @@ export class View
     this._window = 0
   enddef
 
-  def Show(mode: string, marker: string = '')
+  def Show(mode: string, state: string = '')
     this.Close()
     if !configuration.GetModePopup()
       return
     endif
     const labels = configuration.GetModePopupLabels()
+    const markers = configuration.GetModePopupMarkers()
+    const marker = get(markers, state, '')
     const label = marker .. labels[input_mode.LabelName(mode)]
     const position = {
       line: 'cursor+1', col: 'cursor', pos: 'topleft', posinvert: true,

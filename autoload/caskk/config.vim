@@ -52,12 +52,14 @@ class Settings
   const candidate_popup: bool
   const mode_popup: bool
   const mode_popup_labels: dict<string>
+  const mode_popup_markers: dict<string>
   const mode_popup_time: number
 
   def new(this.highlight, this.input, this.state_path, this.state_auto, this.registration_prefill,
       this.registration_auto, this.registration_inline, this.candidate_popup, this.mode_popup,
-      mode_popup_labels: dict<string>, this.mode_popup_time)
+      mode_popup_labels: dict<string>, mode_popup_markers: dict<string>, this.mode_popup_time)
     this.mode_popup_labels = copy(mode_popup_labels)
+    this.mode_popup_markers = copy(mode_popup_markers)
   enddef
 endclass
 
@@ -243,12 +245,29 @@ def ReadModePopupLabels(raw: any): dict<string>
   return labels
 enddef
 
+def ReadModePopupMarkers(raw: any): dict<string>
+  if type(raw) != v:t_dict
+    throw 'mode_popup_markers must be a dictionary'
+  endif
+  final markers = {modified: '▽', candidate: '▼'}
+  for [name, value] in items(raw)
+    if index(['modified', 'candidate'], name) < 0
+      throw 'unknown mode_popup_markers key: ' .. name
+    endif
+    if type(value) != v:t_string
+      throw 'mode_popup_markers values must be strings'
+    endif
+    markers[name] = value
+  endfor
+  return markers
+enddef
+
 def Parse(options: dict<any>): Settings
   for section in keys(options)
     if index(['highlight', 'sticky_key', 'keyboard_layout', 'keyboard_layout_overrides', 'mappings', 'dictionaries', 'state_path', 'state_auto',
         'small_tsu_okuri_as_t',
         'registration_prefill', 'registration_auto', 'registration_inline', 'candidate_popup', 'persist_input_mode',
-        'mode_popup', 'mode_popup_labels', 'mode_popup_time'], section) < 0
+        'mode_popup', 'mode_popup_labels', 'mode_popup_markers', 'mode_popup_time'], section) < 0
       throw 'unknown section: ' .. section
     endif
   endfor
@@ -293,6 +312,7 @@ def Parse(options: dict<any>): Settings
   endif
   const mode_popup: bool = get(options, 'mode_popup', true)
   const mode_popup_labels = ReadModePopupLabels(get(options, 'mode_popup_labels', {}))
+  const mode_popup_markers = ReadModePopupMarkers(get(options, 'mode_popup_markers', {}))
   if type(get(options, 'mode_popup_time', 1000)) != v:t_number
       || get(options, 'mode_popup_time', 1000) < 0
     throw 'mode_popup_time must be a nonnegative number'
@@ -308,7 +328,7 @@ def Parse(options: dict<any>): Settings
   return Settings.new(highlight, Input.new(sticky_key, keyboard_layout, keyboard_layout_overrides,
     actions, entries, small_tsu_okuri_as_t, persist_input_mode), destination, state_auto,
     registration_prefill, registration_auto, registration_inline, candidate_popup, mode_popup, mode_popup_labels,
-    mode_popup_time)
+    mode_popup_markers, mode_popup_time)
 enddef
 
 var current = Parse({})
@@ -370,6 +390,10 @@ enddef
 
 export def GetModePopupLabels(): dict<string>
   return copy(current.mode_popup_labels)
+enddef
+
+export def GetModePopupMarkers(): dict<string>
+  return copy(current.mode_popup_markers)
 enddef
 
 export def GetModePopupTime(): number
