@@ -72,6 +72,22 @@ suite.backspace_keeps_the_shortened_reading_convertible = (): void => {
   keys.Disable()
 }
 
+suite.backspace_displays_only_the_last_preedit_character_as_deleted = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const entries = merger.Merge([[parser.ParseLine('あいうえ /読み/')]])
+  const compiled = scheme.Compile({}, {a: 'a', i: 'i', u: 'u', e: 'e', o: 'o'})
+  const keys = binding.Binding.new(compiled, ';', entries, null_object, {c: 'Convert'})
+  inoremap <buffer> <F11> <ScriptCmd>CapturePendingBuffer()<CR>
+  keys.Enable()
+  feedkeys("a;aiueo\<BS>\<F11>c\<Esc>", 'xt')
+  assert.equals(g:caskk_pending_snapshot, '前あいうえ後')
+  assert.equals(empty(g:caskk_pending_properties), false)
+  assert.equals(getline(1), '前読み後')
+  iunmap <buffer> <F11>
+  keys.Disable()
+}
+
 suite.ordinary_input_after_preedit_backspace_stays_in_the_reading = (): void => {
   const context = Setup()
   defer Cleanup(context)

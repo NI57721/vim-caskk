@@ -216,8 +216,9 @@ export class Session
       return null_object
     endif
     const snapshot = this._state.GetSnapshot()
-    return Result.new('', [], snapshot, !snapshot.in_preedit, false, true, false, false,
-      snapshot.in_preedit ? this._DisplayPreedit() : '')
+    const display = snapshot.in_preedit ? this._DisplayPreedit() : ''
+    return Result.new(display, [], snapshot, !snapshot.in_preedit, false, true, false, false,
+      display)
   enddef
 
   def Commit(): list<Result>
