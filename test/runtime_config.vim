@@ -28,6 +28,15 @@ def Cleanup(context: list<number>)
   endtry
 enddef
 
+def RemoveGlobalArrowMappings()
+  execute 'silent! iunmap <Up>'
+  execute 'silent! iunmap <Down>'
+enddef
+
+def CaptureCurrentLine()
+  g:caskk_captured_lines->add(getline(1))
+enddef
+
 suite.sticky_key_and_function_key_action_are_used_by_public_enable = (): void => {
   const context = Setup()
   defer Cleanup(context)
@@ -52,6 +61,41 @@ suite.mappings_accept_vim_keycode_expressions = (): void => {
   endfor
   feedkeys("a;ka\<C-M>\<Esc>", 'xt')
   assert.equals(getline(1), '前か後')
+}
+
+suite.ctrl_n_and_ctrl_p_navigate_candidates_through_configured_mappings = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const dictionary = tempname()
+  defer delete(dictionary)
+  writefile(['か /蚊/家/化/'], dictionary)
+  const actions = {"\<Space>": 'Convert', "\<C-N>": 'Convert', "\<C-P>": 'PreviousCandidate', "\<C-M>": 'Commit'}
+  Caskk.Config({sticky_key: ';', dictionaries: [dictionary], mappings: actions})
+  Caskk.Enable('configured')
+  feedkeys("a;ka\<Space>\<C-N>\<C-P>\<C-M>\<Esc>", 'xt')
+  assert.equals(getline(1), '前蚊後')
+}
+
+suite.ctrl_n_and_ctrl_p_candidate_mappings_work_with_insert_arrow_mappings = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const dictionary = tempname()
+  defer delete(dictionary)
+  defer RemoveGlobalArrowMappings()
+  writefile(['か /蚊/家/化/'], dictionary)
+  inoremap <Up> <C-O>gk
+  inoremap <Down> <C-O>gj
+  inoremap <buffer> <F12> <ScriptCmd>CaptureCurrentLine()<CR>
+  Caskk.Config({sticky_key: ';', dictionaries: [dictionary], mappings: {
+    "\<Space>": 'Convert', "\<C-N>": 'Convert', "\<C-P>": 'PreviousCandidate', "\<C-M>": 'Commit'}})
+  Caskk.Enable('configured')
+  g:caskk_captured_lines = []
+  feedkeys("a;ka\<Space>\<C-N>\<F12>\<C-P>\<F12>\<Esc>", 'xt')
+  assert.equals(g:caskk_captured_lines, ['前家後', '前蚊後'])
+  assert.equals(getline(1), '前蚊後')
+  Caskk.Disable()
+  assert.equals(maparg('<Up>', 'i', false, true).rhs, '<C-O>gk')
+  assert.equals(maparg('<Down>', 'i', false, true).rhs, '<C-O>gj')
 }
 
 suite.mode_mappings_switch_between_modes_and_convert_abbreviations = (): void => {
