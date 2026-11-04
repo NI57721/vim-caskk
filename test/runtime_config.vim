@@ -31,7 +31,7 @@ enddef
 suite.sticky_key_and_function_key_action_are_used_by_public_enable = (): void => {
   const context = Setup()
   defer Cleanup(context)
-  Caskk.Config({sticky_key: ';', mappings: {'<F10>': 'Commit'}})
+  Caskk.Config({sticky_key: ';', mappings: {"\<F10>": 'Commit'}})
   Caskk.Enable('configured')
   feedkeys("a;ka\<F10>ka\<Esc>", 'xt')
   assert.equals(getline(1), '前かか後')
@@ -41,12 +41,25 @@ suite.sticky_key_and_function_key_action_are_used_by_public_enable = (): void =>
   assert.equals(getline(1), '前後')
 }
 
+suite.mappings_accept_vim_keycode_expressions = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const actions = {"\<Space>": 'Convert', "\<C-N>": 'Convert', "\<C-P>": 'PreviousCandidate', "\<C-M>": 'Commit', q: 'OpenRegistration'}
+  Caskk.Config({sticky_key: ';', mappings: actions})
+  Caskk.Enable('configured')
+  for key in ["\<Space>", "\<C-N>", "\<C-P>", "\<C-M>", 'q']
+    assert.equals(maparg(key, 'i', false, true).buffer, 1)
+  endfor
+  feedkeys("a;ka\<C-M>\<Esc>", 'xt')
+  assert.equals(getline(1), '前か後')
+}
+
 suite.config_copies_mappings_and_omitted_input_fields_reset_to_defaults = (): void => {
   const context = Setup()
   defer Cleanup(context)
-  final mappings = {'<F10>': 'Commit'}
+  final mappings = {"\<F10>": 'Commit'}
   Caskk.Config({sticky_key: ';', mappings: mappings})
-  mappings['<F10>'] = 'PreviousCandidate'
+  mappings["\<F10>"] = 'PreviousCandidate'
   Caskk.Enable('configured')
   feedkeys("a;ka\<F10>\<Esc>", 'xt')
   assert.equals(getline(1), '前か後')
@@ -61,9 +74,9 @@ suite.config_copies_mappings_and_omitted_input_fields_reset_to_defaults = (): vo
 suite.config_update_releases_the_binding_and_next_enable_uses_new_settings = (): void => {
   const context = Setup()
   defer Cleanup(context)
-  Caskk.Config({sticky_key: ';', mappings: {'<F10>': 'Commit'}})
+  Caskk.Config({sticky_key: ';', mappings: {"\<F10>": 'Commit'}})
   Caskk.Enable('configured')
-  Caskk.Config({sticky_key: ':', mappings: {'<F11>': 'Commit'}})
+  Caskk.Config({sticky_key: ':', mappings: {"\<F11>": 'Commit'}})
   assert.equals(Caskk.IsEnabled(), false)
   Caskk.Enable('configured')
   assert.equals(maparg('<F11>', 'i', false, true).buffer, 1)
@@ -112,20 +125,20 @@ suite.configuration_update_releases_bindings_in_every_buffer = (): void => {
 suite.invalid_input_types_keys_and_actions_preserve_all_previous_settings = (): void => {
   const context = Setup()
   defer Cleanup(context)
-  Caskk.Config({sticky_key: ';', mappings: {'<F10>': 'Commit'}, highlight: {preedit: {cterm: 'bold'}}})
+  Caskk.Config({sticky_key: ';', mappings: {"\<F10>": 'Commit'}, highlight: {preedit: {cterm: 'bold'}}})
   const before = hlget('CaskkPreedit')
   for options in [
     {sticky_key: 1}, {sticky_key: []}, {sticky_key: 'two'},
-    {sticky_key: '<NotAKey>'}, {mappings: []}, {mappings: {'<F10>': 1}},
+    {sticky_key: '<NotAKey>'}, {mappings: []}, {mappings: {"\<F10>": 1}},
     {keyboard_layout: 1}, {keyboard_layout: 'UK'},
     {keyboard_layout_overrides: []},
     {keyboard_layout_overrides: {1: '??'}},
     {keyboard_layout_overrides: {1: 2}},
     {keyboard_layout_overrides: {1: '?', 2: '?'}},
-    {mappings: {'<F10>': 'MissingAction'}}, {mappings: {'two': 'Commit'}},
+    {mappings: {"\<F10>": 'MissingAction'}}, {mappings: {'<F10>': 'Commit'}},
+    {mappings: {'two': 'Commit'}},
     {mappings: {'<NotAKey>': 'Commit'}},
     {small_tsu_okuri_as_t: 'yes'},
-    {mappings: {' ': 'Commit', '<Space>': 'Convert'}},
     {sticky_key: ':', highlight: []}, {highlight: {preedit: []}},
     {highlight: {preedit: {cterm: 1}}},
   ]
@@ -146,11 +159,11 @@ suite.invalid_input_types_keys_and_actions_preserve_all_previous_settings = (): 
 suite.invalid_highlight_color_does_not_replace_input_settings = (): void => {
   const context = Setup()
   defer Cleanup(context)
-  Caskk.Config({sticky_key: ';', mappings: {'<F10>': 'Commit'}})
+  Caskk.Config({sticky_key: ';', mappings: {"\<F10>": 'Commit'}})
   const before = hlget('CaskkPreedit')
   var caught = ''
   try
-    Caskk.Config({sticky_key: ':', mappings: {'<F11>': 'Commit'},
+    Caskk.Config({sticky_key: ':', mappings: {"\<F11>": 'Commit'},
       highlight: {preedit: {ctermfg: 'caskk-invalid-color'}}})
   catch
     caught = v:exception
@@ -166,7 +179,7 @@ suite.invalid_highlight_color_does_not_replace_input_settings = (): void => {
 suite.named_sticky_key_and_explicit_enter_action_use_real_keycodes = (): void => {
   const context = Setup()
   defer Cleanup(context)
-  Caskk.Config({sticky_key: '<F9>', mappings: {'<CR>': 'Commit'}})
+  Caskk.Config({sticky_key: '<F9>', mappings: {"\<CR>": 'Commit'}})
   Caskk.Enable('configured')
   feedkeys("a\<F9>ka\<CR>ka\<Esc>", 'xt')
   assert.equals(getline(1, '$'), ['前かか後'])

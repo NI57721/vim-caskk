@@ -11,6 +11,10 @@ export def ValidateAction(action: string)
 enddef
 
 export def Lhs(token: string): string
+  const translated = keytrans(token)
+  if translated =~# '^<[0-9A-Za-z_-]\+>$'
+    return keytrans(keycode.Encode(translated))
+  endif
   if token == ' '
     return '<Space>'
   elseif token == '|'

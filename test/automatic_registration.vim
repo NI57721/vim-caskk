@@ -89,7 +89,7 @@ def Setup(lines: list<string> = [], registration_prefill: bool = true): Fixture
     combinations: {a: 'a'}, specials: {d: '漢字', zx: 'い*くらい'}})
   Caskk.Config({registration_prefill: registration_prefill,
     state_path: directory .. '/state.jsonl', dictionaries: [directory .. '/system'],
-    mappings: {s: 'Convert', n: 'NextCandidate', '<F6>': 'OpenRegistration'}})
+    mappings: {s: 'Convert', n: 'NextCandidate', "\<F6>": 'OpenRegistration'}})
   Caskk.Enable('automatic-registration')
   return Fixture.new(previous, number, window, directory, snapshot, existing_buffers)
 enddef
@@ -173,7 +173,7 @@ suite.disabling_automatic_registration_keeps_requests_and_manual_opening_availab
   defer Cleanup(fixture)
   Caskk.Disable()
   Caskk.Config({registration_auto: false,
-    mappings: {s: 'Convert', '<F6>': 'OpenRegistration'}})
+    mappings: {s: 'Convert', "\<F6>": 'OpenRegistration'}})
   Caskk.Enable('automatic-registration')
   feedkeys('aKas' .. CAPTURE .. "\<F6>" .. CAPTURE .. "\<BS>d\<CR>\<Esc>", 'xt')
   assert.equals(observations[0].buffer, fixture.buffer)

@@ -162,6 +162,9 @@ def ReadMappings(raw: any): dict<string>
   final actions: dict<string> = {}
   final physical_keys: dict<bool> = {}
   for [key, value] in items(raw)
+    if key =~# '^<[0-9A-Za-z_-]\+>$'
+      throw 'mapping keys must use Vim keycode expressions: ' .. key
+    endif
     if type(value) != v:t_string
       throw 'mapping action must be a string: ' .. key
     endif
@@ -172,7 +175,7 @@ def ReadMappings(raw: any): dict<string>
       throw 'duplicate physical mapping: ' .. key
     endif
     physical_keys[lhs] = true
-    actions[key] = action
+    actions[lhs] = action
   endfor
   return actions
 enddef

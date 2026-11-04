@@ -328,7 +328,7 @@ suite.configured_open_action_starts_the_window_and_honors_prefill_setting = (): 
   const windows = winnr('$')
   Caskk.Disable()
   Caskk.Config({registration_auto: false, registration_prefill: false,
-    mappings: {s: 'Convert', '<F3>': 'OpenRegistration'}})
+    mappings: {s: 'Convert', "\<F3>": 'OpenRegistration'}})
   Caskk.Enable('registration-window')
   feedkeys("aKas\<F3>d\<CR>\<Esc>", 'xt')
   assert.equals(errors, [])
