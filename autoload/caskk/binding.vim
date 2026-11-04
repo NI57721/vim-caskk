@@ -7,6 +7,8 @@ import autoload 'caskk/user_state.vim' as user_state
 import autoload 'caskk/input/keycode.vim' as keycode
 import autoload 'caskk/input/mapping.vim' as mapping
 import autoload 'caskk/input/mode.vim' as input_mode
+import autoload 'caskk/presentation/mode_popup.vim' as mode_popup
+import autoload 'caskk/presentation/registration_inline.vim' as registration_inline
 import 'caskk/dictionary.vim' as dictionary
 import 'caskk/registration.vim' as registration
 import autoload 'caskk/registration/window.vim' as registration_window
@@ -70,6 +72,8 @@ export class Binding
   const _keyboard_layout: string
   const _keyboard_layout_overrides: dict<string>
   const _persist_input_mode: bool
+  const _mode_view: mode_popup.View
+  const _inline_view: registration_inline.View
   var _saved: dict<Mapping> = {}
   var _installed: dict<Mapping> = {}
   var _editor: insert.Editor = null_object
@@ -82,6 +86,10 @@ export class Binding
   var _window_result: dictionary.Candidate = null_object
   var _window_closing: bool = false
   var _input_mode: string = input_mode.HIRAGANA
+  var _inline_input: session.Session = null_object
+  var _inline_text: string = ''
+  var _inline_escape_saved: Mapping = null_object
+  var _inline_escape_installed: Mapping = null_object
 
   def new(compiled: scheme.CompiledScheme, sticky_key: string = '',
       entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
@@ -100,6 +108,8 @@ export class Binding
     this._keyboard_layout = keyboard_layout
     this._keyboard_layout_overrides = copy(keyboard_layout_overrides)
     this._persist_input_mode = persist_input_mode
+    this._mode_view = mode_popup.View.new()
+    this._inline_view = registration_inline.View.new()
     final tokens: dict<bool> = {}
     for key in keys(compiled.table.combinations)
       tokens[key] = true
@@ -213,6 +223,8 @@ export class Binding
         remove(bindings, id)
       endif
       this._enabled = false
+      this._mode_view.Close()
+      this._CloseInlineInput()
       throw reason
     endtry
   enddef
@@ -233,6 +245,8 @@ export class Binding
       this._Restore()
       remove(bindings, string(this._buffer))
       this._enabled = false
+      this._mode_view.Close()
+      this._CloseInlineInput()
     endtry
   enddef
 
@@ -248,6 +262,192 @@ export class Binding
     if this._registration_auto && requested && this._editor isnot null_object
         && !this._editor.IsRegistrationSuspended() && this._editor.GetRegistrationRequest() isnot null_object
       this.OpenRegistrationWindow(configuration.GetRegistrationPrefill())
+    endif
+    if this._editor isnot null_object && this._editor.IsInCandidate()
+      this._mode_view.Close()
+    else
+      this._SyncInputMode()
+    endif
+  enddef
+
+  def _SyncInputMode()
+    if this._editor is null_object
+      return
+    endif
+    const mode = this._editor.GetInputMode()
+    if mode !=# this._input_mode
+      this._input_mode = mode
+      this._mode_view.Show(mode)
+    endif
+  enddef
+
+  def _InlineHeader(): string
+    const request = this.GetRegistrationRequest()
+    if request is null_object
+      return '辞書登録'
+    endif
+    return '辞書登録: ' .. request.reading .. (request.okuri == '' ? '' : '*' .. request.okuri)
+  enddef
+
+  def _RefreshInlinePopup(message: string = '')
+    if this._inline_input is null_object
+      return
+    endif
+    final lines = [this._InlineHeader() .. '  [Enter:登録 Esc:取消]']
+    if message !=# ''
+      lines->add(message)
+    elseif this._inline_input.InCandidate()
+      const info = this._inline_input.GetCandidateInfo()
+      lines->add((info.index + 1) .. '/' .. info.count .. ' ' .. info.text)
+    else
+      const snapshot = this._inline_input.GetSnapshot()
+      var draft = this._inline_text
+      if snapshot.in_preedit
+        draft ..= input_mode.Render(snapshot.reading .. snapshot.okuri,
+          this._inline_input.GetInputMode())
+      endif
+      for event in this._inline_input.Pending()
+        draft ..= event.key
+      endfor
+      lines->add('候補: ' .. draft)
+    endif
+    this._inline_view.Show(lines)
+  enddef
+
+  def _AppendInlineResults(results: list<session.Result>)
+    for result in results
+      if result.commit_preedit || (!result.in_candidate && !result.state.in_preedit && result.text !=# '')
+        this._inline_text ..= result.text
+      endif
+    endfor
+    this._RefreshInlinePopup()
+  enddef
+
+  def _CloseInlineInput(restore_escape: bool = true)
+    this._inline_view.Close()
+    this._inline_input = null_object
+    this._inline_text = ''
+    if restore_escape
+      this.RestoreInlineEscape()
+    endif
+  enddef
+
+  def RestoreInlineEscape()
+    if this._inline_escape_installed isnot null_object
+      const lhs = mapping.Lhs('<Esc>')
+      if this._inline_escape_installed.MatchesCurrent(lhs)
+        execute 'silent! iunmap <buffer> ' .. lhs
+        this._inline_escape_saved.Restore()
+      endif
+      this._inline_escape_saved = null_object
+      this._inline_escape_installed = null_object
+    endif
+  enddef
+
+  def _InstallInlineEscape()
+    const lhs = mapping.Lhs('<Esc>')
+    this._inline_escape_saved = Mapping.new(lhs)
+    var argument = substitute(string('<Esc>'), '<', '<lt>', 'g')
+    argument = substitute(argument, '\\', '<Bslash>', 'g')
+    argument = substitute(argument, '|', '<Bar>', 'g')
+    execute 'inoremap <buffer> <silent> ' .. lhs .. ' <Cmd>call caskk#binding#DispatchInput('
+      .. this._buffer .. ', ' .. argument .. ')<CR>'
+    this._inline_escape_installed = Mapping.new(lhs)
+  enddef
+
+  def _OpenInlineRegistration(prefill: bool)
+    if this._inline_input isnot null_object
+      throw 'caskk: inline registration is already open'
+    endif
+    this.SuspendRegistration()
+    const request = this.GetRegistrationRequest()
+    try
+      this._mode_view.Close()
+      this._inline_text = ''
+      this._inline_input = session.Session.new(this._compiled, this._sticky, this._entries,
+        this._preferences, prefill ? request.reading : '', this._small_tsu_okuri_as_t,
+        this._keyboard_layout, this._keyboard_layout_overrides, this._input_mode)
+      this._InstallInlineEscape()
+      this._RefreshInlinePopup()
+    catch
+      const reason = v:exception
+      this._CloseInlineInput()
+      this._editor.ResumeRegistration()
+      throw 'caskk: cannot open inline registration: ' .. reason
+    endtry
+  enddef
+
+  def _CancelInlineRegistration()
+    this._CloseInlineInput(false)
+    this._editor.ResumeRegistration()
+    this._Record([this._editor.CancelRegistration()])
+    feedkeys("\<Cmd>call caskk#binding#RestoreInlineEscape(" .. this._buffer .. ")\<CR>", 'in')
+  enddef
+
+  def _AcceptInlineRegistration()
+    if this._inline_input.InCandidate() || this._inline_input.GetSnapshot().in_preedit
+      this._AppendInlineResults(this._inline_input.Commit())
+    endif
+    if this._inline_text ==# ''
+      this._RefreshInlinePopup('登録語を入力してください')
+      return
+    endif
+    const candidate = dictionary.Candidate.new(this._inline_text, [])
+    this._CloseInlineInput()
+    this._editor.ResumeRegistration()
+    this._Record([this._editor.Register(candidate)])
+  enddef
+
+  def _FeedInline(key: string)
+    this._AppendInlineResults(this._inline_input.Feed(key ==# '<Space>' ? ' ' : key))
+  enddef
+
+  def _DispatchInline(key: string)
+    if key ==# '<Esc>'
+      this._CancelInlineRegistration()
+      return
+    elseif key ==# '<CR>'
+      this._AcceptInlineRegistration()
+      return
+    elseif key ==# '<BS>'
+      if this._inline_input.BackspacePending()
+        this._RefreshInlinePopup()
+      else
+        const result = this._inline_input.BackspacePreedit()
+        if result isnot null_object
+          this._RefreshInlinePopup()
+        endif
+      endif
+      return
+    elseif has_key(this._native, key)
+      this._CancelInlineRegistration()
+      this.Dispatch(key)
+      return
+    endif
+
+    const action = get(this._actions, key, '')
+    if action ==# 'Convert'
+      if this._inline_input.InCandidate()
+        this._AppendInlineResults([this._inline_input.NextCandidate()])
+      else
+        const results = this._inline_input.StartConversion(this._entries, this._preferences)
+        if empty(results)
+          this._FeedInline(key)
+        else
+          this._AppendInlineResults(results)
+        endif
+      endif
+    elseif action ==# 'NextCandidate' && this._inline_input.InCandidate()
+      this._AppendInlineResults([this._inline_input.NextCandidate()])
+    elseif action ==# 'PreviousCandidate' && this._inline_input.InCandidate()
+      this._AppendInlineResults([this._inline_input.PreviousCandidate()])
+    elseif action ==# 'Commit'
+      this._AppendInlineResults(this._inline_input.Commit())
+    elseif this._ModeForAction(action) !=# '' && this._inline_input.CanChangeInputMode()
+      this._inline_input.SetInputMode(this._ModeForAction(action))
+      this._RefreshInlinePopup()
+    else
+      this._FeedInline(key)
     endif
   enddef
 
@@ -322,6 +522,7 @@ export class Binding
       this._initial_reading, this._small_tsu_okuri_as_t, this._keyboard_layout,
       this._keyboard_layout_overrides, this._input_mode)
     this._initial_reading = ''
+    this._mode_view.Show(this._input_mode)
   enddef
 
   def Leave(force: bool = false)
@@ -332,24 +533,29 @@ export class Binding
       return
     endif
     try
-      this._input_mode = this._editor.GetInputMode()
-      if !this._persist_input_mode && mode(1) !~# '^i'
-        this._input_mode = input_mode.HIRAGANA
-      endif
+      const active_mode = this._editor.GetInputMode()
       this._Record(this._editor.Close())
+      this._input_mode = !this._persist_input_mode && mode(1) !~# '^i'
+        ? input_mode.HIRAGANA : active_mode
     finally
       this._editor.Abandon()
       this._editor = null_object
+      this._mode_view.Close()
+      this._CloseInlineInput()
     endtry
   enddef
 
   def Dispatch(key: string)
     this._CheckTarget()
+    if this._inline_input isnot null_object
+      this._DispatchInline(key)
+      return
+    endif
     if this._editor isnot null_object && this._editor.IsRegistrationSuspended()
       throw 'caskk: input is suspended for dictionary registration'
     endif
     if has_key(this._native, key)
-      if key ==# '<BS>' && this._editor isnot null_object && this._editor.BackspacePending()
+      if key ==# '<BS>' && this._editor isnot null_object && this._editor.Backspace()
         this._last = []
         return
       endif
@@ -382,6 +588,7 @@ export class Binding
     elseif this._ModeForAction(action) != ''
       this._editor.SetInputMode(this._ModeForAction(action))
       this._input_mode = this._editor.GetInputMode()
+      this._mode_view.Show(this._input_mode)
     else
       this._Record(this._editor.Feed(key))
     endif
@@ -402,6 +609,8 @@ export class Binding
     this._installed = {}
     this._saved = {}
     this._enabled = false
+    this._mode_view.Close()
+    this._CloseInlineInput()
   enddef
 
   def IsEnabled(): bool
@@ -430,6 +639,10 @@ export class Binding
 
   def OpenRegistrationWindow(prefill: bool = true)
     this._CheckTarget()
+    if configuration.GetRegistrationInline()
+      this._OpenInlineRegistration(prefill)
+      return
+    endif
     if this._registration_window isnot null_object
       throw 'caskk: dictionary registration window is already open'
     endif
@@ -765,6 +978,12 @@ enddef
 def Dispatch(number: number, key: string)
   if has_key(bindings, string(number))
     bindings[string(number)].Dispatch(key)
+  endif
+enddef
+
+export def RestoreInlineEscape(number: number)
+  if has_key(bindings, string(number))
+    bindings[string(number)].RestoreInlineEscape()
   endif
 enddef
 

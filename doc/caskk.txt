@@ -164,6 +164,15 @@ Only the reading is prefilled; display okuri is shown in the title and appended
 by the original session after registration.  Set registration_prefill to false
 to start with an empty input field.  This setting is read when the window opens.
 
+registration_inline is a boolean that defaults to false.  When true, the
+registration input is shown in a popup beside the current insertion point;
+typing remains attached to the original buffer and window, and the original
+reading remains visible.  Enter registers the popup's candidate text, while
+Escape cancels and restores the editable reading.  The popup uses the same
+input scheme, dictionaries, actions, and shared user state as the regular
+registration window.  registration_prefill controls whether the requested
+reading is prefilled in this popup as well.
+
 An empty candidate keeps the window open and shows a message so that input can
 be retried.  Cancelling discards the current unconfirmed candidate without
 learning it; IME conversions already committed inside the input field retain
@@ -284,7 +293,8 @@ In Vim9 script: >vim9
     })
 <
 Supported settings are sticky_key, keyboard_layout, keyboard_layout_overrides, mappings, dictionaries, state_path, state_auto,
-persist_input_mode, registration_prefill, registration_auto, candidate_popup, and highlight.preedit. Input scheme
+persist_input_mode, registration_prefill, registration_auto, registration_inline, candidate_popup, mode_popup, mode_popup_labels,
+mode_popup_time, and highlight.preedit. Input scheme
 definitions remain separate from ordinary configuration.
 
 Each Config() call builds a complete configuration from defaults and the supplied
@@ -357,6 +367,23 @@ selection ends or the input session is cleaned up.  Changes take effect on the
 next presentation update.  The popup uses Vim's Pmenu highlight group and is
 limited to a small wrapped window.  It does not show the full candidate list
 or provide annotation editing.
+
+mode_popup is a boolean that controls the short-lived popup showing the active
+input mode.  It defaults to true.  The popup appears when an Insert-mode input
+session starts and when a mode changes, near the cursor without taking focus.
+It closes when the cursor moves, Insert mode ends, or the popup timeout expires.
+The popup uses Vim's Pmenu highlight group.
+
+mode_popup_labels optionally replaces the default label for each mode.  It is
+a dictionary whose keys are hiragana, abbreviation, katakana,
+halfwidth_katakana, and fullwidth_alphanumeric.  Defaults are 'あ', 'ab', 'ア',
+'ｱ', and 'Ａ', respectively.  Values must be nonempty strings.  For example: >vim9
+
+    Caskk.Config({mode_popup_labels: {hiragana: 'かな', katakana: 'カナ'}})
+<
+Omitted labels retain their defaults.  mode_popup_time is a nonnegative number
+of milliseconds and defaults to 1000.  Set it to 0 to keep the popup until it
+is closed by cursor movement or the input session ending.
 
 dictionaries is a list of read-only SKK dictionary sources in candidate priority
 order.  The default is an empty list.  Each source is either a nonempty path

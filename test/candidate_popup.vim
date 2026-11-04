@@ -73,7 +73,7 @@ def Setup(candidate_popup: bool = true): Fixture
   observations = []
   Caskk.RegisterInputScheme({name: 'candidate-popup', consonants: {k: 'k'},
     combinations: {a: 'a'}, specials: {d: '漢字', zx: 'い*くらい'}})
-  Caskk.Config({candidate_popup: candidate_popup, dictionaries: [directory .. '/system'],
+  Caskk.Config({candidate_popup: candidate_popup, mode_popup: false, dictionaries: [directory .. '/system'],
     mappings: {s: 'Convert', n: 'NextCandidate', p: 'PreviousCandidate', c: 'Commit'}})
   Caskk.Enable('candidate-popup')
   return Fixture.new(previous, number, window, directory, snapshot, existing_buffers, existing_popups)

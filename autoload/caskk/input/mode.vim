@@ -9,6 +9,22 @@ export const FULLWIDTH_ALPHANUMERIC = 'FullwidthAlphanumeric'
 const MODES = [HIRAGANA, ABBREVIATION, KATAKANA, HALFWIDTH_KATAKANA,
   FULLWIDTH_ALPHANUMERIC]
 
+export const LABEL_NAMES: dict<string> = {
+  hiragana: HIRAGANA,
+  abbreviation: ABBREVIATION,
+  katakana: KATAKANA,
+  halfwidth_katakana: HALFWIDTH_KATAKANA,
+  fullwidth_alphanumeric: FULLWIDTH_ALPHANUMERIC,
+}
+
+export const DEFAULT_LABELS: dict<string> = {
+  hiragana: 'あ',
+  abbreviation: 'ab',
+  katakana: 'ア',
+  halfwidth_katakana: 'ｱ',
+  fullwidth_alphanumeric: 'Ａ',
+}
+
 const HALFWIDTH: dict<string> = {
   '。': '｡', '、': '､', '・': '･', 'ー': 'ｰ', '「': '｢', '」': '｣',
   'ァ': 'ｧ', 'ア': 'ｱ', 'ィ': 'ｨ', 'イ': 'ｲ', 'ゥ': 'ｩ', 'ウ': 'ｳ',
@@ -51,6 +67,15 @@ enddef
 
 export def IsValid(mode: string): bool
   return index(MODES, mode) >= 0
+enddef
+
+export def LabelName(mode: string): string
+  for [name, value] in items(LABEL_NAMES)
+    if value ==# mode
+      return name
+    endif
+  endfor
+  throw 'caskk: unknown input mode: ' .. mode
 enddef
 
 export def Transition(current: string, requested: string): string

@@ -1,6 +1,7 @@
 vim9script
 
 import autoload 'caskk/input/mapping.vim' as mapping
+import autoload 'caskk/input/mode.vim' as input_mode
 import 'caskk/dictionary.vim' as dictionary
 import autoload 'caskk/dictionary/loader.vim' as loader
 
@@ -47,10 +48,16 @@ class Settings
   const state_auto: bool
   const registration_prefill: bool
   const registration_auto: bool
+  const registration_inline: bool
   const candidate_popup: bool
+  const mode_popup: bool
+  const mode_popup_labels: dict<string>
+  const mode_popup_time: number
 
   def new(this.highlight, this.input, this.state_path, this.state_auto, this.registration_prefill,
-      this.registration_auto, this.candidate_popup)
+      this.registration_auto, this.registration_inline, this.candidate_popup, this.mode_popup,
+      mode_popup_labels: dict<string>, this.mode_popup_time)
+    this.mode_popup_labels = copy(mode_popup_labels)
   enddef
 endclass
 
@@ -219,11 +226,29 @@ def ReadDictionaries(raw: any): list<loader.Source>
   return sources
 enddef
 
+def ReadModePopupLabels(raw: any): dict<string>
+  if type(raw) != v:t_dict
+    throw 'mode_popup_labels must be a dictionary'
+  endif
+  final labels = copy(input_mode.DEFAULT_LABELS)
+  for [name, value] in items(raw)
+    if !has_key(input_mode.LABEL_NAMES, name)
+      throw 'unknown mode_popup_labels key: ' .. name
+    endif
+    if type(value) != v:t_string || value ==# ''
+      throw 'mode_popup_labels values must be nonempty strings'
+    endif
+    labels[name] = value
+  endfor
+  return labels
+enddef
+
 def Parse(options: dict<any>): Settings
   for section in keys(options)
     if index(['highlight', 'sticky_key', 'keyboard_layout', 'keyboard_layout_overrides', 'mappings', 'dictionaries', 'state_path', 'state_auto',
         'small_tsu_okuri_as_t',
-        'registration_prefill', 'registration_auto', 'candidate_popup', 'persist_input_mode'], section) < 0
+        'registration_prefill', 'registration_auto', 'registration_inline', 'candidate_popup', 'persist_input_mode',
+        'mode_popup', 'mode_popup_labels', 'mode_popup_time'], section) < 0
       throw 'unknown section: ' .. section
     endif
   endfor
@@ -255,10 +280,24 @@ def Parse(options: dict<any>): Settings
     throw 'registration_auto must be a bool'
   endif
   const registration_auto: bool = get(options, 'registration_auto', true)
+  if type(get(options, 'registration_inline', false)) != v:t_bool
+    throw 'registration_inline must be a bool'
+  endif
+  const registration_inline: bool = get(options, 'registration_inline', false)
   if type(get(options, 'candidate_popup', true)) != v:t_bool
     throw 'candidate_popup must be a bool'
   endif
   const candidate_popup: bool = get(options, 'candidate_popup', true)
+  if type(get(options, 'mode_popup', true)) != v:t_bool
+    throw 'mode_popup must be a bool'
+  endif
+  const mode_popup: bool = get(options, 'mode_popup', true)
+  const mode_popup_labels = ReadModePopupLabels(get(options, 'mode_popup_labels', {}))
+  if type(get(options, 'mode_popup_time', 1000)) != v:t_number
+      || get(options, 'mode_popup_time', 1000) < 0
+    throw 'mode_popup_time must be a nonnegative number'
+  endif
+  const mode_popup_time: number = get(options, 'mode_popup_time', 1000)
   if type(get(options, 'small_tsu_okuri_as_t', true)) != v:t_bool
     throw 'small_tsu_okuri_as_t must be a bool'
   endif
@@ -268,7 +307,8 @@ def Parse(options: dict<any>): Settings
   const destination = state_path == '' ? '' : fnamemodify(state_path, ':p')
   return Settings.new(highlight, Input.new(sticky_key, keyboard_layout, keyboard_layout_overrides,
     actions, entries, small_tsu_okuri_as_t, persist_input_mode), destination, state_auto,
-    registration_prefill, registration_auto, candidate_popup)
+    registration_prefill, registration_auto, registration_inline, candidate_popup, mode_popup, mode_popup_labels,
+    mode_popup_time)
 enddef
 
 var current = Parse({})
@@ -316,8 +356,24 @@ export def GetRegistrationAuto(): bool
   return current.registration_auto
 enddef
 
+export def GetRegistrationInline(): bool
+  return current.registration_inline
+enddef
+
 export def GetCandidatePopup(): bool
   return current.candidate_popup
+enddef
+
+export def GetModePopup(): bool
+  return current.mode_popup
+enddef
+
+export def GetModePopupLabels(): dict<string>
+  return copy(current.mode_popup_labels)
+enddef
+
+export def GetModePopupTime(): number
+  return current.mode_popup_time
 enddef
 
 export def Configure(options: dict<any>)
