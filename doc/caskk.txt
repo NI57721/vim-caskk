@@ -62,11 +62,15 @@ After registering a scheme, enable it in the current buffer: >vim9
     Caskk.Enable('custom')
     echo Caskk.IsEnabled()
     Caskk.Disable()
+    Caskk.Toggle('custom')
 <
 Enable(name) installs buffer-local Insert-mode mappings for the registered
 scheme.  It can be called in Normal or Insert mode.  IsEnabled() reports the
 current buffer's status; leaving Insert mode finishes the current input session
 but keeps the buffer enabled for the next session.
+
+Toggle(name) disables the current buffer when enabled, and otherwise enables
+the named input scheme.  Like Enable(), it can be called in Normal or Insert mode.
 
 Disable() finishes pending input, commits the reading or selected candidate,
 removes IME presentation, and restores the previous local mappings.  Mappings
@@ -327,6 +331,8 @@ AbbreviationMode takes subsequent keyboard characters as the reading for direct
 dictionary lookup.  The first character starts preedit, and abbreviation input
 does not have okuri.  For example, an `apple /アップル/` entry can be converted by
 entering AbbreviationMode, typing 'apple', and invoking Convert.
+After committing an abbreviation conversion, the input mode returns to the mode
+that was active before AbbreviationMode was entered.
 
 KatakanaMode and HalfwidthKatakanaMode use the same hiragana reading and dictionary
 lookup as the default mode, while displaying kana in fullwidth or halfwidth

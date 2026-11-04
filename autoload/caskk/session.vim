@@ -49,6 +49,7 @@ export class Session
   var _reading_after_cancel: bool = false
   var _direct_input_continuation: bool = false
   var _input_mode: string = input_mode.HIRAGANA
+  var _abbreviation_return_mode: string = ''
 
   def new(compiled: scheme.CompiledScheme, sticky_key: string = '',
       entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
@@ -219,6 +220,7 @@ export class Session
       this._selection = null_object
       this._prepared = null_object
       this._direct_input_continuation = true
+      this._RestoreAbbreviationMode()
       return [Result.new(text, [], this._state.GetSnapshot(), true)]
     endif
     this._prepared = null_object
@@ -227,6 +229,7 @@ export class Session
     if this._state.in_preedit
       const text = this._Render(this._state.Commit())
       results->add(Result.new(text, [], this._state.GetSnapshot(), true))
+      this._RestoreAbbreviationMode()
     endif
     return results
   enddef
@@ -293,6 +296,7 @@ export class Session
     this._prepared = null_object
     this._request_preferences = null_object
     this._reading_after_cancel = false
+    this._RestoreAbbreviationMode()
     return Result.new(text, [], this._state.GetSnapshot(), true, false, true)
   enddef
 
@@ -360,8 +364,23 @@ export class Session
     if !this.CanChangeInputMode()
       return false
     endif
-    this._input_mode = input_mode.Transition(this._input_mode, requested)
+    const previous = this._input_mode
+    const next = input_mode.Transition(previous, requested)
+    if next == input_mode.ABBREVIATION && previous != input_mode.ABBREVIATION
+      this._abbreviation_return_mode = previous
+    elseif previous == input_mode.ABBREVIATION && next != input_mode.ABBREVIATION
+      this._abbreviation_return_mode = ''
+    endif
+    this._input_mode = next
     return true
+  enddef
+
+  def _RestoreAbbreviationMode()
+    if this._input_mode == input_mode.ABBREVIATION
+      this._input_mode = this._abbreviation_return_mode == '' ? input_mode.HIRAGANA
+        : this._abbreviation_return_mode
+      this._abbreviation_return_mode = ''
+    endif
   enddef
 
   def GetInputMode(): string

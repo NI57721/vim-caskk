@@ -53,6 +53,23 @@ suite.enable_and_disable_are_idempotent_and_restore_previous_mapping = (): void 
   assert.equals(getline(1), '前か旧後')
 }
 
+suite.toggle_enables_then_disables_the_current_buffer_mapping = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  Caskk.Config({mappings: {"\<C-N>": 'Convert'}})
+  assert.equals(Caskk.IsEnabled(), false)
+  Caskk.Toggle('lifecycle')
+  assert.equals(Caskk.IsEnabled(), true)
+  assert.equals(maparg('k', 'i', false, true).buffer, 1)
+  assert.equals(maparg('<C-N>', 'i', false, true).buffer, 1)
+  assert.equals(maparg('<Up>', 'i', false, true).buffer, 1)
+  Caskk.Toggle('lifecycle')
+  assert.equals(Caskk.IsEnabled(), false)
+  assert.equals(empty(maparg('k', 'i', false, true)), true)
+  assert.equals(empty(maparg('<C-N>', 'i', false, true)), true)
+  assert.equals(empty(maparg('<Up>', 'i', false, true)), true)
+}
+
 suite.disable_during_insert_commits_reading_and_restores_native_input = (): void => {
   const context = Setup()
   defer Cleanup(context)

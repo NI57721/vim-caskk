@@ -85,6 +85,20 @@ suite.abbreviation_mode_uses_ascii_reading_without_okuri_for_dictionary_lookup =
   assert.equals(ime.GetCandidates().query.exact_okuri, '')
 }
 
+suite.abbreviation_mode_returns_to_the_mode_it_came_from_after_candidate_commit = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('apple /アップル/')]])
+  const ime = session.Session.new(scheme.Compile({}, {}), '', entries, user_state.State.new())
+  ime.SetInputMode(input_mode.KATAKANA)
+  ime.SetInputMode(input_mode.ABBREVIATION)
+  for key in split('apple', '\zs')
+    ime.Feed(key)
+  endfor
+  ime.StartConversion(entries, user_state.State.new())
+  assert.equals(ime.GetInputMode(), input_mode.ABBREVIATION)
+  assert.equals(ime.Commit()[-1].text, 'アップル')
+  assert.equals(ime.GetInputMode(), input_mode.KATAKANA)
+}
+
 suite.input_mode_cannot_change_during_preedit_or_candidate_selection = (): void => {
   const entries = merger.Merge([[parser.ParseLine('か /蚊/')]])
   const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries)

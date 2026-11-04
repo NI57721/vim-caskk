@@ -70,6 +70,14 @@ export def Disable()
   binding.Disable()
 enddef
 
+export def Toggle(name: string)
+  if binding.IsEnabled()
+    binding.Disable()
+  else
+    Enable(name)
+  endif
+enddef
+
 export def IsEnabled(): bool
   return binding.IsEnabled()
 enddef

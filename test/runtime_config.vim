@@ -109,8 +109,22 @@ suite.mode_mappings_switch_between_modes_and_convert_abbreviations = (): void =>
     "\<F5>": 'Commit', "\<Space>": 'Convert'}
   Caskk.Config({dictionaries: [dictionary], mappings: actions})
   Caskk.Enable('configured')
-  feedkeys("a\<F1>ka\<F1>ka\<F2>ka\<F3>I like apples! Do you?\<F4>apple\<Space>\<F5>\<F4>ka\<Esc>", 'xt')
-  assert.equals(getline(1), '前カかｶＩ　ｌｉｋｅ　ａｐｐｌｅｓ！　Ｄｏ　ｙｏｕ？アップルか後')
+  feedkeys("a\<F1>ka\<F1>ka\<F2>ka\<F3>I like apples! Do you?\<F4>apple\<Space>\<F5>ka\<Esc>", 'xt')
+  assert.equals(getline(1), '前カかｶＩ　ｌｉｋｅ　ａｐｐｌｅｓ！　Ｄｏ　ｙｏｕ？アップルｋａ後')
+}
+
+suite.abbreviation_commit_restores_the_mode_active_before_abbreviation = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const dictionary = tempname()
+  defer delete(dictionary)
+  writefile(['apple /アップル/'], dictionary)
+  const actions = {"\<F1>": 'KatakanaMode', "\<F2>": 'AbbreviationMode',
+    "\<Space>": 'Convert', "\<F3>": 'Commit'}
+  Caskk.Config({dictionaries: [dictionary], mappings: actions})
+  Caskk.Enable('configured')
+  feedkeys("a\<F1>\<F2>apple\<Space>\<F3>ka\<Esc>", 'xt')
+  assert.equals(getline(1), '前アップルカ後')
 }
 
 suite.katakana_modes_render_full_okuri_when_input_continues_after_automatic_conversion = (): void => {
