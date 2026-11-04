@@ -6,6 +6,7 @@ import autoload 'caskk/session.vim' as session
 import autoload 'caskk/user_state.vim' as user_state
 import autoload 'caskk/input/keycode.vim' as keycode
 import autoload 'caskk/input/mapping.vim' as mapping
+import autoload 'caskk/input/mode.vim' as input_mode
 import 'caskk/dictionary.vim' as dictionary
 import 'caskk/registration.vim' as registration
 import autoload 'caskk/registration/window.vim' as registration_window
@@ -68,6 +69,7 @@ export class Binding
   const _small_tsu_okuri_as_t: bool
   const _keyboard_layout: string
   const _keyboard_layout_overrides: dict<string>
+  const _persist_input_mode: bool
   var _saved: dict<Mapping> = {}
   var _installed: dict<Mapping> = {}
   var _editor: insert.Editor = null_object
@@ -79,12 +81,13 @@ export class Binding
   var _registration_window: registration_window.Window = null_object
   var _window_result: dictionary.Candidate = null_object
   var _window_closing: bool = false
+  var _input_mode: string = input_mode.HIRAGANA
 
   def new(compiled: scheme.CompiledScheme, sticky_key: string = '',
       entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
       actions: dict<string> = {}, initial_reading: string = '', registration_auto: bool = false,
       small_tsu_okuri_as_t: bool = true, keyboard_layout: string = '',
-      keyboard_layout_overrides: dict<string> = {})
+      keyboard_layout_overrides: dict<string> = {}, persist_input_mode: bool = false)
     this._buffer = bufnr('%')
     this._compiled = compiled
     this._sticky = sticky_key
@@ -96,6 +99,7 @@ export class Binding
     this._small_tsu_okuri_as_t = small_tsu_okuri_as_t
     this._keyboard_layout = keyboard_layout
     this._keyboard_layout_overrides = copy(keyboard_layout_overrides)
+    this._persist_input_mode = persist_input_mode
     final tokens: dict<bool> = {}
     for key in keys(compiled.table.combinations)
       tokens[key] = true
@@ -261,8 +265,23 @@ export class Binding
       return has_candidate || snapshot.in_preedit
     elseif action ==# 'OpenRegistration'
       return this.GetRegistrationRequest() isnot null_object
+    elseif this._ModeForAction(action) != ''
+      return this._editor.CanChangeInputMode()
     endif
     return false
+  enddef
+
+  def _ModeForAction(action: string): string
+    if action ==# 'AbbreviationMode'
+      return input_mode.ABBREVIATION
+    elseif action ==# 'KatakanaMode'
+      return input_mode.KATAKANA
+    elseif action ==# 'HalfwidthKatakanaMode'
+      return input_mode.HALFWIDTH_KATAKANA
+    elseif action ==# 'FullwidthAlphanumericMode'
+      return input_mode.FULLWIDTH_ALPHANUMERIC
+    endif
+    return ''
   enddef
 
   def _FallbackActionKey(key: string)
@@ -301,7 +320,7 @@ export class Binding
     endif
     this._editor = insert.Editor.new(this._compiled, this._sticky, this._entries, this._preferences,
       this._initial_reading, this._small_tsu_okuri_as_t, this._keyboard_layout,
-      this._keyboard_layout_overrides)
+      this._keyboard_layout_overrides, this._input_mode)
     this._initial_reading = ''
   enddef
 
@@ -313,6 +332,10 @@ export class Binding
       return
     endif
     try
+      this._input_mode = this._editor.GetInputMode()
+      if !this._persist_input_mode && mode(1) !~# '^i'
+        this._input_mode = input_mode.HIRAGANA
+      endif
       this._Record(this._editor.Close())
     finally
       this._editor.Abandon()
@@ -356,6 +379,9 @@ export class Binding
       this._Record(this._editor.Commit())
     elseif action ==# 'OpenRegistration'
       this.OpenRegistrationWindow(configuration.GetRegistrationPrefill())
+    elseif this._ModeForAction(action) != ''
+      this._editor.SetInputMode(this._ModeForAction(action))
+      this._input_mode = this._editor.GetInputMode()
     else
       this._Record(this._editor.Feed(key))
     endif
@@ -667,10 +693,10 @@ enddef
 export def Enable(compiled: scheme.CompiledScheme, sticky_key: string = '', actions: dict<string> = {},
     entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
     registration_auto: bool = false, small_tsu_okuri_as_t: bool = true, keyboard_layout: string = '',
-    keyboard_layout_overrides: dict<string> = {})
+    keyboard_layout_overrides: dict<string> = {}, persist_input_mode: bool = false)
   if !has_key(bindings, string(bufnr('%')))
     const current = Binding.new(compiled, sticky_key, entries, preferences, actions, '', registration_auto,
-      small_tsu_okuri_as_t, keyboard_layout, keyboard_layout_overrides)
+      small_tsu_okuri_as_t, keyboard_layout, keyboard_layout_overrides, persist_input_mode)
     current.Enable()
   endif
 enddef

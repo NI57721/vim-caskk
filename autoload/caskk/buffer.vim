@@ -113,7 +113,8 @@ export class Writer
       this._Replace(result.text)
       this._active = true
     elseif result.state.in_preedit
-      this._Replace(result.state.reading .. result.state.okuri)
+      this._Replace(result.preedit_text != '' ? result.preedit_text
+        : result.state.reading .. result.state.okuri)
       this._active = true
     elseif result.text != ''
       this._Replace(result.text)

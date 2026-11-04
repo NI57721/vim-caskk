@@ -11,6 +11,7 @@ import autoload 'caskk/undo.vim' as undo
 import autoload 'caskk/presentation.vim' as presentation
 import autoload 'caskk/conversion.vim' as conversion
 import autoload 'caskk/presentation/candidate.vim' as candidate_view
+import autoload 'caskk/input/mode.vim' as input_mode
 
 # One Insert-mode attachment. Mappings and native handling of unhandled events
 # belong to a later dispatch layer; original ordered results are returned here.
@@ -31,7 +32,7 @@ export class Editor
   def new(compiled: scheme.CompiledScheme, sticky_key: string = '',
       entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
       initial_reading: string = '', small_tsu_okuri_as_t: bool = true, keyboard_layout: string = '',
-      keyboard_layout_overrides: dict<string> = {})
+      keyboard_layout_overrides: dict<string> = {}, input_mode_name: string = input_mode.HIRAGANA)
     if mode(1) !~# '^i'
       throw 'caskk: editor must be started in Insert mode'
     endif
@@ -40,7 +41,7 @@ export class Editor
     this._entries = copy(entries)
     this._preferences = preferences is null_object ? user_state.State.new() : preferences
     this._session = session.Session.new(compiled, sticky_key, this._entries, this._preferences,
-      initial_reading, small_tsu_okuri_as_t, keyboard_layout, keyboard_layout_overrides)
+      initial_reading, small_tsu_okuri_as_t, keyboard_layout, keyboard_layout_overrides, input_mode_name)
     this._writer = buffer.Writer.new(this._buffer, line('.'), col('.'))
     this._undo = undo.Manager.new(this._writer)
     this._view = presentation.Highlighter.new(this._writer)
@@ -118,11 +119,13 @@ export class Editor
       for event in pending
         text ..= event.key
       endfor
-      this._Apply([session.Result.new(text, [], snapshot, false, false, true, false, true)])
+      this._Apply([session.Result.new(this._session.RenderText(text), [], snapshot,
+        false, false, true, false, true)])
       this._pending_visible = true
     elseif this._pending_visible
       const text = snapshot.in_preedit ? snapshot.reading .. snapshot.okuri : ''
-      this._Apply([session.Result.new(text, [], snapshot, !snapshot.in_preedit, false, true)])
+      this._Apply([session.Result.new(this._session.RenderText(text), [], snapshot,
+        !snapshot.in_preedit, false, true)])
       this._pending_visible = false
     endif
   enddef
@@ -252,6 +255,18 @@ export class Editor
 
   def IsInCandidate(): bool
     return this._session.InCandidate()
+  enddef
+
+  def CanChangeInputMode(): bool
+    return this._session.CanChangeInputMode()
+  enddef
+
+  def SetInputMode(requested: string): bool
+    return this._session.SetInputMode(requested)
+  enddef
+
+  def GetInputMode(): string
+    return this._session.GetInputMode()
   enddef
 
   def Pending(): list<input.Event>

@@ -54,6 +54,54 @@ suite.mappings_accept_vim_keycode_expressions = (): void => {
   assert.equals(getline(1), '前か後')
 }
 
+suite.mode_mappings_switch_between_modes_and_convert_abbreviations = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const dictionary = tempname()
+  defer delete(dictionary)
+  writefile(['apple /アップル/'], dictionary)
+  const actions = {"\<F1>": 'KatakanaMode', "\<F2>": 'HalfwidthKatakanaMode',
+    "\<F3>": 'FullwidthAlphanumericMode', "\<F4>": 'AbbreviationMode',
+    "\<F5>": 'Commit', "\<Space>": 'Convert'}
+  Caskk.Config({dictionaries: [dictionary], mappings: actions})
+  Caskk.Enable('configured')
+  feedkeys("a\<F1>ka\<F1>ka\<F2>ka\<F3>I like apples! Do you?\<F4>apple\<Space>\<F5>\<F4>ka\<Esc>", 'xt')
+  assert.equals(getline(1), '前カかｶＩ　ｌｉｋｅ　ａｐｐｌｅｓ！　Ｄｏ　ｙｏｕ？アップルか後')
+}
+
+suite.katakana_modes_render_full_okuri_when_input_continues_after_automatic_conversion = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const dictionary = tempname()
+  defer delete(dictionary)
+  writefile(['ほs /欲/'], dictionary)
+  Caskk.RegisterInputScheme({name: 'katakana-mode-okuri',
+    consonants: {k: 'k', r: 'r', g: 'g', h: 'h', s: 's'},
+    combinations: {a: 'a', e: 'e', i: 'i', o: 'o', u: 'u'}})
+  Caskk.Config({sticky_key: ';', dictionaries: [dictionary],
+    mappings: {"\<F1>": 'KatakanaMode'}})
+  Caskk.Enable('katakana-mode-okuri')
+  feedkeys("a\<F1>korega;ho;sii\<Esc>", 'xt')
+  assert.equals(getline(1), '前コレガ欲シイ後')
+}
+
+suite.input_mode_resets_on_insertleave_by_default_and_can_be_preserved = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  for [options, second_output] in [
+    [{}, 'か'],
+    [{persist_input_mode: true}, 'カ'],
+  ]
+    Caskk.Config(extend(copy(options), {mappings: {"\<F1>": 'KatakanaMode'}}))
+    Caskk.Enable('configured')
+    feedkeys("a\<F1>ka\<Esc>aka\<Esc>", 'xt')
+    assert.equals(getline(1), '前カ' .. second_output .. '後')
+    Caskk.Disable()
+    setline(1, '前後')
+    cursor(1, 1)
+  endfor
+}
+
 suite.config_copies_mappings_and_omitted_input_fields_reset_to_defaults = (): void => {
   const context = Setup()
   defer Cleanup(context)
@@ -138,6 +186,7 @@ suite.invalid_input_types_keys_and_actions_preserve_all_previous_settings = (): 
     {mappings: {"\<F10>": 'MissingAction'}}, {mappings: {'<F10>': 'Commit'}},
     {mappings: {'two': 'Commit'}},
     {mappings: {'<NotAKey>': 'Commit'}},
+    {persist_input_mode: 'yes'},
     {small_tsu_okuri_as_t: 'yes'},
     {sticky_key: ':', highlight: []}, {highlight: {preedit: []}},
     {highlight: {preedit: {cterm: 1}}},

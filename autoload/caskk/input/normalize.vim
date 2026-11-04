@@ -40,6 +40,10 @@ export class Normalizer
     this._modified = true
   enddef
 
+  def HasPendingModifier(): bool
+    return this._modified
+  enddef
+
   # Clear unfinished sticky input when the input session ends or is cancelled.
   def Reset()
     this._modified = false

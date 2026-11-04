@@ -6,6 +6,7 @@ import autoload 'caskk/dictionary/merge.vim' as merger
 import autoload 'caskk/dictionary/parser.vim' as parser
 import autoload 'caskk/user_state.vim' as user_state
 import autoload 'caskk/user_state/codec.vim' as codec
+import autoload 'caskk/input/mode.vim' as input_mode
 
 final suite = themis#suite('session conversion')
 const assert = themis#helper('assert')
@@ -66,6 +67,81 @@ suite.modified_mq_converts_mitsukeru_as_mitsukeru_candidate = (): void => {
   assert.equals(results[0].state.okuri, 'ける')
   assert.equals(ime.GetCandidates().query.exact_okuri, 'け')
   assert.equals(ime.GetCandidates().query.lookup_key, 'みつk')
+}
+
+suite.abbreviation_mode_uses_ascii_reading_without_okuri_for_dictionary_lookup = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('apple /アップル/')]])
+  const ime = session.Session.new(scheme.Compile({}, {}), '', entries, user_state.State.new())
+  assert.equals(ime.SetInputMode(input_mode.ABBREVIATION), true)
+  for key in split('apple', '\zs')
+    ime.Feed(key)
+  endfor
+  assert.equals(ime.GetSnapshot().in_preedit, true)
+  assert.equals(ime.GetSnapshot().reading, 'apple')
+  assert.equals(ime.GetSnapshot().okuri, '')
+  const results = ime.StartConversion(entries, user_state.State.new())
+  assert.equals(results[-1].text, 'アップル')
+  assert.equals(ime.GetCandidates().query.reading, 'apple')
+  assert.equals(ime.GetCandidates().query.exact_okuri, '')
+}
+
+suite.input_mode_cannot_change_during_preedit_or_candidate_selection = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('か /蚊/')]])
+  const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries)
+  assert.equals(ime.SetInputMode(input_mode.KATAKANA), true)
+  ime.Feed('K')
+  assert.equals(ime.SetInputMode(input_mode.HALFWIDTH_KATAKANA), false)
+  ime.Feed('a')
+  ime.StartConversion(entries, user_state.State.new())
+  assert.equals(ime.SetInputMode(input_mode.HALFWIDTH_KATAKANA), false)
+}
+
+suite.katakana_mode_keeps_hiragana_reading_but_displays_katakana_for_preedit_and_candidates = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('か /蚊か/')]])
+  const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries)
+  ime.SetInputMode(input_mode.KATAKANA)
+  ime.Feed('K')
+  const preedit = ime.Feed('a')[0]
+  assert.equals(preedit.state.reading, 'か')
+  assert.equals(preedit.preedit_text, 'カ')
+  const converted = ime.StartConversion(entries, user_state.State.new())[-1]
+  assert.equals(converted.text, '蚊カ')
+  assert.equals(ime.Commit()[-1].text, '蚊カ')
+}
+
+suite.katakana_and_halfwidth_modes_render_okuri_candidates = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('ほs /欲/')]])
+  const compiled = scheme.Compile({k: 'k', r: 'r', g: 'g', h: 'h', s: 's'},
+    {a: 'a', e: 'e', i: 'i', o: 'o', u: 'u'})
+  for [mode, expected] in [
+    [input_mode.KATAKANA, 'コレガ欲シ'],
+    [input_mode.HALFWIDTH_KATAKANA, 'ｺﾚｶﾞ欲ｼ'],
+  ]
+    const ime = session.Session.new(compiled, ';', entries)
+    ime.SetInputMode(mode)
+    var text = ''
+    for key in split('korega;ho;si', '\zs')
+      for result in ime.Feed(key)
+        text ..= result.text
+      endfor
+    endfor
+    assert.equals(text, expected)
+    assert.equals(ime.GetCandidates().query.reading, 'ほ')
+    assert.equals(ime.GetCandidates().query.exact_okuri, 'し')
+  endfor
+}
+
+suite.fullwidth_alphanumeric_mode_outputs_direct_text_without_preedit = (): void => {
+  const ime = session.Session.new(scheme.Compile({}, {}))
+  ime.SetInputMode(input_mode.FULLWIDTH_ALPHANUMERIC)
+  var text = ''
+  for key in split('I like apples! Do you?', '\zs')
+    for result in ime.Feed(key)
+      text ..= result.text
+      assert.equals(result.state.in_preedit, false)
+    endfor
+  endfor
+  assert.equals(text, 'Ｉ　ｌｉｋｅ　ａｐｐｌｅｓ！　Ｄｏ　ｙｏｕ？')
 }
 
 suite.standalone_vowels_continue_kana_input_after_direct_syllables = (): void => {

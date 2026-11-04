@@ -9,6 +9,7 @@ import autoload 'caskk/input/normalize.vim' as normalize
 import autoload 'caskk/composer.vim' as composer
 import autoload 'caskk/scheme.vim' as scheme
 import autoload 'caskk/state.vim' as state_types
+import autoload 'caskk/input/mode.vim' as input_mode
 
 # One ordered output and the state immediately after it.
 # Text is Direct output, committed text, or replacement text for Preedit.
@@ -25,10 +26,12 @@ export class Result
   const replace_preedit: bool = false
   const registration_requested: bool = false
   const pending_display: bool = false
+  const preedit_text: string = ''
 
   def new(this.text, this.unhandled, this.state, this.commit_preedit = v:none,
       this.in_candidate = v:none, this.replace_preedit = v:none,
-      this.registration_requested = v:none, this.pending_display = v:none)
+      this.registration_requested = v:none, this.pending_display = v:none,
+      this.preedit_text = v:none)
   enddef
 endclass
 
@@ -45,17 +48,22 @@ export class Session
   var _request_preferences: user_state.State = null_object
   var _reading_after_cancel: bool = false
   var _direct_input_continuation: bool = false
+  var _input_mode: string = input_mode.HIRAGANA
 
   def new(compiled: scheme.CompiledScheme, sticky_key: string = '',
       entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
       initial_reading: string = '', small_tsu_okuri_as_t: bool = true, keyboard_layout: string = '',
-      keyboard_layout_overrides: dict<string> = {})
+      keyboard_layout_overrides: dict<string> = {}, input_mode_name: string = input_mode.HIRAGANA)
     this._normalizer = normalize.Normalizer.new(sticky_key, keyboard_layout, keyboard_layout_overrides)
     this._composer = composer.Composer.new(compiled)
     this._state = state_types.State.new()
     this._entries = copy(entries)
     this._preferences = preferences is null_object ? user_state.State.new() : preferences
     this._small_tsu_okuri_as_t = small_tsu_okuri_as_t
+    if !input_mode.IsValid(input_mode_name)
+      throw 'caskk: unknown input mode: ' .. input_mode_name
+    endif
+    this._input_mode = input_mode_name
     if initial_reading != ''
       this._state.Apply(composition.Result.new(true, initial_reading, '', false))
     endif
@@ -67,10 +75,20 @@ export class Session
       this._small_tsu_okuri_as_t)
     this._request_preferences = preferences
     if empty(this._prepared.candidates)
-      return Result.new('', [], this._state.GetSnapshot(), false, false, false, true)
+      return Result.new('', [], this._state.GetSnapshot(), false, false, false, true, false,
+        this._DisplayPreedit())
     endif
     this._selection = conversion.Selection.new(this._prepared, preferences)
-    return Result.new(this._selection.CurrentText(), [], this._state.GetSnapshot(), false, true, true)
+    return Result.new(this._Render(this._selection.CurrentText()), [], this._state.GetSnapshot(),
+      false, true, true, false, false, this._DisplayPreedit())
+  enddef
+
+  def _Render(text: string): string
+    return input_mode.Render(text, this._input_mode)
+  enddef
+
+  def _DisplayPreedit(): string
+    return this._Render(this._state.reading .. this._state.okuri)
   enddef
 
   def _ApplyOutput(composed: composition.Result, auto_convert: bool): Result
@@ -78,7 +96,25 @@ export class Session
     if auto_convert && this._state.in_preedit && this._state.okuri_started && this._state.okuri != ''
       return this._PrepareConversion(this._entries, this._preferences)
     endif
-    return Result.new(text, [], this._state.GetSnapshot())
+    const snapshot = this._state.GetSnapshot()
+    return Result.new(snapshot.in_preedit ? '' : this._Render(text), [], snapshot, false, false,
+      false, false, false, snapshot.in_preedit ? this._DisplayPreedit() : '')
+  enddef
+
+  def _FeedAbbreviation(key: string): Result
+    const code = char2nr(key)
+    if strchars(key) != 1 || code < 0x20 || (code >= 0x7f && code <= 0x9f)
+      return Result.new('', [input.Event.new(key)], this._state.GetSnapshot())
+    endif
+    return this._ApplyOutput(composition.Result.new(true, key, '', false), false)
+  enddef
+
+  def _FeedFullwidthAlphanumeric(key: string): Result
+    const code = char2nr(key)
+    if strchars(key) != 1 || code < 0x20 || (code >= 0x7f && code <= 0x9f)
+      return Result.new('', [input.Event.new(key)], this._state.GetSnapshot())
+    endif
+    return Result.new(this._Render(key), [], this._state.GetSnapshot())
   enddef
 
   def _Apply(matched_results: list<composer.Result>, auto_convert: bool = true): list<Result>
@@ -134,6 +170,17 @@ export class Session
   # Input is one physical KeyToken, already named by the integration layer.
   def Feed(key: string): list<Result>
     final results: list<Result> = []
+    if this._input_mode == input_mode.FULLWIDTH_ALPHANUMERIC
+      return [this._FeedFullwidthAlphanumeric(key)]
+    endif
+    if this._input_mode == input_mode.ABBREVIATION
+      if this.InCandidate()
+        results->extend(this.Commit())
+      endif
+      this._prepared = null_object
+      results->add(this._FeedAbbreviation(key))
+      return results
+    endif
     if this.InCandidate() || (this._reading_after_cancel && this._state.okuri != '')
       results->extend(this.Commit())
     endif
@@ -166,7 +213,7 @@ export class Session
   def Commit(): list<Result>
     this._reading_after_cancel = false
     if this.InCandidate()
-      const text = this._selection.Commit()
+      const text = this._Render(this._selection.Commit())
       this._state.Commit()
       this._normalizer.Reset()
       this._selection = null_object
@@ -178,7 +225,7 @@ export class Session
     final results = this._Apply(this._composer.Flush(), false)
     this._normalizer.Reset()
     if this._state.in_preedit
-      const text = this._state.Commit()
+      const text = this._Render(this._state.Commit())
       results->add(Result.new(text, [], this._state.GetSnapshot(), true))
     endif
     return results
@@ -189,7 +236,11 @@ export class Session
   enddef
 
   def GetCandidateInfo(): conversion.CandidateInfo
-    return this.InCandidate() ? this._selection.GetInfo() : null_object
+    if !this.InCandidate()
+      return null_object
+    endif
+    const info = this._selection.GetInfo()
+    return conversion.CandidateInfo.new(info.index, info.count, this._Render(info.text), info.annotations)
   enddef
 
   # A missing dictionary key leaves an empty set here for registration UI.
@@ -221,8 +272,9 @@ export class Session
     if !this.InCandidate()
       throw 'caskk: no active conversion selection'
     endif
-    const text = this._selection.Select(index)
-    return Result.new(text, [], this._state.GetSnapshot(), false, true, true)
+    const text = this._Render(this._selection.Select(index))
+    return Result.new(text, [], this._state.GetSnapshot(), false, true, true,
+      false, false, this._DisplayPreedit())
   enddef
 
   # The separate registration UI supplies a candidate body without display okuri.
@@ -233,7 +285,7 @@ export class Session
     if candidate.text == ''
       throw 'caskk: registered candidate text must not be empty'
     endif
-    const text = candidate.text .. this._prepared.okuri
+    const text = this._Render(candidate.text .. this._prepared.okuri)
     this._request_preferences.AddEntry(this._prepared.query, candidate)
     this._request_preferences.Learn(this._prepared.query, candidate.text)
     this._state.Commit()
@@ -248,7 +300,7 @@ export class Session
     if this._prepared is null_object || this.InCandidate()
       throw 'caskk: no current dictionary registration request'
     endif
-    const text = this._prepared.query.reading .. this._prepared.okuri
+    const text = this._Render(this._prepared.query.reading .. this._prepared.okuri)
     this._prepared = null_object
     this._request_preferences = null_object
     this._reading_after_cancel = true
@@ -259,11 +311,12 @@ export class Session
     if !this.InCandidate()
       throw 'caskk: no active conversion selection'
     endif
-    const text = this._selection.Cancel()
+    const text = this._Render(this._selection.Cancel())
     this._selection = null_object
     this._prepared = null_object
     this._reading_after_cancel = true
-    return Result.new(text, [], this._state.GetSnapshot(), false, false, true)
+    return Result.new(text, [], this._state.GetSnapshot(), false, false, true,
+      false, false, this._DisplayPreedit())
   enddef
 
   def PreviousCandidate(): Result
@@ -271,7 +324,8 @@ export class Session
       throw 'caskk: no active conversion selection'
     endif
     if this._selection.Previous()
-      return Result.new(this._selection.CurrentText(), [], this._state.GetSnapshot(), false, true, true)
+      return Result.new(this._Render(this._selection.CurrentText()), [], this._state.GetSnapshot(),
+        false, true, true, false, false, this._DisplayPreedit())
     endif
     return this.CancelConversion()
   enddef
@@ -281,18 +335,41 @@ export class Session
       throw 'caskk: no active conversion selection'
     endif
     if this._selection.Next()
-      return Result.new(this._selection.CurrentText(), [], this._state.GetSnapshot(), false, true, true)
+      return Result.new(this._Render(this._selection.CurrentText()), [], this._state.GetSnapshot(),
+        false, true, true, false, false, this._DisplayPreedit())
     endif
     # Exhaustion requests registration rather than committing or wrapping.
     # Keep the prepared query and full okuri for the separate registration UI.
-    const text = this._selection.Cancel()
+    const text = this._Render(this._selection.Cancel())
     this._selection = null_object
     this._reading_after_cancel = false
-    return Result.new(text, [], this._state.GetSnapshot(), false, false, true, true)
+    return Result.new(text, [], this._state.GetSnapshot(), false, false, true, true, false,
+      this._DisplayPreedit())
   enddef
 
   def Pending(): list<input.Event>
     return this._composer.Pending()
+  enddef
+
+  def CanChangeInputMode(): bool
+    return !this._state.in_preedit && !this.InCandidate() && empty(this._composer.Pending())
+      && !this._normalizer.HasPendingModifier()
+  enddef
+
+  def SetInputMode(requested: string): bool
+    if !this.CanChangeInputMode()
+      return false
+    endif
+    this._input_mode = input_mode.Transition(this._input_mode, requested)
+    return true
+  enddef
+
+  def GetInputMode(): string
+    return this._input_mode
+  enddef
+
+  def RenderText(text: string): string
+    return this._Render(text)
   enddef
 
   def GetSnapshot(): state_types.Snapshot

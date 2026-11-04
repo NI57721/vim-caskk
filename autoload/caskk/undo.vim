@@ -12,6 +12,7 @@ export class Manager
   var _preedit: bool = false
   var _pending_display: bool = false
   var _reading_state: state_types.Snapshot = null_object
+  var _reading_display: string = ''
 
   def new(writer: buffer.Writer)
     this._writer = writer
@@ -71,7 +72,8 @@ export class Manager
       # Finish the composition's existing undo block as plain reading text.
       # Only the final committed candidate gets a separate block; browsing
       # candidates never leaves intermediate selections in the undo history.
-      const reading = this._reading_state.reading .. this._reading_state.okuri
+      const reading = this._reading_display != '' ? this._reading_display
+        : this._reading_state.reading .. this._reading_state.okuri
       this._Write(session.Result.new(reading, [], this._reading_state, false, false, true))
       this._Break()
       this._Write(session.Result.new(result.text, result.unhandled, result.state,
@@ -83,6 +85,7 @@ export class Manager
       this.Close()
     elseif result.state.in_preedit
       this._reading_state = result.state
+      this._reading_display = result.preedit_text
     endif
   enddef
 
@@ -93,6 +96,7 @@ export class Manager
     this._preedit = false
     this._pending_display = false
     this._reading_state = null_object
+    this._reading_display = ''
     this._tick = getbufvar(this._buffer, 'changedtick')
   enddef
 endclass

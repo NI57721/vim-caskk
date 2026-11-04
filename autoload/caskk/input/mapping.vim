@@ -2,7 +2,10 @@ vim9script
 
 import autoload 'caskk/input/keycode.vim' as keycode
 
-const ACTIONS = ['Convert', 'NextCandidate', 'PreviousCandidate', 'Commit', 'OpenRegistration']
+const ACTIONS = [
+  'Convert', 'NextCandidate', 'PreviousCandidate', 'Commit', 'OpenRegistration',
+  'AbbreviationMode', 'KatakanaMode', 'HalfwidthKatakanaMode', 'FullwidthAlphanumericMode',
+]
 
 export def ValidateAction(action: string)
   if index(ACTIONS, action) < 0

@@ -280,7 +280,7 @@ In Vim9 script: >vim9
     })
 <
 Supported settings are sticky_key, keyboard_layout, keyboard_layout_overrides, mappings, dictionaries, state_path, state_auto,
-registration_prefill, registration_auto, candidate_popup, and highlight.preedit. Input scheme
+persist_input_mode, registration_prefill, registration_auto, candidate_popup, and highlight.preedit. Input scheme
 definitions remain separate from ordinary configuration.
 
 Each Config() call builds a complete configuration from defaults and the supplied
@@ -312,12 +312,31 @@ mappings is a dictionary from KeyTokens to action names.  Vim special keys must
 use an actual keycode expression, such as "\<Space>", "\<C-N>", or "\<F10>".
 Angle-bracket key-name strings such as '<Space>' and '<F10>' are rejected.
 Ordinary printable keys such as 'q' remain single-character strings.  Multiple
-entries for the same physical key, including ' ' and "\<Space>", are rejected.
-Supported actions are
-Convert, NextCandidate, PreviousCandidate, Commit, and OpenRegistration.
-The default is an empty dictionary.  Unknown actions, invalid key names, and
-multiple entries that resolve to the same physical key are rejected.  Conflicts with
+entries that resolve to the same physical key are rejected.  Supported actions are
+Convert, NextCandidate, PreviousCandidate, Commit, OpenRegistration,
+AbbreviationMode, KatakanaMode, HalfwidthKatakanaMode, and FullwidthAlphanumericMode.
+The default is an empty dictionary.  Unknown actions and invalid key names are rejected.  Conflicts with
 the selected input grammar are checked when Enable() installs the mappings.
+
+Mode actions switch directly to their named mode.  Triggering the current
+non-hiragana mode again returns to hiragana.  A mode action is unavailable while
+preedit, candidate selection, or modified input is pending; in that state its key
+falls through to normal input handling.
+
+AbbreviationMode takes subsequent keyboard characters as the reading for direct
+dictionary lookup.  The first character starts preedit, and abbreviation input
+does not have okuri.  For example, an `apple /アップル/` entry can be converted by
+entering AbbreviationMode, typing 'apple', and invoking Convert.
+
+KatakanaMode and HalfwidthKatakanaMode use the same hiragana reading and dictionary
+lookup as the default mode, while displaying kana in fullwidth or halfwidth
+katakana.  Kanji in candidates are unchanged.  FullwidthAlphanumericMode bypasses
+kana composition and dictionary conversion; it maps ASCII letters, digits,
+punctuation, and space to their fullwidth forms.
+
+persist_input_mode is a boolean that defaults to false.  When false, leaving
+Insert mode resets the active mode to hiragana.  Set it to true to preserve the
+active mode when Insert mode is entered again in the same enabled buffer.
 
 Input settings are copied when accepted.  Changing the original dictionary does
 not change the configuration.  Changes to sticky_key and mappings take effect
