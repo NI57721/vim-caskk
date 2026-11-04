@@ -71,8 +71,33 @@ export class Composer
     return matched
   enddef
 
+  def _SymbolKey(events: list<input.Event>): string
+    var matched = ''
+    for key in keys(this._table.symbols)
+      const tokens = scheme.ConsonantKeys(key)
+      if len(tokens) != len(events)
+        continue
+      endif
+      var equal = true
+      for index in range(0, len(tokens) - 1)
+        if tokens[index] !=# events[index].key
+          equal = false
+          break
+        endif
+      endfor
+      if equal
+        matched = key
+      endif
+    endfor
+    return matched
+  enddef
+
+  def _InputKeys(): list<string>
+    return keys(this._table.consonants) + keys(this._table.symbols)
+  enddef
+
   def _HasConsonantPrefix(events: list<input.Event>): bool
-    for key in keys(this._table.consonants)
+    for key in this._InputKeys()
       const tokens = scheme.ConsonantKeys(key)
       if len(tokens) < len(events)
         continue
@@ -131,25 +156,43 @@ export class Composer
   def _Replay(event: input.Event, results: list<Result>)
     if !empty(this._consonant)
       const extended = this._consonant + [event]
+      const extended_symbol = this._SymbolKey(extended)
+      if extended_symbol != '' && !this._HasLongerConsonantPrefix(extended)
+        this._consonant = []
+        const pattern = pattern_types.OutputPattern.new(this._table.symbols[extended_symbol], -1)
+        results->add(Result.new(extended, pattern, false, true))
+        return
+      endif
       if this._HasConsonantPrefix(extended)
         this._consonant = extended
         return
       endif
 
       var matched_key = ''
+      var matched_symbol = ''
       var matched_length = 0
       for length in range(1, len(this._consonant))
         const key = this._ConsonantKey(this._consonant[0 : length - 1])
-        if key != ''
+        const symbol = this._SymbolKey(this._consonant[0 : length - 1])
+        if key != '' || symbol != ''
           matched_key = key
+          matched_symbol = symbol
           matched_length = length
         endif
       endfor
-      if matched_key != ''
+      if matched_key != '' || matched_symbol != ''
         const matched_events = this._consonant[0 : matched_length - 1]
         const buffered_events = copy(this._consonant) + [event]
         const remainder = this._consonant[matched_length : ] + [event]
         this._consonant = []
+        if matched_symbol != ''
+          results->add(Result.new(matched_events,
+            pattern_types.OutputPattern.new(this._table.symbols[matched_symbol], -1), false, true))
+          for replayed in remainder
+            this._Replay(replayed, results)
+          endfor
+          return
+        endif
         if !empty(remainder) && has_key(this._table.combinations, remainder[0].key)
           const combination_event = remainder[0]
           var pattern: pattern_types.OutputPattern = null_object
@@ -192,14 +235,12 @@ export class Composer
       return
     endif
 
-    if has_key(this._table.consonants, event.key)
-      const row = this._table.consonants[event.key]
-      if row ==# 'N' || row ==# 'T'
-        const pattern = kana.Generate('', pattern_types.OutputPattern.new(row, -1))
-        results->add(Result.new([event], pattern, false, true))
-      else
-        this._consonant = [event]
-      endif
+    const symbol = this._SymbolKey([event])
+    if symbol != '' && !this._HasLongerConsonantPrefix([event])
+      const pattern = pattern_types.OutputPattern.new(this._table.symbols[symbol], -1)
+      results->add(Result.new([event], pattern, false, true))
+    elseif has_key(this._table.consonants, event.key)
+      this._consonant = [event]
     elseif this._HasConsonantPrefix([event])
       this._consonant = [event]
     elseif has_key(this._table.combinations, event.key)
@@ -208,6 +249,26 @@ export class Composer
     else
       results->add(Result.new([event]))
     endif
+  enddef
+
+  def _HasLongerConsonantPrefix(events: list<input.Event>): bool
+    for key in this._InputKeys()
+      const tokens = scheme.ConsonantKeys(key)
+      if len(tokens) <= len(events)
+        continue
+      endif
+      var matches = true
+      for index in range(0, len(events) - 1)
+        if tokens[index] !=# events[index].key
+          matches = false
+          break
+        endif
+      endfor
+      if matches
+        return true
+      endif
+    endfor
+    return false
   enddef
 
   def _CompletesPendingCombination(event: input.Event): bool

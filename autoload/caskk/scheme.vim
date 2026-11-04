@@ -3,6 +3,7 @@ vim9script
 import 'caskk/combination_table.vim' as table_types
 import 'caskk/output_pattern.vim' as pattern_types
 import autoload 'caskk/composer/special.vim' as special
+import autoload 'caskk/scheme/kana.vim' as kana
 import autoload 'caskk/scheme/output_pattern.vim' as output_pattern
 
 # Special inputs are explicit KeyToken lists, not strings to split into keys.
@@ -23,39 +24,9 @@ export class CompiledScheme
   enddef
 endclass
 
-# A consonant definition is a sequence of physical keys. Named Vim KeyTokens
-# remain atomic; ordinary strings are split into their Unicode characters.
+# A key sequence is split into Unicode characters. Actual Vim keycodes remain
+# atomic; angle-bracket text is ordinary input and is never parsed as notation.
 export def InputKeys(sequence: string): list<string>
-  final keys: list<string> = []
-  var index = 0
-  while index < strchars(sequence)
-    const character = strcharpart(sequence, index, 1)
-    if character ==# '<'
-      var end = index + 1
-      while end < strchars(sequence) && strcharpart(sequence, end, 1) !=# '>'
-        end += 1
-      endwhile
-      if end < strchars(sequence)
-        const named = strcharpart(sequence, index, end - index + 1)
-        if named =~# '^<[0-9A-Za-z_-]\+>$'
-          keys->add(named)
-          index = end + 1
-          continue
-        endif
-      endif
-    endif
-    keys->add(character)
-    index += 1
-  endwhile
-  return keys
-enddef
-
-# Consonant definitions share the same physical sequence notation.
-export def ConsonantKeys(key: string): list<string>
-  return InputKeys(key)
-enddef
-
-def SpecialKeys(sequence: string): list<string>
   final keys: list<string> = []
   var index = 0
   while index < strchars(sequence)
@@ -87,6 +58,71 @@ def SpecialKeys(sequence: string): list<string>
   return keys
 enddef
 
+# Consonant definitions share the same physical sequence notation.
+export def ConsonantKeys(key: string): list<string>
+  return InputKeys(key)
+enddef
+
+def SpecialKeys(sequence: string): list<string>
+  return InputKeys(sequence)
+enddef
+
+export def ValidateConsonants(definitions: dict<string>): dict<string>
+  final validated: dict<string> = {}
+  final sequences: list<list<string>> = []
+  for [key, value] in items(definitions)
+    const tokens = InputKeys(key)
+    if empty(tokens)
+      throw 'caskk: invalid input scheme: consonant keys must not be empty'
+    endif
+    if index(sequences, tokens) >= 0
+      throw 'caskk: invalid input scheme: consonant keys resolve to the same key sequence'
+    endif
+    sequences->add(tokens)
+    if !has_key(kana.TABLE.rows, value) && !has_key(kana.TABLE.symbols, value)
+      throw 'caskk: invalid input scheme: consonant values must name one kana consonant or output symbol'
+    endif
+    validated[key] = value
+  endfor
+  return validated
+enddef
+
+export def ValidateCombinations(definitions: dict<string>): dict<string>
+  final validated: dict<string> = {}
+  for [key, value] in items(definitions)
+    const tokens = InputKeys(key)
+    if len(tokens) != 1
+      throw 'caskk: invalid input scheme: combination keys must be one KeyToken'
+    endif
+    if has_key(validated, tokens[0])
+      throw 'caskk: invalid input scheme: combination keys resolve to the same KeyToken'
+    endif
+    if empty(value) || index(kana.TABLE.vowels, strcharpart(value, 0, 1)) < 0
+      throw 'caskk: invalid input scheme: combination values must start with a kana vowel'
+    endif
+    if stridx(value, '\') >= 0
+      throw 'caskk: invalid input scheme: combination values do not support escapes'
+    endif
+    for character in str2list(value, true)
+      const char = nr2char(character, true)
+      if char !=# '*' && char !~# '^[A-Za-z]$'
+        throw 'caskk: invalid input scheme: combination values must contain only kana symbols and *'
+      endif
+    endfor
+    const parsed = output_pattern.Parse(value)
+    if parsed.boundary == 0
+      throw 'caskk: invalid input scheme: combination values cannot start with *'
+    endif
+    try
+      kana.Generate('', parsed)
+    catch
+      throw 'caskk: invalid input scheme: invalid combination value: ' .. value
+    endtry
+    validated[tokens[0]] = value
+  endfor
+  return validated
+enddef
+
 export def SpecialDefinitions(definitions: dict<string>): list<SpecialDefinition>
   final specials: list<SpecialDefinition> = []
   for [sequence, output] in items(definitions)
@@ -113,6 +149,15 @@ export def Compile(consonants: dict<string>, combinations: dict<string>,
     rules->add(special.Rule.new(definition.keys, output_pattern.Parse(definition.output)))
   endfor
 
-  const table = table_types.CombinationTable.new(copy(consonants), patterns)
+  final rows: dict<string> = {}
+  final symbols: dict<string> = {}
+  for [key, value] in items(consonants)
+    if has_key(kana.TABLE.symbols, value)
+      symbols[key] = kana.TABLE.symbols[value]
+    else
+      rows[key] = value
+    endif
+  endfor
+  const table = table_types.CombinationTable.new(rows, symbols, patterns)
   return CompiledScheme.new(table, rules)
 enddef

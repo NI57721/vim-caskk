@@ -41,6 +41,12 @@ suite.key_tokens_are_opaque = (): void => {
   assert.equals(combination.ComposeKeys(table, '<M-j>', '<C-x>'), {reading: 'ねい', okuri: ''})
 }
 
+suite.input_key_strings_distinguish_vim_keycodes_from_literal_angle_text = (): void => {
+  assert.equals(scheme.InputKeys("\<C-K>"), ['<C-K>'])
+  assert.equals(scheme.InputKeys('<C-K>'), ['<', 'c', '-', 'k', '>'])
+  assert.equals(scheme.InputKeys('\<C-K>'), ['\', '<', 'c', '-', 'k', '>'])
+}
+
 suite.patterns_are_decoded_at_compile_time = (): void => {
   const table = scheme.Compile({k: 'k'}, {l: 'a\**i\\N'}).table
   assert.equals(table.combinations.l.text, 'a*i\N')
@@ -72,6 +78,12 @@ suite.empty_definitions_and_outputs = (): void => {
   assert.equals(empty.combinations, {})
   const table = scheme.Compile({k: ''}, {a: ''}).table
   assert.equals(combination.ComposeKeys(table, 'k', 'a'), {reading: '', okuri: ''})
+}
+
+suite.nasal_and_sokuon_are_stored_as_output_symbols_not_consonant_rows = (): void => {
+  const compiled = scheme.Compile({q: 'N', l: 'T'}, {})
+  assert.equals(compiled.table.consonants, {})
+  assert.equals(compiled.table.symbols, {q: 'ん', l: 'っ'})
 }
 
 suite.invalid_pattern_is_rejected_at_compile_time = (): void => {

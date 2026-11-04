@@ -17,20 +17,32 @@ RegisterInputScheme(definition) compiles and stores a named scheme.  The
 definition dictionary requires `name`, `consonants`, and `combinations` fields;
 `specials` is optional.  Consonants, combinations, and specials are dictionaries
 of strings.
-Consonant values normally name a kana row; the output symbols 'N' and 'T' may
-also be used to map a key directly to 「ん」 or 「っ」, respectively.  For example:
+Consonant keys may be any nonempty input sequence.  Their values must name one
+consonant identifier defined by the kana table; an identifier may contain
+multiple characters, such as 'wh' or 'xy'.  The configuration-only
+values 'N' and 'T' map a key directly to 「ん」 and 「っ」; internally these are
+stored as output symbols, not consonant rows.  For example:
 >
     Caskk.RegisterInputScheme({
       name: 'custom', consonants: {q: 'N', l: 'T'}, combinations: {},
     })
 <
 The optional specials dictionary maps input key sequences to output patterns.
-Ordinary characters in a key are separate physical keys, so `kan` means `k`,
-`a`, then `n`.  Write a Vim key as a double-quoted Vim key expression, such as
-`"\<C-K>"`; Vim expands it to the encoded key before Caskk compiles the scheme.
-A single-quoted `'<C-K>'` remains five ordinary keys: `<`, `C`, `-`, `K`, `>`.
-Specials take precedence over generated consonant/combination rules.  Output
-patterns support latent okuri boundaries.
+Combination keys must each be exactly one KeyToken.  Their values start with
+one kana-table vowel and contain only sequences accepted by its kana generator,
+plus at most one latent boundary `*`.  `N` and `T` are kana-output symbols here,
+not consonant rows.  Combination values do not use escapes.  For example,
+`e*Tte` is valid, while `ka` and `a\*` are not.
+
+Input keys are sequences of actual Vim keycodes and ordinary characters.  Write
+a physical Vim key using a double-quoted expression such as `"\<C-K>"`.
+Angle-bracket text is ordinary input: `'<C-K>'` is five characters, and
+`'\<C-K>'` is a backslash followed by those five characters.  Thus those forms
+are valid in consonant sequences and special keys, but are too long for a
+combination key.  Specials take precedence over generated consonant/combination
+rules.  Their output is arbitrary text; unescaped `*` marks the latent boundary,
+and `\*` / `\\` represent literal `*` / `\`.  At most one unescaped `*` is
+allowed in a special output.
 
 GetInputScheme(name) returns the compiled scheme for the supplied name and raises
 an error for an unknown name.  Retrieval does not enable the IME or install maps.

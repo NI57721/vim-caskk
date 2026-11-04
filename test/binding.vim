@@ -521,7 +521,7 @@ suite.duplicate_physical_keys_roll_back_partially_installed_mappings = (): void 
   const context = Setup()
   defer Cleanup(context)
   inoremap <buffer> <Space> 旧
-  const compiled = scheme.Compile({' ': 'k'}, {'<Space>': 'a'})
+  const compiled = scheme.Compile({}, {' ': 'a', '<Space>': 'i'})
   const keys = binding.Binding.new(compiled)
   var caught = ''
   try

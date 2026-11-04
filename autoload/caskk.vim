@@ -34,8 +34,8 @@ export def RegisterInputScheme(definition: dict<any>)
     throw 'caskk: invalid input scheme: name must be a string'
   endif
   const name: string = definition.name
-  const consonants = ReadSchemeMap(definition, 'consonants')
-  const combinations = ReadSchemeMap(definition, 'combinations')
+  const consonants = scheme.ValidateConsonants(ReadSchemeMap(definition, 'consonants'))
+  const combinations = scheme.ValidateCombinations(ReadSchemeMap(definition, 'combinations'))
   final specials: dict<string> = has_key(definition, 'specials')
     ? ReadSchemeMap(definition, 'specials') : {}
   schemes.Register(name, consonants, combinations, scheme.SpecialDefinitions(specials))

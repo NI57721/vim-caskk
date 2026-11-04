@@ -151,22 +151,17 @@ suite.unknown_scheme_preserves_existing_enable_state_and_mappings = (): void => 
   Caskk.Disable()
 }
 
-suite.failed_enable_restores_mappings_and_allows_retry = (): void => {
+suite.specials_override_normal_rules_and_user_mappings_are_restored = (): void => {
   const context = Setup()
   defer Cleanup(context)
-  Caskk.RegisterInputScheme({name: 'lifecycle-duplicate', consonants: {},
+  Caskk.RegisterInputScheme({name: 'lifecycle-special', consonants: {},
     combinations: {' ': 'a'}, specials: {' ': '間'}})
   inoremap <buffer> <Space> 旧
-  var caught = ''
-  try
-    Caskk.Enable('lifecycle-duplicate')
-  catch
-    caught = v:exception
-  endtry
-  assert.equals(stridx(caught, 'caskk: duplicate physical mapping:'), 0)
-  assert.equals(Caskk.IsEnabled(), false)
+  Caskk.Enable('lifecycle-special')
+  feedkeys("a\<Space>\<Esc>", 'xt')
+  assert.equals(getline(1), '前間後')
+  Caskk.Disable()
   assert.equals(maparg('<Space>', 'i'), '旧')
-  assert.equals(maparg('k', 'i'), '')
   Caskk.Enable('lifecycle')
   assert.equals(Caskk.IsEnabled(), true)
   Caskk.Disable()

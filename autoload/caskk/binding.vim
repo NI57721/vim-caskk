@@ -105,6 +105,11 @@ export class Binding
         tokens[token] = true
       endfor
     endfor
+    for key in keys(compiled.table.symbols)
+      for token in scheme.ConsonantKeys(key)
+        tokens[token] = true
+      endfor
+    endfor
     for rule in compiled.specials
       for key in rule.keys
         tokens[key] = true

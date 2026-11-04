@@ -146,15 +146,13 @@ suite.exit_save_failure_is_reported_without_creating_parent_directories = (): vo
   assert.equals(readdir(directory), ['child.vim', 'system', 'text'])
 }
 
-suite.failed_mapping_installation_does_not_initialize_or_save_state = (): void => {
+suite.unknown_scheme_does_not_initialize_or_save_state = (): void => {
   const directory = Directory()
   defer delete(directory, 'rf')
-  const result = Run(directory, [Configure(directory),
-    "Caskk.RegisterInputScheme({name: 'duplicate', consonants: {' ': 'k'}, combinations: {'<Space>': 'a'}})",
-    "Caskk.Enable('duplicate')"])
+  const result = Run(directory, [Configure(directory), "Caskk.Enable('missing')"])
   assert.equals(result.status != 0, true)
   const error = readfile(directory .. '/error')
-  assert.equals(stridx(error[0], 'caskk: duplicate physical mapping:'), 0)
+  assert.equals(error[0], 'caskk: unknown input scheme: missing')
   assert.equals(error[1], 'false')
   assert.equals(readdir(directory), ['child.vim', 'error', 'system'])
 }
