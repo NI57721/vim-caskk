@@ -179,6 +179,20 @@ suite.modified_small_tsu_consonant_starts_okuri_in_preedit = (): void => {
   keys.Disable()
 }
 
+suite.small_tsu_symbol_okuri_selects_dictionary_entry_using_t_suffix = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const entries = merger.Merge([[parser.ParseLine('しっt /知/')]])
+  const compiled = scheme.Compile({s: 's', l: 'T'}, {i: 'i'},
+    [scheme.SpecialDefinition.new(['l'], 'っ')])
+  const keys = binding.Binding.new(compiled, '', entries)
+  keys.Enable()
+  feedkeys("aSiL\<Esc>", 'xt')
+  assert.equals(getline(1), '前知っ後')
+  assert.equals(keys.GetEditor() is null_object, true)
+  keys.Disable()
+}
+
 suite.unmodified_small_tsu_special_keeps_its_direct_output = (): void => {
   const context = Setup()
   defer Cleanup(context)

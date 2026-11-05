@@ -77,6 +77,23 @@ suite.small_tsu_okuri_uses_t_suffix_lookup_by_default = (): void => {
   endfor
 }
 
+suite.modified_small_tsu_symbol_looks_up_the_small_tsu_t_suffix = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('しっt /知/')]])
+  const compiled = scheme.Compile({s: 's', l: 'T'}, {i: 'i'},
+    [scheme.SpecialDefinition.new(['l'], 'っ')])
+  const ime = session.Session.new(compiled, ';', entries)
+  var results: list<session.Result> = []
+  for key in ['S', 'i', 'L']
+    results = ime.Feed(key)
+  endfor
+  assert.equals(len(results), 1)
+  assert.equals(results[0].text, '知っ')
+  assert.equals(results[0].in_candidate, true)
+  assert.equals(results[0].state.reading, 'し')
+  assert.equals(results[0].state.okuri, 'っ')
+  assert.equals(ime.GetCandidates().query.lookup_key, 'しっt')
+}
+
 suite.completed_okuri_immediately_displays_the_first_ranked_candidate = (): void => {
   const entries = merger.Merge([[parser.ParseLine('いk /行/往/')]])
   const compiled = scheme.Compile({q: '', k: 'k'}, {i: 'i', u: 'u'})
