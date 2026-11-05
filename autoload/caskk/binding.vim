@@ -106,6 +106,8 @@ export class Binding
   var _inline_guard_saved: dict<Mapping> = {}
   var _inline_guard_installed: dict<Mapping> = {}
   var _delete_user_entry_pending: bool = false
+  var _delete_escape_saved: Mapping = null_object
+  var _delete_escape_installed: Mapping = null_object
 
   def new(compiled: scheme.CompiledScheme, sticky_key: string = '',
       entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
@@ -662,8 +664,36 @@ export class Binding
     if this._inline_input isnot null_object
       this._RefreshInlinePopup(message)
     elseif this._editor isnot null_object
+      this._InstallDeleteEscape()
       this._editor.ShowDeleteUserEntryConfirmation(message)
     endif
+  enddef
+
+  def _InstallDeleteEscape()
+    if this._delete_escape_installed isnot null_object
+      return
+    endif
+    const lhs = mapping.Lhs('<Esc>')
+    this._delete_escape_saved = Mapping.new(lhs)
+    var argument = substitute(string('<Esc>'), '<', '<lt>', 'g')
+    argument = substitute(argument, '\\', '<Bslash>', 'g')
+    argument = substitute(argument, '|', '<Bar>', 'g')
+    execute 'inoremap <buffer> <silent> ' .. lhs .. ' <Cmd>call caskk#binding#DispatchInput('
+      .. this._buffer .. ', ' .. argument .. ')<CR>'
+    this._delete_escape_installed = Mapping.new(lhs)
+  enddef
+
+  def _RestoreDeleteEscape()
+    if this._delete_escape_installed is null_object
+      return
+    endif
+    const lhs = mapping.Lhs('<Esc>')
+    if this._delete_escape_installed.MatchesCurrent(lhs)
+      execute 'silent! iunmap <buffer> ' .. lhs
+      this._delete_escape_saved.Restore()
+    endif
+    this._delete_escape_saved = null_object
+    this._delete_escape_installed = null_object
   enddef
 
   def _ResolveDeleteUserEntryConfirmation(key: string): bool
@@ -671,6 +701,7 @@ export class Binding
       return false
     endif
     this._delete_user_entry_pending = false
+    this._RestoreDeleteEscape()
     if key ==# 'y' || key ==# 'Y'
       if this._inline_input isnot null_object && this._inline_input.CanDeleteUserEntry()
         this._AppendInlineResults([this._inline_input.DeleteUserEntry()])
@@ -769,6 +800,7 @@ export class Binding
 
   def Leave(force: bool = false)
     this._delete_user_entry_pending = false
+    this._RestoreDeleteEscape()
     if this._editor is null_object
       return
     endif

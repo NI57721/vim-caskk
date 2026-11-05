@@ -174,6 +174,18 @@ suite.cancelling_user_entry_deletion_keeps_the_entry_and_selected_candidate = ()
   assert.equals(getline(1), '前登録のみ後')
 }
 
+suite.esc_cancels_user_entry_deletion_without_leaving_the_candidate = (): void => {
+  const fixture = Setup(true, {x: 'DeleteUserEntry'})
+  defer Cleanup(fixture)
+  user_runtime.Get().AddEntry(lookup.CreateQuery('か', ''), dictionary.Candidate.new('登録のみ', []))
+  const identity = json_encode(['か', ''])
+  feedkeys('aKasnnx' .. CAPTURE .. "\<Esc>" .. CAPTURE .. "c\<Esc>", 'xt')
+  assert.equals(observations[0].lines[-1], 'ユーザー辞書から削除しますか？ y:削除 n/Esc:取消')
+  assert.equals(observations[1].lines[-1], '▶ 3/3 登録のみ')
+  assert.equals(has_key(user_runtime.Get().GetSnapshot().entries, identity), true)
+  assert.equals(getline(1), '前登録のみ後')
+}
+
 suite.mappings_toggle_pin_and_demote_for_the_selected_candidate = (): void => {
   const fixture = Setup(true, {v: 'TogglePin', b: 'ToggleDemote'})
   defer Cleanup(fixture)
