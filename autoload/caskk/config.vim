@@ -31,10 +31,11 @@ export class Input
   const entries: dict<dictionary.Entry>
   const small_tsu_okuri_as_t: bool
   const persist_input_mode: bool
+  const register_mode_conversions: bool
 
   def new(this.sticky_key, this.keyboard_layout, keyboard_layout_overrides: dict<string>,
       mappings: dict<string>, entries: dict<dictionary.Entry>,
-      this.small_tsu_okuri_as_t, this.persist_input_mode)
+      this.small_tsu_okuri_as_t, this.persist_input_mode, this.register_mode_conversions)
     this.keyboard_layout_overrides = copy(keyboard_layout_overrides)
     this.mappings = copy(mappings)
     this.entries = copy(entries)
@@ -267,6 +268,7 @@ def Parse(options: dict<any>): Settings
     if index(['highlight', 'sticky_key', 'keyboard_layout', 'keyboard_layout_overrides', 'mappings', 'dictionaries', 'state_path', 'state_auto',
         'small_tsu_okuri_as_t',
         'registration_prefill', 'registration_auto', 'registration_inline', 'candidate_popup', 'persist_input_mode',
+        'register_mode_conversions',
         'mode_popup', 'mode_popup_labels', 'mode_popup_markers', 'mode_popup_time'], section) < 0
       throw 'unknown section: ' .. section
     endif
@@ -280,6 +282,10 @@ def Parse(options: dict<any>): Settings
     throw 'persist_input_mode must be a bool'
   endif
   const persist_input_mode: bool = get(options, 'persist_input_mode', false)
+  if type(get(options, 'register_mode_conversions', true)) != v:t_bool
+    throw 'register_mode_conversions must be a bool'
+  endif
+  const register_mode_conversions: bool = get(options, 'register_mode_conversions', true)
   if type(get(options, 'state_path', '')) != v:t_string
     throw 'state_path must be a string'
   endif
@@ -326,7 +332,7 @@ def Parse(options: dict<any>): Settings
   const entries = loader.Load(sources)
   const destination = state_path == '' ? '' : fnamemodify(state_path, ':p')
   return Settings.new(highlight, Input.new(sticky_key, keyboard_layout, keyboard_layout_overrides,
-    actions, entries, small_tsu_okuri_as_t, persist_input_mode), destination, state_auto,
+    actions, entries, small_tsu_okuri_as_t, persist_input_mode, register_mode_conversions), destination, state_auto,
     registration_prefill, registration_auto, registration_inline, candidate_popup, mode_popup, mode_popup_labels,
     mode_popup_markers, mode_popup_time)
 enddef
@@ -357,7 +363,8 @@ enddef
 export def GetInput(): Input
   return Input.new(current.input.sticky_key, current.input.keyboard_layout,
     current.input.keyboard_layout_overrides, current.input.mappings, current.input.entries,
-    current.input.small_tsu_okuri_as_t, current.input.persist_input_mode)
+    current.input.small_tsu_okuri_as_t, current.input.persist_input_mode,
+    current.input.register_mode_conversions)
 enddef
 
 export def GetStatePath(): string

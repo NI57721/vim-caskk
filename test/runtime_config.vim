@@ -1,9 +1,16 @@
 vim9script
 
 import autoload 'caskk.vim' as Caskk
+import autoload 'caskk/config.vim' as configuration
+import autoload 'caskk/user_state.vim' as user_state
+import autoload 'caskk/user_state/runtime.vim' as user_runtime
 
 final suite = themis#suite('public input configuration')
 const assert = themis#helper('assert')
+
+def RestoreRuntimeState(snapshot: user_state.Snapshot)
+  user_runtime.Get().Restore(snapshot)
+enddef
 
 def Setup(): list<number>
   const previous = bufnr('%')
@@ -127,6 +134,9 @@ suite.abbreviation_numeric_placeholders_convert_through_public_insert_mappings =
 }
 
 suite.mode_actions_commit_modified_reading_in_the_target_kana_script = (): void => {
+  const previous_state = user_runtime.Get().GetSnapshot()
+  user_runtime.Get().Restore(user_state.State.new().GetSnapshot())
+  defer RestoreRuntimeState(previous_state)
   for [key, action, expected] in [
     ["\<F1>", 'KatakanaMode', 'カ'],
     ["\<F2>", 'HalfwidthKatakanaMode', 'ｶ'],
@@ -149,7 +159,10 @@ suite.mode_actions_commit_modified_reading_in_the_target_kana_script = (): void 
 suite.fullwidth_mode_action_commits_abbreviation_as_fullwidth_text = (): void => {
   const context = Setup()
   defer Cleanup(context)
-  Caskk.Config({mappings: {
+  const previous_state = user_runtime.Get().GetSnapshot()
+  user_runtime.Get().Restore(user_state.State.new().GetSnapshot())
+  defer RestoreRuntimeState(previous_state)
+  Caskk.Config({register_mode_conversions: false, mappings: {
     "\<F3>": 'FullwidthAlphanumericMode', "\<F4>": 'AbbreviationMode'}})
   Caskk.Enable('configured')
   feedkeys("a\<F4>apple\<F3>pear\<Esc>", 'xt')
@@ -289,6 +302,7 @@ suite.invalid_input_types_keys_and_actions_preserve_all_previous_settings = (): 
     {mappings: {'two': 'Commit'}},
     {mappings: {'<NotAKey>': 'Commit'}},
     {persist_input_mode: 'yes'},
+    {register_mode_conversions: 'yes'},
     {small_tsu_okuri_as_t: 'yes'},
     {registration_inline: 'yes'},
     {mode_popup: 'yes'},
@@ -316,6 +330,13 @@ suite.invalid_input_types_keys_and_actions_preserve_all_previous_settings = (): 
   Caskk.Enable('configured')
   feedkeys("a;ka\<F10>\<Esc>", 'xt')
   assert.equals(getline(1), '前か後')
+}
+
+suite.register_mode_conversions_defaults_on_and_can_be_disabled = (): void => {
+  Caskk.Config({})
+  assert.equals(configuration.GetInput().register_mode_conversions, true)
+  Caskk.Config({register_mode_conversions: false})
+  assert.equals(configuration.GetInput().register_mode_conversions, false)
 }
 
 suite.invalid_highlight_color_does_not_replace_input_settings = (): void => {

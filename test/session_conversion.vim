@@ -159,6 +159,61 @@ suite.katakana_and_halfwidth_modes_render_okuri_candidates = (): void => {
   endfor
 }
 
+suite.committing_katakana_or_halfwidth_preedit_registers_that_output_by_default = (): void => {
+  const compiled = scheme.Compile({k: 'k'}, {a: 'a'})
+  for [mode, expected] in [
+    [input_mode.KATAKANA, 'カ'],
+    [input_mode.HALFWIDTH_KATAKANA, 'ｶ'],
+  ]
+    const preferences = user_state.State.new()
+    const ime = session.Session.new(compiled, '', {}, preferences)
+    ime.Feed('K')
+    ime.Feed('a')
+    const committed = ime.CommitPreeditAsMode(mode)
+    assert.equals(committed[-1].text, expected)
+    const key = json_encode(['か', ''])
+    const snapshot = preferences.GetSnapshot()
+    assert.equals(snapshot.entries[key][0].text, expected)
+    assert.equals(snapshot.mru[key], [expected])
+  endfor
+}
+
+suite.mode_converted_okuri_registers_only_the_transformed_candidate_body = (): void => {
+  const preferences = user_state.State.new()
+  const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a*', u: 'u'}), '', {}, preferences)
+  ime.Feed('K')
+  ime.Feed('a')
+  ime.Feed('K')
+  ime.Feed('u')
+  const committed = ime.CommitPreeditAsMode(input_mode.KATAKANA)
+  assert.equals(committed[-1].text, 'カク')
+  const key = json_encode(['か', 'く'])
+  assert.equals(preferences.GetSnapshot().entries[key][0].text, 'カ')
+  assert.equals(preferences.GetSnapshot().mru[key], ['カ'])
+}
+
+suite.committing_abbreviation_as_fullwidth_registers_the_fullwidth_output = (): void => {
+  const preferences = user_state.State.new()
+  const ime = session.Session.new(scheme.Compile({}, {}), '', {}, preferences, '', true, '', {},
+    input_mode.ABBREVIATION)
+  ime.Feed('a')
+  const committed = ime.CommitPreeditAsMode(input_mode.FULLWIDTH_ALPHANUMERIC)
+  assert.equals(committed[-1].text, 'ａ')
+  const key = json_encode(['a', ''])
+  assert.equals(preferences.GetSnapshot().entries[key][0].text, 'ａ')
+}
+
+suite.mode_converted_output_registration_can_be_disabled = (): void => {
+  const preferences = user_state.State.new()
+  const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', {}, preferences,
+    '', true, '', {}, input_mode.HIRAGANA, false)
+  ime.Feed('K')
+  ime.Feed('a')
+  assert.equals(ime.CommitPreeditAsMode(input_mode.KATAKANA)[-1].text, 'カ')
+  assert.equals(preferences.GetSnapshot().entries, {})
+  assert.equals(preferences.GetSnapshot().mru, {})
+}
+
 suite.fullwidth_alphanumeric_mode_outputs_direct_text_without_preedit = (): void => {
   const ime = session.Session.new(scheme.Compile({}, {}))
   ime.SetInputMode(input_mode.FULLWIDTH_ALPHANUMERIC)

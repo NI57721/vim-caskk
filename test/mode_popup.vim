@@ -1,6 +1,8 @@
 vim9script
 
 import autoload 'caskk.vim' as Caskk
+import autoload 'caskk/user_state.vim' as user_state
+import autoload 'caskk/user_state/runtime.vim' as user_runtime
 
 final suite = themis#suite('input mode popup')
 const assert = themis#helper('assert')
@@ -10,6 +12,7 @@ var capture_positions: list<list<list<number>>> = []
 var capture_cursor_positions: list<list<number>> = []
 var previous_buffer = 0
 var test_buffer = 0
+var previous_user_state: user_state.Snapshot = null_object
 
 def g:CaskkTestModePopupCapture()
   redraw
@@ -40,6 +43,8 @@ def g:CaskkTestModePopupCaptureAfterTimeout()
 enddef
 
 def Setup(options: dict<any> = {}): void
+  previous_user_state = user_runtime.Get().GetSnapshot()
+  user_runtime.Get().Restore(user_state.State.new().GetSnapshot())
   previous_buffer = bufnr('%')
   test_buffer = bufadd('')
   bufload(test_buffer)
@@ -64,6 +69,7 @@ def Cleanup()
     Caskk.Disable()
     Caskk.Config({})
   finally
+    user_runtime.Get().Restore(previous_user_state)
     execute 'noautocmd keepalt hide buffer ' .. previous_buffer
     execute 'silent! bwipeout! ' .. test_buffer
   endtry

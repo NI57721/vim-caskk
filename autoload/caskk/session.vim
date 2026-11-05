@@ -4,6 +4,7 @@ import 'caskk/input.vim' as input
 import 'caskk/dictionary.vim' as dictionary
 import 'caskk/composition.vim' as composition
 import autoload 'caskk/conversion.vim' as conversion
+import autoload 'caskk/dictionary/lookup.vim' as lookup
 import autoload 'caskk/user_state.vim' as user_state
 import autoload 'caskk/input/normalize.vim' as normalize
 import autoload 'caskk/composer.vim' as composer
@@ -43,6 +44,7 @@ export class Session
   const _entries: dict<dictionary.Entry>
   const _preferences: user_state.State
   const _small_tsu_okuri_as_t: bool
+  const _register_mode_conversions: bool
   var _prepared: conversion.Candidates = null_object
   var _selection: conversion.Selection = null_object
   var _request_preferences: user_state.State = null_object
@@ -54,13 +56,15 @@ export class Session
   def new(compiled: scheme.CompiledScheme, sticky_key: string = '',
       entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
       initial_reading: string = '', small_tsu_okuri_as_t: bool = true, keyboard_layout: string = '',
-      keyboard_layout_overrides: dict<string> = {}, input_mode_name: string = input_mode.HIRAGANA)
+      keyboard_layout_overrides: dict<string> = {}, input_mode_name: string = input_mode.HIRAGANA,
+      register_mode_conversions: bool = true)
     this._normalizer = normalize.Normalizer.new(sticky_key, keyboard_layout, keyboard_layout_overrides)
     this._composer = composer.Composer.new(compiled)
     this._state = state_types.State.new()
     this._entries = copy(entries)
     this._preferences = preferences is null_object ? user_state.State.new() : preferences
     this._small_tsu_okuri_as_t = small_tsu_okuri_as_t
+    this._register_mode_conversions = register_mode_conversions
     if !input_mode.IsValid(input_mode_name)
       throw 'caskk: unknown input mode: ' .. input_mode_name
     endif
@@ -325,8 +329,10 @@ export class Session
       throw 'caskk: registered candidate text must not be empty'
     endif
     const text = this._Render(candidate.text .. this._prepared.okuri)
-    this._request_preferences.AddEntry(this._prepared.query, candidate)
-    this._request_preferences.Learn(this._prepared.query, candidate.text)
+    if candidate.text !=# this._prepared.query.reading
+      this._request_preferences.AddEntry(this._prepared.query, candidate)
+      this._request_preferences.Learn(this._prepared.query, candidate.text)
+    endif
     this._state.Commit()
     this._normalizer.Reset()
     this._prepared = null_object
@@ -427,12 +433,24 @@ export class Session
     if !this.CanCommitPreeditAsMode(requested)
       throw 'caskk: preedit cannot be committed in the requested input mode'
     endif
+    const snapshot = this._state.GetSnapshot()
     const previous_mode = this._input_mode
     const previous_abbreviation_return_mode = this._abbreviation_return_mode
-    this._input_mode = input_mode.Transition(this._input_mode, requested)
+    const output_mode = input_mode.Transition(this._input_mode, requested)
+    this._input_mode = output_mode
     this._abbreviation_return_mode = ''
     try
-      return this.Commit()
+      const results = this.Commit()
+      if this._register_mode_conversions
+        const query = lookup.CreateQuery(snapshot.reading, snapshot.okuri, this._small_tsu_okuri_as_t)
+        const text = input_mode.Render(snapshot.reading, output_mode)
+        if text !=# '' && text !=# snapshot.reading
+          const candidate = dictionary.Candidate.new(text, [])
+          this._preferences.AddEntry(query, candidate)
+          this._preferences.Learn(query, text)
+        endif
+      endif
+      return results
     finally
       this._input_mode = previous_mode
       this._abbreviation_return_mode = previous_abbreviation_return_mode

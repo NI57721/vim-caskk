@@ -113,6 +113,34 @@ suite.registration_replaces_preedit_and_persists_body_annotations_and_learning =
   endfor
 }
 
+suite.mode_action_outputs_are_registered_through_the_public_configuration_by_default = (): void => {
+  const fixture = Setup()
+  defer Cleanup(fixture)
+  Caskk.Disable()
+  Caskk.Config({registration_auto: false, dictionaries: [fixture.directory .. '/system'],
+    mappings: {"\<F1>": 'KatakanaMode'}})
+  Caskk.Enable('public-registration')
+  feedkeys("aKa\<F1>\<Esc>", 'xt')
+  assert.equals(getline(1), '前カ後')
+  const key = json_encode(['か', ''])
+  const snapshot = user_runtime.Get().GetSnapshot()
+  assert.equals(snapshot.entries[key][0].text, 'カ')
+  assert.equals(snapshot.mru[key], ['カ'])
+}
+
+suite.mode_action_output_registration_can_be_disabled_in_public_configuration = (): void => {
+  const fixture = Setup()
+  defer Cleanup(fixture)
+  Caskk.Disable()
+  Caskk.Config({registration_auto: false, dictionaries: [fixture.directory .. '/system'],
+    register_mode_conversions: false, mappings: {"\<F1>": 'KatakanaMode'}})
+  Caskk.Enable('public-registration')
+  feedkeys("aKa\<F1>\<Esc>", 'xt')
+  assert.equals(getline(1), '前カ後')
+  assert.equals(user_runtime.Get().GetSnapshot().entries, {})
+  assert.equals(user_runtime.Get().GetSnapshot().mru, {})
+}
+
 suite.okuri_request_and_completion_keep_exact_okuri_separate_from_full_suffix = (): void => {
   const fixture = Setup()
   defer Cleanup(fixture)

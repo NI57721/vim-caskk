@@ -100,6 +100,20 @@ suite.registration_adds_and_learns_the_candidate_then_replaces_and_commits_preed
   assert.equals(ime.Feed('a')[0].text, 'か')
 }
 
+suite.registering_the_same_hiragana_as_the_reading_commits_without_learning_or_adding_it = (): void => {
+  const preferences = user_state.State.new()
+  const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}), ';', {}, preferences)
+  ime.Feed('K')
+  ime.Feed('a')
+  assert.equals(ime.StartConversion({}, preferences)[0].registration_requested, true)
+  const result = ime.Register(dictionary.Candidate.new('か', []))
+  assert.equals(result.text, 'か')
+  assert.equals(result.replace_preedit, true)
+  assert.equals(result.commit_preedit, true)
+  assert.equals(preferences.GetSnapshot().entries, {})
+  assert.equals(preferences.GetSnapshot().mru, {})
+}
+
 suite.registration_preserves_full_okuri_but_stores_only_the_candidate_body = (): void => {
   const preferences = user_state.State.new()
   const compiled = scheme.Compile({}, {}, [scheme.SpecialDefinition.new(['z', 'x'], 'い*くらい')])

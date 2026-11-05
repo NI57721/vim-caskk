@@ -54,7 +54,7 @@ export def Enable(name: string)
   const input = configuration.GetInput()
   binding.Enable(compiled, input.sticky_key, input.mappings, input.entries, user_runtime.Get(),
     configuration.GetRegistrationAuto(), input.small_tsu_okuri_as_t, input.keyboard_layout,
-    input.keyboard_layout_overrides, input.persist_input_mode)
+    input.keyboard_layout_overrides, input.persist_input_mode, input.register_mode_conversions)
   try
     if configuration.GetStateAuto()
       user_runtime.InitializeAutomatic(configuration.GetStatePath())

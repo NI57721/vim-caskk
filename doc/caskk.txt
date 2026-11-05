@@ -135,6 +135,8 @@ The entry is registered and learned for reading plus exact_okuri, and the buffer
 preedit is replaced and committed with the complete okuri appended.  For example,
 registering '行' for reading 'い' and okuri 'くらい' commits '行くらい' and stores
 only '行' under reading 'い' and exact okuri 'く'.  SaveState() can persist it.
+If the candidate text is exactly the hiragana reading, the text is committed as
+entered but no dictionary entry or learning preference is created.
 
 CancelRegistration() clears the request and retains the original reading and
 okuri as preedit without registering or learning a candidate.  Both completion
@@ -246,6 +248,15 @@ cancels its nested registration without registering pending text.  Cancelling a
 request does not reopen it.  The request/completion/cancellation APIs remain
 available for custom integration with registration_auto set to false.
 
+register_mode_conversions                  *caskk-config-register-mode-conversions*
+
+register_mode_conversions is a boolean that defaults to true. When a mode action
+commits a preedit as katakana, halfwidth katakana, or fullwidth alphanumeric, the
+converted text is added and learned as a user dictionary candidate for that
+reading and exact okuri. For okuri input, only the converted reading body is
+stored; the converted okuri remains the displayed suffix. Set this option to
+false to commit the converted text without adding it to the user dictionary.
+
 USER STATE                                              *caskk-load-state*
                                                         *caskk-save-state*
 
@@ -356,6 +367,7 @@ Supported settings are |caskk-config-sticky-key|, |caskk-config-keyboard-layout|
 |caskk-config-state-auto|, |caskk-config-small-tsu-okuri-as-t|,
 |caskk-config-persist-input-mode|, |caskk-config-registration-prefill|,
 |caskk-config-registration-auto|, |caskk-config-registration-inline|,
+|caskk-config-register-mode-conversions|,
 |caskk-config-candidate-popup|, |caskk-config-mode-popup|,
 |caskk-config-mode-popup-labels|, |caskk-config-mode-popup-markers|,
 |caskk-config-mode-popup-time|, and |caskk-config-highlight|. Input scheme

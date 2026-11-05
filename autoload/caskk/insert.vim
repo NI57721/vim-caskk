@@ -32,7 +32,8 @@ export class Editor
   def new(compiled: scheme.CompiledScheme, sticky_key: string = '',
       entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
       initial_reading: string = '', small_tsu_okuri_as_t: bool = true, keyboard_layout: string = '',
-      keyboard_layout_overrides: dict<string> = {}, input_mode_name: string = input_mode.HIRAGANA)
+      keyboard_layout_overrides: dict<string> = {}, input_mode_name: string = input_mode.HIRAGANA,
+      register_mode_conversions: bool = true)
     if mode(1) !~# '^i'
       throw 'caskk: editor must be started in Insert mode'
     endif
@@ -41,7 +42,8 @@ export class Editor
     this._entries = copy(entries)
     this._preferences = preferences is null_object ? user_state.State.new() : preferences
     this._session = session.Session.new(compiled, sticky_key, this._entries, this._preferences,
-      initial_reading, small_tsu_okuri_as_t, keyboard_layout, keyboard_layout_overrides, input_mode_name)
+      initial_reading, small_tsu_okuri_as_t, keyboard_layout, keyboard_layout_overrides, input_mode_name,
+      register_mode_conversions)
     this._writer = buffer.Writer.new(this._buffer, line('.'), col('.'))
     this._undo = undo.Manager.new(this._writer)
     this._view = presentation.Highlighter.new(this._writer)
