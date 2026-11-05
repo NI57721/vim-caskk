@@ -29,7 +29,7 @@ export class View
     const position = {
       line: cursor_position.row + 1, col: cursor_position.col,
       pos: 'topleft', posinvert: true,
-      padding: [0, 1, 0, 1], highlight: 'Pmenu', moved: 'any',
+      padding: [0, 1, 0, 1], highlight: 'Pmenu', moved: [0, 0, 0],
     }
     const timeout = configuration.GetModePopupTime()
     if timeout == 0

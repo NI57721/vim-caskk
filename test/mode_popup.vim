@@ -12,6 +12,7 @@ var previous_buffer = 0
 var test_buffer = 0
 
 def g:CaskkTestModePopupCapture()
+  redraw
   final popup_lines: list<list<string>> = []
   var positions: list<list<number>> = []
   for id in popup_list()
@@ -74,6 +75,15 @@ suite.mode_switches_show_the_configured_label_near_the_insert_cursor = (): void 
   feedkeys("a\<F1>\<F12>a\<Esc>", 'xt')
   assert.equals(captures, [[['カナ']]])
   assert.equals(getline(1), '前ア後')
+}
+
+suite.mode_popup_remains_visible_after_the_first_character = (): void => {
+  Setup({mode_popup_labels: {katakana: 'カナ'}, mode_popup_time: 10000})
+  defer Cleanup()
+  feedkeys("a\<F1>.\<F12>\<Esc>", 'xt')
+  assert.equals(captures, [[['カナ']]])
+  assert.equals(getline(1), '前.後')
+  assert.equals(capture_positions, [[[2, 4]]])
 }
 
 suite.abbreviation_commit_updates_the_popup_to_the_restored_mode = (): void => {

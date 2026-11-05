@@ -562,7 +562,7 @@ mode_popup_time                                *caskk-config-mode-popup-time*
 mode_popup_time is a nonnegative number of milliseconds and defaults to 0. With
 the default, the popup follows the cursor as Caskk input advances it, and remains
 visible until Vim cursor movement or the input session ending closes it. Set it
-to a positive number to close it after that many milliseconds.
+to a positive number to close it after that many milliseconds without input.
 
 dictionaries                                      *caskk-config-dictionaries*
 
