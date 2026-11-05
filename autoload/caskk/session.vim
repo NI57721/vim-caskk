@@ -428,9 +428,16 @@ export class Session
     if !this.CanCommitPreeditAsMode(requested)
       throw 'caskk: preedit cannot be committed in the requested input mode'
     endif
+    const previous_mode = this._input_mode
+    const previous_abbreviation_return_mode = this._abbreviation_return_mode
     this._input_mode = input_mode.Transition(this._input_mode, requested)
     this._abbreviation_return_mode = ''
-    return this.Commit()
+    try
+      return this.Commit()
+    finally
+      this._input_mode = previous_mode
+      this._abbreviation_return_mode = previous_abbreviation_return_mode
+    endtry
   enddef
 
   def _RestoreAbbreviationMode()

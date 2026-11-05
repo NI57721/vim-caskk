@@ -22,6 +22,11 @@ def g:CaskkTestModePopupCaptureAfterDelay()
   g:CaskkTestModePopupCapture()
 enddef
 
+def g:CaskkTestModePopupCaptureAfterTimeout()
+  sleep 1100m
+  g:CaskkTestModePopupCapture()
+enddef
+
 def Setup(options: dict<any> = {}): void
   previous_buffer = bufnr('%')
   test_buffer = bufadd('')
@@ -128,4 +133,20 @@ suite.zero_timeout_keeps_the_mode_popup_until_session_cleanup = (): void => {
   feedkeys("a\<F1>\<F12>\<Esc>", 'xt')
   assert.equals(captures, [[['ア']]])
   assert.equals(popup_list(), [])
+}
+
+suite.default_mode_popup_stays_visible_after_the_initial_timeout = (): void => {
+  Setup()
+  defer Cleanup()
+  inoremap <buffer> <F12> <Cmd>call CaskkTestModePopupCaptureAfterTimeout()<CR>
+  feedkeys("a\<F1>\<F12>\<Esc>", 'xt')
+  assert.equals(captures, [[['ア']]])
+  assert.equals(popup_list(), [])
+}
+
+suite.mode_popup_follows_the_cursor_during_preedit_input = (): void => {
+  Setup({mode_popup_time: 0})
+  defer Cleanup()
+  feedkeys("aKakak\<F12>\<Esc>", 'xt')
+  assert.equals(captures, [[['▽あ']]])
 }

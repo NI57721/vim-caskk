@@ -313,11 +313,11 @@ def Parse(options: dict<any>): Settings
   const mode_popup: bool = get(options, 'mode_popup', true)
   const mode_popup_labels = ReadModePopupLabels(get(options, 'mode_popup_labels', {}))
   const mode_popup_markers = ReadModePopupMarkers(get(options, 'mode_popup_markers', {}))
-  if type(get(options, 'mode_popup_time', 1000)) != v:t_number
-      || get(options, 'mode_popup_time', 1000) < 0
+  if type(get(options, 'mode_popup_time', 0)) != v:t_number
+      || get(options, 'mode_popup_time', 0) < 0
     throw 'mode_popup_time must be a nonnegative number'
   endif
-  const mode_popup_time: number = get(options, 'mode_popup_time', 1000)
+  const mode_popup_time: number = get(options, 'mode_popup_time', 0)
   if type(get(options, 'small_tsu_okuri_as_t', true)) != v:t_bool
     throw 'small_tsu_okuri_as_t must be a bool'
   endif

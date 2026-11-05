@@ -185,13 +185,47 @@ to start with an empty input field.  This setting is read when the window opens.
 registration_inline                        *caskk-config-registration-inline*
 
 registration_inline is a boolean that defaults to false.  When true, the
-registration input is shown in a popup beside the current insertion point;
-typing remains attached to the original buffer and window, and the original
-reading remains visible.  Enter registers the popup's candidate text, while
-Escape cancels and restores the editable reading.  The popup uses the same
-input scheme, dictionaries, actions, and shared user state as the regular
-registration window.  registration_prefill controls whether the requested
-reading is prefilled in this popup as well.
+registration input is shown in a popup above the current insertion point.  If
+there is not enough room above, Vim places it below.  The popup is display-only:
+keys are handled by Caskk in the original Insert-mode buffer and sent to a
+separate registration input state.  That state supports the usual input scheme,
+including okuri composition and dictionary conversion.  The original reading
+and surrounding text stay in the source buffer while registration is open; the
+draft does not change that buffer or its undo history.
+
+The popup shows the whole registration word and a vertical bar (│) for its
+logical editing position.  The usual input scheme and conversion actions work
+there.  Left and Right commit the current preedit or selected candidate into
+the draft, then move by one character.  Backspace removes pending input first,
+then the previous preedit character, then the draft character before the bar.
+Delete commits active input and removes the draft character after the bar.
+While candidates are being selected, the selected candidate is previewed in
+the draft and the candidate list appears below it in the same popup.  Enter
+accepts the current candidate/preedit and registers the resulting draft.  If
+the draft is empty, the popup remains open and shows a message.  Escape while
+selecting a conversion candidate commits that candidate into the draft and keeps
+the registration popup open.  Escape in other registration states cancels the
+draft and restores the editable reading.  Ctrl-C cancels the draft, keeps the
+source reading as committed text, and exits Insert mode.
+
+Calling Disable() while this popup is open commits any active input in the draft,
+keeps the popup and its text, and turns off IME conversion for that registration
+session.  Printable keys are inserted literally; cursor movement, Backspace,
+Delete, Enter and Escape continue to work.  The buffer's Caskk mappings are
+removed after the registration is accepted or cancelled.
+
+registration_prefill controls whether the requested reading starts as preedit
+in this popup.  The popup uses the same input scheme, dictionaries, actions,
+and shared user state as the regular registration window.  Conversion results
+already committed inside the registration input retain their normal learning,
+even if the popup is later cancelled.
+
+Up/Down, Home/End, Tab, PageUp/PageDown, Insert, function keys, and unassigned
+Ctrl keys do not edit the draft; when captured by Caskk, they are ignored.
+Caskk does not provide general Vim editing,
+paste, mouse, or terminal-specific key handling in this popup.  Leaving Insert
+mode, changing or wiping the source buffer, or disabling Caskk closes the popup
+and discards the unfinished draft.
 
 An empty candidate keeps the window open and shows a message so that input can
 be retried.  Cancelling discards the current unconfirmed candidate without
@@ -408,10 +442,11 @@ rank after normal candidates in later conversions.
 Mode actions switch directly to their named mode.  Triggering the current
 non-hiragana mode again returns to hiragana.  While a modified hiragana reading
 is in preedit, KatakanaMode and HalfwidthKatakanaMode commit it as katakana or
-halfwidth katakana and switch to that mode.  While abbreviation text is in
-preedit, FullwidthAlphanumericMode commits it as fullwidth alphanumeric and
-switches to that mode.  Other mode actions are unavailable during preedit or
-candidate selection; in that state their keys fall through to normal input.
+halfwidth katakana while keeping the input mode as hiragana.  While abbreviation
+text is in preedit, FullwidthAlphanumericMode commits it as fullwidth
+alphanumeric while keeping abbreviation mode active.  Other mode actions are
+unavailable during preedit or candidate selection; in that state their keys
+fall through to normal input.
 
 AbbreviationMode                              *caskk-action-abbreviation-mode*
 Enters abbreviation input, where typed characters are used directly as the
@@ -524,9 +559,9 @@ strings; an empty string hides that marker.  For example: >vim9
 
 mode_popup_time                                *caskk-config-mode-popup-time*
 
-mode_popup_time is a nonnegative number of milliseconds and defaults to 1000.
-Set it to 0 to keep the popup until it is closed by cursor movement or the input
-session ending.
+mode_popup_time is a nonnegative number of milliseconds and defaults to 0, which
+keeps the popup until it is closed by cursor movement or the input session ending.
+Set it to a positive number to close it after that many milliseconds.
 
 dictionaries                                      *caskk-config-dictionaries*
 

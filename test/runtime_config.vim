@@ -138,7 +138,7 @@ suite.mode_actions_commit_modified_reading_in_the_target_kana_script = (): void 
       Caskk.Config({sticky_key: ';', mappings: mappings})
       Caskk.Enable('configured')
       feedkeys("a;ka" .. key .. "ka\<Esc>", 'xt')
-      assert.equals(getline(1), '前' .. expected .. expected .. '後')
+      assert.equals(getline(1), '前' .. expected .. 'か後')
       assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
     finally
       Cleanup(context)
@@ -152,8 +152,8 @@ suite.fullwidth_mode_action_commits_abbreviation_as_fullwidth_text = (): void =>
   Caskk.Config({mappings: {
     "\<F3>": 'FullwidthAlphanumericMode', "\<F4>": 'AbbreviationMode'}})
   Caskk.Enable('configured')
-  feedkeys("a\<F4>apple\<F3>\<Esc>", 'xt')
-  assert.equals(getline(1), '前ａｐｐｌｅ後')
+  feedkeys("a\<F4>apple\<F3>pear\<Esc>", 'xt')
+  assert.equals(getline(1), '前ａｐｐｌｅpear後')
   assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
 }
 
