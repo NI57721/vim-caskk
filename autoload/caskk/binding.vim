@@ -8,6 +8,7 @@ import autoload 'caskk/input/keycode.vim' as keycode
 import autoload 'caskk/input/mapping.vim' as mapping
 import autoload 'caskk/input/mode.vim' as input_mode
 import autoload 'caskk/presentation/mode_popup.vim' as mode_popup
+import autoload 'caskk/presentation/candidate.vim' as candidate_view
 import autoload 'caskk/presentation/registration_inline.vim' as registration_inline
 import 'caskk/dictionary.vim' as dictionary
 import 'caskk/registration.vim' as registration
@@ -297,9 +298,7 @@ export class Binding
     if message !=# ''
       lines->add(message)
     elseif this._inline_input.InCandidate()
-      const info = this._inline_input.GetCandidateInfo()
-      const marker = info.tier ==# 'pinned' ? '★ ' : info.tier ==# 'demoted' ? '↓ ' : ''
-      lines->add((info.index + 1) .. '/' .. info.count .. ' ' .. marker .. info.text)
+      lines->extend(candidate_view.Format(this._inline_input.GetCandidatesInfo()))
     else
       const snapshot = this._inline_input.GetSnapshot()
       var draft = this._inline_text
@@ -453,6 +452,9 @@ export class Binding
     elseif this._ModeForAction(action) !=# '' && this._inline_input.CanChangeInputMode()
       this._inline_input.SetInputMode(this._ModeForAction(action))
       this._RefreshInlinePopup()
+    elseif this._ModeForAction(action) !=# ''
+        && this._inline_input.CanCommitPreeditAsMode(this._ModeForAction(action))
+      this._AppendInlineResults(this._inline_input.CommitPreeditAsMode(this._ModeForAction(action)))
     else
       this._FeedInline(key)
     endif
@@ -476,6 +478,7 @@ export class Binding
       return this.GetRegistrationRequest() isnot null_object
     elseif this._ModeForAction(action) != ''
       return this._editor.CanChangeInputMode()
+        || this._editor.CanCommitPreeditAsMode(this._ModeForAction(action))
     endif
     return false
   enddef
@@ -600,10 +603,15 @@ export class Binding
     elseif action ==# 'OpenRegistration'
       this.OpenRegistrationWindow(configuration.GetRegistrationPrefill())
     elseif this._ModeForAction(action) != ''
-      this._editor.SetInputMode(this._ModeForAction(action))
-      this._input_mode = this._editor.GetInputMode()
-      this._mode_marker = ''
-      this._mode_view.Show(this._input_mode, this._mode_marker)
+      const mode = this._ModeForAction(action)
+      if this._editor.CanCommitPreeditAsMode(mode)
+        this._Record(this._editor.CommitPreeditAsMode(mode))
+      else
+        this._editor.SetInputMode(mode)
+        this._input_mode = this._editor.GetInputMode()
+        this._mode_marker = ''
+        this._mode_view.Show(this._input_mode, this._mode_marker)
+      endif
     else
       this._Record(this._editor.Feed(key))
     endif

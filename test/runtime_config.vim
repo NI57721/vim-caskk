@@ -113,6 +113,37 @@ suite.mode_mappings_switch_between_modes_and_convert_abbreviations = (): void =>
   assert.equals(getline(1), '前カかｶＩ　ｌｉｋｅ　ａｐｐｌｅｓ！　Ｄｏ　ｙｏｕ？アップルｋａ後')
 }
 
+suite.mode_actions_commit_modified_reading_in_the_target_kana_script = (): void => {
+  for [key, action, expected] in [
+    ["\<F1>", 'KatakanaMode', 'カ'],
+    ["\<F2>", 'HalfwidthKatakanaMode', 'ｶ'],
+  ]
+    const context = Setup()
+    try
+      var mappings: dict<string> = {}
+      mappings[key] = action
+      Caskk.Config({sticky_key: ';', mappings: mappings})
+      Caskk.Enable('configured')
+      feedkeys("a;ka" .. key .. "ka\<Esc>", 'xt')
+      assert.equals(getline(1), '前' .. expected .. expected .. '後')
+      assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
+    finally
+      Cleanup(context)
+    endtry
+  endfor
+}
+
+suite.fullwidth_mode_action_commits_abbreviation_as_fullwidth_text = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  Caskk.Config({mappings: {
+    "\<F3>": 'FullwidthAlphanumericMode', "\<F4>": 'AbbreviationMode'}})
+  Caskk.Enable('configured')
+  feedkeys("a\<F4>apple\<F3>\<Esc>", 'xt')
+  assert.equals(getline(1), '前ａｐｐｌｅ後')
+  assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
+}
+
 suite.abbreviation_commit_restores_the_mode_active_before_abbreviation = (): void => {
   const context = Setup()
   defer Cleanup(context)

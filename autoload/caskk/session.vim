@@ -412,6 +412,27 @@ export class Session
     return true
   enddef
 
+  def CanCommitPreeditAsMode(requested: string): bool
+    if !this._state.in_preedit || this.InCandidate() || !empty(this._composer.Pending())
+        || this._normalizer.HasPendingModifier()
+      return false
+    endif
+    const next = input_mode.Transition(this._input_mode, requested)
+    return (this._input_mode == input_mode.HIRAGANA
+        && (next == input_mode.KATAKANA || next == input_mode.HALFWIDTH_KATAKANA))
+      || (this._input_mode == input_mode.ABBREVIATION
+        && next == input_mode.FULLWIDTH_ALPHANUMERIC)
+  enddef
+
+  def CommitPreeditAsMode(requested: string): list<Result>
+    if !this.CanCommitPreeditAsMode(requested)
+      throw 'caskk: preedit cannot be committed in the requested input mode'
+    endif
+    this._input_mode = input_mode.Transition(this._input_mode, requested)
+    this._abbreviation_return_mode = ''
+    return this.Commit()
+  enddef
+
   def _RestoreAbbreviationMode()
     if this._input_mode == input_mode.ABBREVIATION
       this._input_mode = this._abbreviation_return_mode == '' ? input_mode.HIRAGANA

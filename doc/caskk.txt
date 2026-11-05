@@ -334,9 +334,12 @@ The default is an empty dictionary.  Unknown actions and invalid key names are r
 the selected input grammar are checked when Enable() installs the mappings.
 
 Mode actions switch directly to their named mode.  Triggering the current
-non-hiragana mode again returns to hiragana.  A mode action is unavailable while
-preedit, candidate selection, or modified input is pending; in that state its key
-falls through to normal input handling.
+non-hiragana mode again returns to hiragana.  While a modified hiragana reading
+is in preedit, KatakanaMode and HalfwidthKatakanaMode commit it as katakana or
+halfwidth katakana and switch to that mode.  While abbreviation text is in
+preedit, FullwidthAlphanumericMode commits it as fullwidth alphanumeric and
+switches to that mode.  Other mode actions are unavailable during preedit or
+candidate selection; in that state their keys fall through to normal input.
 
 AbbreviationMode takes subsequent keyboard characters as the reading for direct
 dictionary lookup.  The first character starts preedit, and abbreviation input

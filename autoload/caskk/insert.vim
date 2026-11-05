@@ -291,6 +291,15 @@ export class Editor
     return this._session.SetInputMode(requested)
   enddef
 
+  def CanCommitPreeditAsMode(requested: string): bool
+    return this._session.CanCommitPreeditAsMode(requested)
+  enddef
+
+  def CommitPreeditAsMode(requested: string): list<session.Result>
+    this._CheckInput()
+    return this._Apply(this._session.CommitPreeditAsMode(requested))
+  enddef
+
   def GetInputMode(): string
     return this._session.GetInputMode()
   enddef
