@@ -17,6 +17,13 @@ RegisterInputScheme(definition) compiles and stores a named scheme.  The
 definition dictionary requires `name`, `consonants`, and `combinations` fields;
 `specials` is optional.  Consonants, combinations, and specials are dictionaries
 of strings.
+
+name                                                     *caskk-scheme-name*
+The required string name identifies this scheme for GetInputScheme(),
+Enable(), and Toggle().  Registering an existing name replaces its definition
+for future retrievals and activations.
+
+consonants                                         *caskk-scheme-consonants*
 Consonant keys may be any nonempty input sequence.  Their values must name one
 consonant identifier defined by the kana table; an identifier may contain
 multiple characters, such as 'wh' or 'xy'.  The configuration-only
@@ -27,12 +34,19 @@ stored as output symbols, not consonant rows.  For example:
       name: 'custom', consonants: {q: 'N', l: 'T'}, combinations: {},
     })
 <
-The optional specials dictionary maps input key sequences to output patterns.
+combinations                                     *caskk-scheme-combinations*
 Combination keys must each be exactly one KeyToken.  Their values start with
 one kana-table vowel and contain only sequences accepted by its kana generator,
 plus at most one latent boundary `*`.  `N` and `T` are kana-output symbols here,
 not consonant rows.  Combination values do not use escapes.  For example,
 `e*Tte` is valid, while `ka` and `a\*` are not.
+
+specials                                             *caskk-scheme-specials*
+The optional specials dictionary maps input key sequences to output patterns.
+Specials take precedence over generated consonant/combination rules.  Their
+output is arbitrary text; unescaped `*` marks the latent boundary, and `\*` /
+`\\` represent literal `*` / `\`.  At most one unescaped `*` is allowed in a
+special output.
 
 Input keys are sequences of actual Vim keycodes and ordinary characters.  Write
 a physical Vim key using a double-quoted expression such as `"\<C-K>"`.
@@ -139,6 +153,8 @@ automatically.  This includes automatic conversion when okuri is completed and
 moving past the last candidate with NextCandidate.  No extra opening key is
 needed.
 
+registration_auto                                  *caskk-config-registration-auto*
+
 registration_auto is a Boolean and defaults to true.  Set it to false for manual
 opening or custom registration integration.  This setting is copied at Enable();
 use Disable() then Enable(name) to change an already enabled buffer.
@@ -158,11 +174,15 @@ state as the original input.  Enter confirms its text as the candidate body; Esc
 and returns to the original reading.  These keys work in both Insert and Normal
 mode.  The original buffer range and undo boundaries are preserved.
 
+registration_prefill                        *caskk-config-registration-prefill*
+
 registration_prefill defaults to true.  The window starts with the requested
 reading as highlighted preedit, ready for ordinary IME input and conversion.
 Only the reading is prefilled; display okuri is shown in the title and appended
 by the original session after registration.  Set registration_prefill to false
 to start with an empty input field.  This setting is read when the window opens.
+
+registration_inline                        *caskk-config-registration-inline*
 
 registration_inline is a boolean that defaults to false.  When true, the
 registration input is shown in a popup beside the current insertion point;
@@ -194,6 +214,8 @@ available for custom integration with registration_auto set to false.
 
 USER STATE                                              *caskk-load-state*
                                                         *caskk-save-state*
+
+state_path                                           *caskk-config-state-path*
 
 Set the state_path configuration field, then load or save explicitly: >vim9
 
@@ -235,6 +257,8 @@ Failures preserve the in-memory state and remove temporary files.  Errors are
 reported to the caller.
 
 AUTOMATIC USER STATE                                    *caskk-state-auto*
+
+state_auto                                           *caskk-config-state-auto*
 
 Set state_auto to true to opt into initialization and exit saving: >vim9
 
@@ -292,18 +316,28 @@ In Vim9 script: >vim9
       },
     })
 <
-Supported settings are sticky_key, keyboard_layout, keyboard_layout_overrides, mappings, dictionaries, state_path, state_auto,
-persist_input_mode, registration_prefill, registration_auto, registration_inline, candidate_popup, mode_popup, mode_popup_labels,
-mode_popup_markers, mode_popup_time, and highlight.preedit. Input scheme
-definitions remain separate from ordinary configuration.
+Supported settings are |caskk-config-sticky-key|, |caskk-config-keyboard-layout|,
+|caskk-config-keyboard-layout-overrides|, |caskk-config-mappings|,
+|caskk-config-dictionaries|, |caskk-config-state-path|,
+|caskk-config-state-auto|, |caskk-config-small-tsu-okuri-as-t|,
+|caskk-config-persist-input-mode|, |caskk-config-registration-prefill|,
+|caskk-config-registration-auto|, |caskk-config-registration-inline|,
+|caskk-config-candidate-popup|, |caskk-config-mode-popup|,
+|caskk-config-mode-popup-labels|, |caskk-config-mode-popup-markers|,
+|caskk-config-mode-popup-time|, and |caskk-config-highlight|. Input scheme
+fields are documented separately under |caskk-input-schemes|.
 
 Each Config() call builds a complete configuration from defaults and the supplied
 values.  Omitted term, cterm, and gui fields default to 'underline'.  Calling
 Config({}) restores the defaults.
 
+sticky_key                                             *caskk-config-sticky-key*
+
 sticky_key is a single printable character or a supported named KeyToken, such
 as '<F9>'.  Its default is '', which disables sticky input.  The sticky key marks
 the next input as Modified, just like an uppercase letter.
+
+keyboard_layout                                   *caskk-config-keyboard-layout*
 
 keyboard_layout selects how shifted printable symbols are normalized before
 input-scheme matching.  It accepts 'US' or 'JIS' and defaults to 'US'.  For
@@ -312,6 +346,8 @@ Modified('2') on US and '"' becomes Modified('2') on JIS.  The layout setting
 does not affect named keys such as '<F10>'.  On JIS, '?' can come from both
 Shift+0 and Shift+/, so it is normalized as Modified('0'); Vim's character
 input does not distinguish those physical keys.
+
+keyboard_layout_overrides                 *caskk-config-keyboard-layout-overrides*
 
 keyboard_layout_overrides is an optional dictionary from an unshifted key to
 the character produced by its modified form.  For example,
@@ -322,16 +358,52 @@ override takes precedence for that symbol.  Keys and values must each be one
 printable character, and override values must be unique.  The default is an
 empty dictionary.
 
+mappings                                             *caskk-config-mappings*
+
 mappings is a dictionary from KeyTokens to action names.  Vim special keys must
 use an actual keycode expression, such as "\<Space>", "\<C-N>", or "\<F10>".
 Angle-bracket key-name strings such as '<Space>' and '<F10>' are rejected.
 Ordinary printable keys such as 'q' remain single-character strings.  Multiple
 entries that resolve to the same physical key are rejected.  Supported actions are
-Convert, NextCandidate, PreviousCandidate, Commit, OpenRegistration,
-TogglePin, ToggleDemote, AbbreviationMode, KatakanaMode,
-HalfwidthKatakanaMode, and FullwidthAlphanumericMode.
-The default is an empty dictionary.  Unknown actions and invalid key names are rejected.  Conflicts with
-the selected input grammar are checked when Enable() installs the mappings.
+|caskk-action-convert|, |caskk-action-next-candidate|,
+|caskk-action-previous-candidate|, |caskk-action-commit|,
+|caskk-action-open-registration|, |caskk-action-toggle-pin|,
+|caskk-action-toggle-demote|, |caskk-action-abbreviation-mode|,
+|caskk-action-katakana-mode|, |caskk-action-halfwidth-katakana-mode|, and
+|caskk-action-fullwidth-alphanumeric-mode|.
+The default is an empty dictionary.  Unknown actions and invalid key names are
+rejected.  Conflicts with the selected input grammar are checked when Enable()
+installs the mappings.
+
+Each action may be assigned to one or more physical keys.  The action names
+are documented below; the default action dictionary is empty.
+
+Convert                                                  *caskk-action-convert*
+Starts conversion for preedit text.  During candidate selection, the same
+action advances to the next candidate.
+
+NextCandidate                                    *caskk-action-next-candidate*
+Selects the next candidate.  At the end of the list, conversion proceeds to
+the dictionary-registration request.
+
+PreviousCandidate                          *caskk-action-previous-candidate*
+Selects the previous candidate.  At the first candidate, it returns to the
+editable reading.
+
+Commit                                                    *caskk-action-commit*
+Commits the selected candidate or current preedit text.
+
+OpenRegistration                                *caskk-action-open-registration*
+Opens the pending dictionary-registration request when automatic registration
+is disabled.
+
+TogglePin                                                *caskk-action-toggle-pin*
+Toggles the pinned preference for the selected candidate.  Pinned candidates
+rank before normal candidates in later conversions.
+
+ToggleDemote                                          *caskk-action-toggle-demote*
+Toggles the demoted preference for the selected candidate.  Demoted candidates
+rank after normal candidates in later conversions.
 
 Mode actions switch directly to their named mode.  Triggering the current
 non-hiragana mode again returns to hiragana.  While a modified hiragana reading
@@ -341,12 +413,41 @@ preedit, FullwidthAlphanumericMode commits it as fullwidth alphanumeric and
 switches to that mode.  Other mode actions are unavailable during preedit or
 candidate selection; in that state their keys fall through to normal input.
 
+AbbreviationMode                              *caskk-action-abbreviation-mode*
+Enters abbreviation input, where typed characters are used directly as the
+dictionary reading.  See |caskk-abbreviation-mode| for numeric placeholders.
+
+KatakanaMode                                      *caskk-action-katakana-mode*
+Enters katakana input mode.
+
+HalfwidthKatakanaMode                    *caskk-action-halfwidth-katakana-mode*
+Enters halfwidth katakana input mode.
+
+FullwidthAlphanumericMode        *caskk-action-fullwidth-alphanumeric-mode*
+Enters fullwidth alphanumeric input mode, which inserts fullwidth forms
+without dictionary conversion.
+
+small_tsu_okuri_as_t                         *caskk-config-small-tsu-okuri-as-t*
+
+small_tsu_okuri_as_t is a boolean that defaults to true.  When true, a small
+'っ' at the start of latent okuri is looked up using the SKK 'っt' prefix, so a
+rule such as 'e*Tte' can match the okuri from a reading like 'けっ'.  Set it to
+false to use the ordinary SKK prefix for 'っ'.  This option affects dictionary
+lookup, not the displayed okuri.
+
+The setting is copied when an input session starts; disable and re-enable the
+IME to apply a changed value to an already enabled buffer.
+
+AbbreviationMode                                      *caskk-abbreviation-mode*
+
 AbbreviationMode takes subsequent keyboard characters as the reading for direct
 dictionary lookup.  The first character starts preedit, and abbreviation input
 does not have okuri.  For example, an `apple /アップル/` entry can be converted by
 entering AbbreviationMode, typing 'apple', and invoking Convert.
 After committing an abbreviation conversion, the input mode returns to the mode
 that was active before AbbreviationMode was entered.
+
+Numeric dictionary conversion                              *caskk-numeric-conversion*
 
 ASCII digit runs in a conversion reading are replaced by '#' when looking up a
 dictionary key.  In a candidate, each '#0' is replaced by the corresponding
@@ -363,6 +464,8 @@ katakana.  Kanji in candidates are unchanged.  FullwidthAlphanumericMode bypasse
 kana composition and dictionary conversion; it maps ASCII letters, digits,
 punctuation, and space to their fullwidth forms.
 
+persist_input_mode                         *caskk-config-persist-input-mode*
+
 persist_input_mode is a boolean that defaults to false.  When false, leaving
 Insert mode resets the active mode to hiragana.  Set it to true to preserve the
 active mode when Insert mode is entered again in the same enabled buffer.
@@ -371,6 +474,8 @@ Input settings are copied when accepted.  Changing the original dictionary does
 not change the configuration.  Changes to sticky_key and mappings take effect
 on the next activation; use Disable() then Enable(name) to update an enabled
 buffer.  Highlight settings continue to apply to presentation independently.
+
+candidate_popup                                  *caskk-config-candidate-popup*
 
 candidate_popup is a boolean that controls the candidate list popup.  It
 defaults to true.  The popup lists all ranked candidates with their position,
@@ -387,6 +492,8 @@ marked with '★' and a demoted candidate with '↓' in the candidate popup.  Th
 choice affects ranking on subsequent conversions; it does not change the
 candidate currently being selected.
 
+mode_popup                                        *caskk-config-mode-popup*
+
 mode_popup is a boolean that controls the short-lived popup showing the active
 input mode.  It defaults to true.  The popup appears when an Insert-mode input
 session starts and when a mode changes, near the cursor without taking focus.
@@ -395,6 +502,8 @@ The label is prefixed with '▽' while a modified reading is being composed and
 '▼' while conversion candidates are being selected. The popup uses Vim's Pmenu
 highlight group.
 
+mode_popup_labels                            *caskk-config-mode-popup-labels*
+
 mode_popup_labels optionally replaces the default label for each mode.  It is
 a dictionary whose keys are hiragana, abbreviation, katakana,
 halfwidth_katakana, and fullwidth_alphanumeric.  Defaults are 'あ', 'ab', 'ア',
@@ -402,9 +511,9 @@ halfwidth_katakana, and fullwidth_alphanumeric.  Defaults are 'あ', 'ab', 'ア'
 
     Caskk.Config({mode_popup_labels: {hiragana: 'かな', katakana: 'カナ'}})
 <
-Omitted labels retain their defaults.  mode_popup_time is a nonnegative number
-of milliseconds and defaults to 1000.  Set it to 0 to keep the popup until it
-is closed by cursor movement or the input session ending.
+Omitted labels retain their defaults.
+
+mode_popup_markers                          *caskk-config-mode-popup-markers*
 
 mode_popup_markers optionally replaces the marker shown before the mode label.
 Its keys are modified and candidate, defaulting to '▽' and '▼'.  Values are
@@ -412,6 +521,14 @@ strings; an empty string hides that marker.  For example: >vim9
 
     Caskk.Config({mode_popup_markers: {modified: '＊', candidate: '●'}})
 <
+
+mode_popup_time                                *caskk-config-mode-popup-time*
+
+mode_popup_time is a nonnegative number of milliseconds and defaults to 1000.
+Set it to 0 to keep the popup until it is closed by cursor movement or the input
+session ending.
+
+dictionaries                                      *caskk-config-dictionaries*
 
 dictionaries is a list of read-only SKK dictionary sources in candidate priority
 order.  The default is an empty list.  Each source is either a nonempty path
@@ -446,7 +563,11 @@ Config() accepts a heterogeneous dictionary and validates its keys, value types,
 and contents before retaining typed settings.  A failure retains the previous
 input settings as well as the previous highlight settings.
 
-term, cterm, and gui accept comma-separated highlight attributes, such as
+highlight.preedit                                  *caskk-config-highlight*
+
+highlight.preedit controls the CaskkPreedit group used for preedit text and the
+latent okuri boundary marker.  Its term, cterm, and gui fields accept
+comma-separated highlight attributes, such as
 'bold,underline'.  Use 'NONE' to disable attributes for that display mode.
 See |highlight-args| for the meaning of Vim highlight attributes.
 
