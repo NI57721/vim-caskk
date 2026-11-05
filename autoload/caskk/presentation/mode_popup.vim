@@ -25,8 +25,10 @@ export class View
     const markers = configuration.GetModePopupMarkers()
     const marker = get(markers, state, '')
     const label = marker .. labels[input_mode.LabelName(mode)]
+    const cursor_position = screenpos(win_getid(), line('.'), col('.'))
     const position = {
-      line: 'cursor+1', col: 'cursor', pos: 'topleft', posinvert: true,
+      line: cursor_position.row + 1, col: cursor_position.col,
+      pos: 'topleft', posinvert: true,
       padding: [0, 1, 0, 1], highlight: 'Pmenu', moved: 'any',
     }
     const timeout = configuration.GetModePopupTime()

@@ -559,9 +559,10 @@ strings; an empty string hides that marker.  For example: >vim9
 
 mode_popup_time                                *caskk-config-mode-popup-time*
 
-mode_popup_time is a nonnegative number of milliseconds and defaults to 0, which
-keeps the popup until it is closed by cursor movement or the input session ending.
-Set it to a positive number to close it after that many milliseconds.
+mode_popup_time is a nonnegative number of milliseconds and defaults to 0. With
+the default, the popup follows the cursor as Caskk input advances it, and remains
+visible until Vim cursor movement or the input session ending closes it. Set it
+to a positive number to close it after that many milliseconds.
 
 dictionaries                                      *caskk-config-dictionaries*
 

@@ -6,15 +6,26 @@ final suite = themis#suite('input mode popup')
 const assert = themis#helper('assert')
 
 var captures: list<list<list<string>>> = []
+var capture_positions: list<list<list<number>>> = []
+var capture_cursor_positions: list<list<number>> = []
 var previous_buffer = 0
 var test_buffer = 0
 
 def g:CaskkTestModePopupCapture()
   final popup_lines: list<list<string>> = []
+  var positions: list<list<number>> = []
   for id in popup_list()
-    popup_lines->add(getbufline(winbufnr(id), 1, '$'))
+    if !empty(popup_getpos(id))
+      const lines = getbufline(winbufnr(id), 1, '$')
+      popup_lines->add(lines)
+      const position = popup_getpos(id)
+      positions->add([position.line, position.col])
+    endif
   endfor
   captures->add(popup_lines)
+  capture_positions->add(positions)
+  const cursor_position = screenpos(win_getid(), line('.'), col('.'))
+  capture_cursor_positions->add([cursor_position.row, cursor_position.col])
 enddef
 
 def g:CaskkTestModePopupCaptureAfterDelay()
@@ -39,6 +50,8 @@ def Setup(options: dict<any> = {}): void
   Caskk.RegisterInputScheme({name: 'mode-popup-test', consonants: {k: 'k'},
     combinations: {a: 'a'}})
   captures = []
+  capture_positions = []
+  capture_cursor_positions = []
   inoremap <buffer> <F12> <Cmd>call CaskkTestModePopupCapture()<CR>
   Caskk.Config(extend({mappings: {"\<F1>": 'KatakanaMode', "\<F2>": 'AbbreviationMode',
     "\<Space>": 'Convert', "\<F3>": 'Commit'}}, options))
@@ -147,6 +160,16 @@ suite.default_mode_popup_stays_visible_after_the_initial_timeout = (): void => {
 suite.mode_popup_follows_the_cursor_during_preedit_input = (): void => {
   Setup({mode_popup_time: 0})
   defer Cleanup()
-  feedkeys("aKakak\<F12>\<Esc>", 'xt')
-  assert.equals(captures, [[['▽あ']]])
+  feedkeys("aKa\<F12>ka\<F12>ka\<F12>\<Esc>", 'xt')
+  assert.equals(captures, [[['▽あ']], [['▽あ']], [['▽あ']]])
+  assert.equals(capture_cursor_positions, [[1, 5], [1, 7], [1, 9]])
+  assert.equals(capture_positions, [[[2, 5]], [[2, 7]], [[2, 9]]])
+}
+
+suite.mode_popup_returns_after_cursor_movement_and_stays_visible = (): void => {
+  Setup()
+  defer Cleanup()
+  inoremap <buffer> <F12> <Cmd>call CaskkTestModePopupCaptureAfterTimeout()<CR>
+  feedkeys("aKa\<F12>ka\<F12>\<Esc>", 'xt')
+  assert.equals(captures, [[['▽あ']], [['▽あ']]])
 }

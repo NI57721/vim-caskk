@@ -313,7 +313,8 @@ export class Binding
     const mode = this._editor.GetInputMode()
     const snapshot = this._editor.GetSnapshot()
     const marker = this._editor.IsInCandidate() ? 'candidate' : snapshot.in_preedit ? 'modified' : ''
-    if mode !=# this._input_mode || marker !=# this._mode_marker
+    if configuration.GetModePopupTime() == 0
+        || mode !=# this._input_mode || marker !=# this._mode_marker
       this._input_mode = mode
       this._mode_marker = marker
       this._mode_view.Show(mode, marker)
@@ -380,7 +381,8 @@ export class Binding
     const snapshot = this._inline_input.GetSnapshot()
     const marker = this._inline_input.InCandidate() ? 'candidate' : snapshot.in_preedit ? 'modified' : ''
     const mode = this._inline_input.GetInputMode()
-    if !this._inline_mode_view_active || mode !=# this._input_mode || marker !=# this._mode_marker
+    if !this._inline_mode_view_active || configuration.GetModePopupTime() == 0
+        || mode !=# this._input_mode || marker !=# this._mode_marker
       this._mode_view.Show(mode, marker)
       this._inline_mode_view_active = true
       this._input_mode = mode
