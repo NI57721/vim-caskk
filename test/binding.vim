@@ -364,6 +364,20 @@ suite.convert_mapping_starts_advances_and_requests_registration_after_last_candi
   unlet! g:caskk_binding_snapshots
 }
 
+suite.tab_after_candidate_selection_commits_then_inserts_a_native_tab = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  setlocal noexpandtab
+  const entries = merger.Merge([[parser.ParseLine('か /蚊/')]])
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries,
+    null_object, {s: 'Convert'})
+  keys.Enable()
+  feedkeys("aKas\<Tab>\<Esc>", 'xt')
+  assert.equals(getline(1), "前蚊\t後")
+  assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
+  keys.Disable()
+}
+
 suite.modified_standalone_vowel_does_not_modify_input_after_okuri_candidate_commit = (): void => {
   const context = Setup()
   defer Cleanup(context)

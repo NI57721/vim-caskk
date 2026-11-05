@@ -14,7 +14,7 @@ import 'caskk/registration.vim' as registration
 import autoload 'caskk/registration/window.vim' as registration_window
 import autoload 'caskk/config.vim' as configuration
 
-const NATIVE_KEYS = ['<Left>', '<Right>', '<Up>', '<Down>', '<Home>', '<End>', '<CR>', '<BS>']
+const NATIVE_KEYS = ['<Left>', '<Right>', '<Up>', '<Down>', '<Home>', '<End>', '<CR>', '<Tab>', '<BS>']
 
 # Preserve raw keycodes and the defining script context in typed fields.
 class Mapping
