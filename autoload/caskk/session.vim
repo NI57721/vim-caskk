@@ -286,6 +286,32 @@ export class Session
     this._selection.ToggleDemote()
   enddef
 
+  def CanDeleteUserEntry(): bool
+    return this.InCandidate() && this._preferences.HasEntryForLookup(
+      this._prepared.query, this._selection.GetInfo().text)
+  enddef
+
+  def DeleteUserEntry(): Result
+    if !this.CanDeleteUserEntry()
+      throw 'caskk: selected candidate is not a user entry'
+    endif
+    const info = this._selection.GetInfo()
+    this._preferences.DeleteEntryForLookup(this._prepared.query, info.text)
+    const prepared = conversion.Prepare(this._entries, this._preferences,
+      this._prepared.query.reading, this._prepared.okuri, this._small_tsu_okuri_as_t)
+    this._prepared = prepared
+    if empty(prepared.candidates)
+      this._selection = null_object
+      this._prepared = null_object
+      return Result.new(this._DisplayPreedit(), [], this._state.GetSnapshot(), false, false, true,
+        false, false, this._DisplayPreedit())
+    endif
+    this._selection = conversion.Selection.new(prepared, this._preferences)
+    const texts = mapnew(prepared.candidates, (_, candidate) => candidate.text)
+    const selected = index(texts, info.text)
+    return this.SelectCandidate(selected >= 0 ? selected : min([info.index, len(texts) - 1]))
+  enddef
+
   # A missing dictionary key leaves an empty set here for registration UI.
   # Otherwise no prepared request is represented by null_object.
   def GetCandidates(): conversion.Candidates

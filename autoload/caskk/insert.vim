@@ -282,6 +282,16 @@ export class Editor
     this._candidate_view.Render(this._session.GetCandidatesInfo())
   enddef
 
+  def CanDeleteUserEntry(): bool
+    this._CheckInput()
+    return this._session.CanDeleteUserEntry()
+  enddef
+
+  def DeleteUserEntry(): session.Result
+    this._CheckInput()
+    return this._Apply([this._session.DeleteUserEntry()])[0]
+  enddef
+
   def Commit(): list<session.Result>
     this._CheckInput()
     const results = this._Apply(this._session.Commit())

@@ -3,6 +3,7 @@ vim9script
 import 'caskk/dictionary.vim' as dictionary
 import autoload 'caskk/candidate/ranking.vim' as ranking
 import autoload 'caskk/dictionary/merge.vim' as merger
+import autoload 'caskk/dictionary/lookup.vim' as lookup
 
 # Encode the pair to avoid collisions from concatenating reading and okuri.
 def Identity(query: dictionary.Query): string
@@ -93,6 +94,31 @@ export class State
     else
       this._entries[key] = remaining
     endif
+  enddef
+
+  def HasEntryForLookup(query: dictionary.Query, text: string): bool
+    for identity in sort(keys(this._entries))
+      const candidates = this._entries[identity]
+      const pair: list<string> = json_decode(identity)
+      if lookup.CreateQuery(pair[0], pair[1]).lookup_key ==# query.lookup_key
+          && index(mapnew(candidates, (_, candidate) => candidate.text), text) >= 0
+        return true
+      endif
+    endfor
+    return false
+  enddef
+
+  def DeleteEntryForLookup(query: dictionary.Query, text: string): bool
+    var deleted = false
+    for identity in sort(keys(this._entries))
+      const pair: list<string> = json_decode(identity)
+      if lookup.CreateQuery(pair[0], pair[1]).lookup_key ==# query.lookup_key
+          && index(mapnew(this._entries[identity], (_, candidate) => candidate.text), text) >= 0
+        this.DeleteEntry(lookup.CreateQuery(pair[0], pair[1]), text)
+        deleted = true
+      endif
+    endfor
+    return deleted
   enddef
 
   def Learn(query: dictionary.Query, text: string)

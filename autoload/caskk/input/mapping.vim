@@ -4,7 +4,7 @@ import autoload 'caskk/input/keycode.vim' as keycode
 
 const ACTIONS = [
   'Convert', 'NextCandidate', 'PreviousCandidate', 'Commit', 'OpenRegistration',
-  'TogglePin', 'ToggleDemote',
+  'TogglePin', 'ToggleDemote', 'DeleteUserEntry',
   'AbbreviationMode', 'KatakanaMode', 'HalfwidthKatakanaMode', 'FullwidthAlphanumericMode',
 ]
 

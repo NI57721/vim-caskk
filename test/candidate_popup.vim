@@ -2,6 +2,8 @@ vim9script
 
 import autoload 'caskk.vim' as Caskk
 import autoload 'caskk/scheme.vim' as scheme
+import 'caskk/dictionary.vim' as dictionary
+import autoload 'caskk/dictionary/lookup.vim' as lookup
 import autoload 'caskk/user_state.vim' as user_state
 import autoload 'caskk/user_state/runtime.vim' as user_runtime
 import autoload 'caskk/user_state/codec.vim' as codec
@@ -13,11 +15,13 @@ class Observation
   const popups: list<number>
   const buffers: list<number>
   const lines: list<string>
+  const firstline: number
+  const height: number
   const buffer: number
   const window: number
   const cursor: list<number>
 
-  def new(this.popups, this.buffers, this.lines, this.buffer, this.window, this.cursor)
+  def new(this.popups, this.buffers, this.lines, this.firstline, this.height, this.buffer, this.window, this.cursor)
   enddef
 endclass
 
@@ -31,7 +35,9 @@ def g:CaskkTestCandidatePopupCapture()
   const popups = filter(popup_list(), (_, id) => index(ignored_popups, id) < 0)
   const buffers = mapnew(popups, (_, id) => winbufnr(id))
   const lines = len(buffers) == 1 ? getbufline(buffers[0], 1, '$') : []
-  observations->add(Observation.new(popups, buffers, lines, bufnr('%'), win_getid(), [line('.'), col('.')]))
+  const position = len(popups) == 1 ? popup_getpos(popups[0]) : {}
+  observations->add(Observation.new(popups, buffers, lines, get(position, 'firstline', 0),
+    get(position, 'height', 0), bufnr('%'), win_getid(), [line('.'), col('.')]))
 enddef
 
 def g:CaskkTestCandidatePopupWipe()
@@ -52,7 +58,7 @@ class Fixture
   enddef
 endclass
 
-def Setup(candidate_popup: bool = true, extra_mappings: dict<string> = {}): Fixture
+def Setup(candidate_popup: bool = true, extra_mappings: dict<string> = {}, candidate_count: number = 2): Fixture
   const previous = bufnr('%')
   const existing_buffers = mapnew(getbufinfo(), (_, info) => info.bufnr)
   const existing_popups = popup_list()
@@ -67,7 +73,11 @@ def Setup(candidate_popup: bool = true, extra_mappings: dict<string> = {}): Fixt
   cursor(1, 1)
   const directory = tempname()
   mkdir(directory)
-  writefile(['か /蚊;昆虫/科;学科/'], directory .. '/system')
+  var dictionary_line = 'か /蚊;昆虫/科;学科'
+  for index in range(3, candidate_count)
+    dictionary_line ..= '/候補' .. index
+  endfor
+  writefile([dictionary_line .. '/'], directory .. '/system')
   const snapshot = user_runtime.Get().GetSnapshot()
   user_runtime.Get().Restore(user_state.State.new().GetSnapshot())
   observations = []
@@ -118,6 +128,34 @@ suite.navigation_updates_the_ranked_candidate_list_without_moving_the_input_curs
     assert.equals(observed.cursor, [1, 7])
   endfor
   assert.equals(getline(1), '前蚊後')
+}
+
+suite.selected_candidate_stays_inside_a_scrolled_popup_with_many_candidates = (): void => {
+  const fixture = Setup(true, {}, 40)
+  defer Cleanup(fixture)
+  feedkeys('aKas' .. repeat('n', 25) .. CAPTURE .. "c\<Esc>", 'xt')
+  assert.equals(len(observations), 1)
+  var selected = -1
+  for index in range(len(observations[0].lines))
+    if observations[0].lines[index] =~# '^▶'
+      selected = index
+      break
+    endif
+  endfor
+  assert.equals(selected, 25)
+  assert.equals(observations[0].firstline <= selected + 1, true)
+  assert.equals(selected + 1 < observations[0].firstline + observations[0].height, true)
+}
+
+suite.mapping_removes_the_selected_user_entry_and_refreshes_candidate_selection = (): void => {
+  const fixture = Setup(true, {x: 'DeleteUserEntry'})
+  defer Cleanup(fixture)
+  user_runtime.Get().AddEntry(lookup.CreateQuery('か', ''), dictionary.Candidate.new('登録のみ', []))
+  feedkeys('aKasnnx' .. CAPTURE .. "c\<Esc>", 'xt')
+  assert.equals(user_runtime.Get().GetSnapshot().entries, {})
+  assert.equals(observations[0].lines,
+    ['  1/2 蚊 — 昆虫', '▶ 2/2 科 — 学科'])
+  assert.equals(getline(1), '前科後')
 }
 
 suite.mappings_toggle_pin_and_demote_for_the_selected_candidate = (): void => {

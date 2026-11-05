@@ -451,6 +451,12 @@ ToggleDemote                                          *caskk-action-toggle-demot
 Toggles the demoted preference for the selected candidate.  Demoted candidates
 rank after normal candidates in later conversions.
 
+DeleteUserEntry                                  *caskk-action-delete-user-entry*
+Removes the selected candidate from the user dictionary when it is registered
+there, then refreshes candidate selection.  A candidate still present in a
+system dictionary remains available.  When the selected candidate has no user
+entry, the mapping is passed through as ordinary input.
+
 Mode actions switch directly to their named mode.  Triggering the current
 non-hiragana mode again returns to hiragana.  While a modified hiragana reading
 is in preedit, KatakanaMode and HalfwidthKatakanaMode commit it as katakana or

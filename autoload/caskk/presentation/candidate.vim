@@ -43,6 +43,7 @@ export class View
     const lines = Format(info)
     this._window = popup_create(lines, {
       line: 'cursor+1', col: 'cursor', pos: 'topleft', posinvert: true,
+      firstline: info.selected_index + 1,
       padding: [0, 1, 0, 1], maxwidth: 60,
       wrap: true, highlight: 'Pmenu', moved: 'any',
     })

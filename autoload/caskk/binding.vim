@@ -634,6 +634,9 @@ export class Binding
     elseif action ==# 'ToggleDemote' && this._inline_input.InCandidate()
       this._inline_input.ToggleDemote()
       this._RefreshInlinePopup()
+    elseif action ==# 'DeleteUserEntry' && this._inline_input.CanDeleteUserEntry()
+      this._AppendInlineResults([this._inline_input.DeleteUserEntry()])
+      this._RefreshInlinePopup()
     elseif action ==# 'Commit'
       this._AppendInlineResults(this._inline_input.Commit())
     elseif action ==# 'OpenRegistration'
@@ -661,6 +664,8 @@ export class Binding
       return has_candidate
     elseif action ==# 'TogglePin' || action ==# 'ToggleDemote'
       return has_candidate
+    elseif action ==# 'DeleteUserEntry'
+      return this._editor.CanDeleteUserEntry()
     elseif action ==# 'Commit'
       return has_candidate || snapshot.in_preedit
     elseif action ==# 'OpenRegistration'
@@ -793,6 +798,8 @@ export class Binding
       this._editor.TogglePin()
     elseif action ==# 'ToggleDemote'
       this._editor.ToggleDemote()
+    elseif action ==# 'DeleteUserEntry'
+      this._Record([this._editor.DeleteUserEntry()])
     elseif action ==# 'Commit'
       this._Record(this._editor.Commit())
     elseif action ==# 'OpenRegistration'
