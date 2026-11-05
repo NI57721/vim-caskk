@@ -30,7 +30,7 @@ export def ParseLine(line: string): dictionary.Entry
       throw 'caskk: invalid SKK dictionary entry'
     endif
     # These are personal-dictionary structures, not ordinary system candidates.
-    if stridx(text, '[') == 0 || text == ']'
+    if (stridx(text, '[') == 0 && stridx(text, ']') < 0) || text == ']'
       throw 'caskk: unsupported SKK okuri block'
     endif
 

@@ -79,6 +79,11 @@ suite.personal_dictionary_okuri_blocks_are_rejected = (): void => {
   assert.equals(caught, 'caskk: unsupported SKK okuri block')
 }
 
+suite.balanced_square_brackets_are_preserved_in_system_candidates = (): void => {
+  const entry = parser.ParseLine('あれきさんどろす /[Alexandros]/')
+  assert.equals(entry.candidates[0].text, '[Alexandros]')
+}
+
 suite.malformed_entries_are_rejected = (): void => {
   for line in [
     'かな',

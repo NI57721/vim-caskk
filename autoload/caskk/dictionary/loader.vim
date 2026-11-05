@@ -40,7 +40,9 @@ def ReadSource(source: Source): list<dictionary.Entry>
     try
       entry = parser.ParseLine(line)
     catch
-      throw 'caskk: dictionary ' .. source.path .. ':' .. (index + 1) .. ': ' .. v:exception
+      # System dictionaries may contain entries outside the supported subset.
+      # Ignore only that physical line and keep reading the rest of the source.
+      continue
     endtry
     if entry isnot null_object
       entries->add(entry)

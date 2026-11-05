@@ -136,23 +136,20 @@ suite.invalid_source_shapes_and_fields_are_rejected_without_changing_settings = 
   assert.equals(getline(1), '前か後')
 }
 
-suite.read_decode_and_parse_failures_keep_previous_dictionary_and_input_settings = (): void => {
+suite.read_and_decode_failures_keep_previous_dictionary_and_input_settings = (): void => {
   const context = Setup()
   defer Cleanup(context)
   const previous = tempname()
-  const invalid_text = tempname()
   const invalid_bytes = tempname()
   const missing = tempname()
   defer delete(previous)
-  defer delete(invalid_text)
   defer delete(invalid_bytes)
   writefile(['か /蚊/'], previous)
-  writefile(['か /未完'], invalid_text)
   writefile(0zFF, invalid_bytes)
   Caskk.Config({dictionaries: [previous], sticky_key: ';', mappings: {s: 'Convert'},
     highlight: {preedit: {cterm: 'bold'}}})
   const before = hlget('CaskkPreedit')
-  for path in [missing, invalid_bytes, invalid_text]
+  for path in [missing, invalid_bytes]
     var caught = ''
     try
       Caskk.Config({dictionaries: [previous, path], highlight: {preedit: {cterm: 'reverse'}}})
@@ -166,6 +163,18 @@ suite.read_decode_and_parse_failures_keep_previous_dictionary_and_input_settings
   Caskk.Enable('dictionary-config')
   feedkeys("a;kas\<Esc>", 'xt')
   assert.equals(getline(1), '前蚊後')
+}
+
+suite.configuration_skips_malformed_dictionary_lines_and_loads_later_entries = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const path = tempname()
+  defer delete(path)
+  writefile(['かな /未完', 'かな /仮名/'], path)
+  Caskk.Config({dictionaries: [path], mappings: {s: 'Convert'}})
+  Caskk.Enable('dictionary-config')
+  feedkeys("aXs\<Esc>", 'xt')
+  assert.equals(getline(1), '前仮名後')
 }
 
 suite.highlight_failure_does_not_publish_a_newly_loaded_dictionary = (): void => {

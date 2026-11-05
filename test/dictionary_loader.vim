@@ -126,30 +126,22 @@ suite.unknown_encoding_is_reported_instead_of_loading_garbled_text = (): void =>
   assert.equals(stridx(caught, prefix), 0, caught)
 }
 
-suite.parse_error_reports_physical_line_number = (): void => {
+suite.malformed_dictionary_line_is_skipped_and_following_entries_load = (): void => {
   const path = tempname()
   defer delete(path)
-  writefile([';; comment', '', 'かな /仮名', 'ほか /他/'], path)
-  var caught = ''
-  try
-    loader.Load([loader.Source.new(path)])
-  catch
-    caught = v:exception
-  endtry
-  assert.equals(caught, 'caskk: dictionary ' .. path .. ':3: caskk: invalid SKK dictionary entry')
+  writefile(['かな /仮名/', '壊れた行', 'ほか /他/'], path)
+  const entries = loader.Load([loader.Source.new(path)])
+  assert.equals(CandidateTexts(entries['かな']), ['仮名'])
+  assert.equals(CandidateTexts(entries['ほか']), ['他'])
 }
 
-suite.unsupported_okuri_block_reports_its_location = (): void => {
+suite.unsupported_okuri_block_is_skipped_and_following_entries_load = (): void => {
   const path = tempname()
   defer delete(path)
-  writefile([';; okuri-ari entries.', 'おおk /大/多/[き/大/]/'], path)
-  var caught = ''
-  try
-    loader.Load([loader.Source.new(path)])
-  catch
-    caught = v:exception
-  endtry
-  assert.equals(caught, 'caskk: dictionary ' .. path .. ':2: caskk: unsupported SKK okuri block')
+  writefile([';; okuri-ari entries.', 'おおk /大/多/[き/大/]/', 'ほか /他/'], path)
+  const entries = loader.Load([loader.Source.new(path)])
+  assert.equals(has_key(entries, 'おおk'), false)
+  assert.equals(CandidateTexts(entries['ほか']), ['他'])
 }
 
 suite.loading_is_read_only_and_results_do_not_depend_on_the_file = (): void => {
