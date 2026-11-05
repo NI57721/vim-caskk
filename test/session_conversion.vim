@@ -85,6 +85,20 @@ suite.abbreviation_mode_uses_ascii_reading_without_okuri_for_dictionary_lookup =
   assert.equals(ime.GetCandidates().query.exact_okuri, '')
 }
 
+suite.abbreviation_numeric_placeholder_preserves_each_input_number = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('#:# /#0時#0分/')]])
+  const ime = session.Session.new(scheme.Compile({}, {}), '', entries, user_state.State.new())
+  ime.SetInputMode(input_mode.ABBREVIATION)
+  for key in split('12:34', '\zs')
+    ime.Feed(key)
+  endfor
+  assert.equals(ime.GetSnapshot().reading, '12:34')
+  const results = ime.StartConversion(entries, user_state.State.new())
+  assert.equals(results[-1].text, '12時34分')
+  assert.equals(ime.GetCandidates().query.lookup_key, '#:#')
+  assert.equals(ime.Commit()[-1].text, '12時34分')
+}
+
 suite.abbreviation_mode_returns_to_the_mode_it_came_from_after_candidate_commit = (): void => {
   const entries = merger.Merge([[parser.ParseLine('apple /アップル/')]])
   const ime = session.Session.new(scheme.Compile({}, {}), '', entries, user_state.State.new())

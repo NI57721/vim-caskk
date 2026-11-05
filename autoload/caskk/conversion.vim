@@ -2,6 +2,7 @@ vim9script
 
 import 'caskk/dictionary.vim' as dictionary
 import autoload 'caskk/dictionary/lookup.vim' as lookup
+import autoload 'caskk/dictionary/numeric.vim' as numeric
 import autoload 'caskk/user_state.vim' as user_state
 
 # Candidate text stays separate from the full okuri used for presentation.
@@ -18,7 +19,7 @@ export class Candidates
     if index < 0 || index >= len(this.candidates)
       throw 'caskk: conversion candidate index out of range: ' .. index
     endif
-    return this.candidates[index].text .. this.okuri
+    return numeric.ExpandZeroPlaceholders(this.candidates[index].text, this.query.reading) .. this.okuri
   enddef
 endclass
 

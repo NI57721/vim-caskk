@@ -1,6 +1,7 @@
 vim9script
 
 import 'caskk/dictionary.vim' as dictionary
+import autoload 'caskk/dictionary/numeric.vim' as numeric
 
 # DDSKK standard skk-kana-rom-vector; independent of the input scheme.
 const OKURI_PREFIXES: dict<string> = {
@@ -20,13 +21,13 @@ const OKURI_PREFIXES: dict<string> = {
 export def CreateQuery(reading: string, okuri: string, small_tsu_okuri_as_t: bool = true): dictionary.Query
   const exact_okuri = strcharpart(okuri, 0, 1)
   if exact_okuri == ''
-    return dictionary.Query.new(reading, exact_okuri, reading)
+    return dictionary.Query.new(reading, exact_okuri, numeric.NormalizeLookupReading(reading))
   endif
   if !has_key(OKURI_PREFIXES, exact_okuri)
     throw 'caskk: unsupported SKK okuri: ' .. exact_okuri
   endif
   const prefix = exact_okuri ==# 'っ' && small_tsu_okuri_as_t ? 'っt' : OKURI_PREFIXES[exact_okuri]
-  return dictionary.Query.new(reading, exact_okuri, reading .. prefix)
+  return dictionary.Query.new(reading, exact_okuri, numeric.NormalizeLookupReading(reading) .. prefix)
 enddef
 
 # Search already loaded entries without I/O or inferred morphological filtering.

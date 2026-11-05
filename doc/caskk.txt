@@ -348,6 +348,15 @@ entering AbbreviationMode, typing 'apple', and invoking Convert.
 After committing an abbreviation conversion, the input mode returns to the mode
 that was active before AbbreviationMode was entered.
 
+ASCII digit runs in a conversion reading are replaced by '#' when looking up a
+dictionary key.  In a candidate, each '#0' is replaced by the corresponding
+digit run from the reading, in order.  For example, the entry >
+
+    #:# /#0時#0分/
+
+matches the abbreviation reading '12:34' and produces '12時34分'.  Other
+numeric candidate types such as #1 and #2 are not currently expanded.
+
 KatakanaMode and HalfwidthKatakanaMode use the same hiragana reading and dictionary
 lookup as the default mode, while displaying kana in fullwidth or halfwidth
 katakana.  Kanji in candidates are unchanged.  FullwidthAlphanumericMode bypasses
