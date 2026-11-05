@@ -131,7 +131,6 @@ export class Session
       if modified
         this._direct_input_continuation = false
       elseif !this._state.in_preedit && matched.output isnot null_object
-          && matched.output.boundary != -1
         this._direct_input_continuation = true
       endif
       if matched.output is null_object

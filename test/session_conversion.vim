@@ -179,6 +179,7 @@ suite.standalone_vowels_continue_kana_input_after_direct_syllables = (): void =>
   for key in split('hogeaiueo', '\zs')
     for result in ime.Feed(key)
       text ..= result.text
+      assert.equals(result.state.in_preedit, false)
     endfor
   endfor
   text ..= ime.Commit()->mapnew((_, result) => result.text)->join('')
