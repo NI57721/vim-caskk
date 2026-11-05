@@ -35,12 +35,15 @@ export class View
     this._window = 0
   enddef
 
-  def Render(info: conversion.CandidateListInfo)
+  def Render(info: conversion.CandidateListInfo, message: string = '')
     this.Close()
     if info is null_object || empty(info.candidates) || !configuration.GetCandidatePopup()
       return
     endif
-    const lines = Format(info)
+    var lines = Format(info)
+    if message !=# ''
+      lines->add(message)
+    endif
     this._window = popup_create(lines, {
       line: 'cursor+1', col: 'cursor', pos: 'topleft', posinvert: true,
       firstline: info.selected_index + 1,

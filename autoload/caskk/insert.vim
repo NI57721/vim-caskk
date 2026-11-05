@@ -287,6 +287,11 @@ export class Editor
     return this._session.CanDeleteUserEntry()
   enddef
 
+  def ShowDeleteUserEntryConfirmation(message: string)
+    this._CheckInput()
+    this._candidate_view.Render(this._session.GetCandidatesInfo(), message)
+  enddef
+
   def DeleteUserEntry(): session.Result
     this._CheckInput()
     return this._Apply([this._session.DeleteUserEntry()])[0]

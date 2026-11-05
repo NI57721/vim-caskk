@@ -151,11 +151,27 @@ suite.mapping_removes_the_selected_user_entry_and_refreshes_candidate_selection 
   const fixture = Setup(true, {x: 'DeleteUserEntry'})
   defer Cleanup(fixture)
   user_runtime.Get().AddEntry(lookup.CreateQuery('か', ''), dictionary.Candidate.new('登録のみ', []))
-  feedkeys('aKasnnx' .. CAPTURE .. "c\<Esc>", 'xt')
+  feedkeys('aKasnnx' .. CAPTURE .. 'y' .. CAPTURE .. "c\<Esc>", 'xt')
+  const identity = json_encode(['か', ''])
+  assert.equals(observations[0].lines[-1], 'ユーザー辞書から削除しますか？ y:削除 n/Esc:取消')
+  assert.equals(has_key(user_runtime.Get().GetSnapshot().entries, identity), false)
   assert.equals(user_runtime.Get().GetSnapshot().entries, {})
-  assert.equals(observations[0].lines,
+  assert.equals(observations[1].lines,
     ['  1/2 蚊 — 昆虫', '▶ 2/2 科 — 学科'])
   assert.equals(getline(1), '前科後')
+}
+
+suite.cancelling_user_entry_deletion_keeps_the_entry_and_selected_candidate = (): void => {
+  const fixture = Setup(true, {x: 'DeleteUserEntry'})
+  defer Cleanup(fixture)
+  user_runtime.Get().AddEntry(lookup.CreateQuery('か', ''), dictionary.Candidate.new('登録のみ', []))
+  const identity = json_encode(['か', ''])
+  feedkeys('aKasnnx' .. CAPTURE .. 'n' .. CAPTURE .. "c\<Esc>", 'xt')
+  assert.equals(has_key(user_runtime.Get().GetSnapshot().entries, identity), true)
+  assert.equals(user_runtime.Get().GetSnapshot().entries[identity][0].text, '登録のみ')
+  assert.equals(observations[0].lines[-1], 'ユーザー辞書から削除しますか？ y:削除 n/Esc:取消')
+  assert.equals(observations[1].lines[-1], '▶ 3/3 登録のみ')
+  assert.equals(getline(1), '前登録のみ後')
 }
 
 suite.mappings_toggle_pin_and_demote_for_the_selected_candidate = (): void => {

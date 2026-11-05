@@ -105,6 +105,7 @@ export class Binding
   var _inline_interrupt_installed: Mapping = null_object
   var _inline_guard_saved: dict<Mapping> = {}
   var _inline_guard_installed: dict<Mapping> = {}
+  var _delete_user_entry_pending: bool = false
 
   def new(compiled: scheme.CompiledScheme, sticky_key: string = '',
       entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
@@ -420,6 +421,7 @@ export class Binding
   enddef
 
   def _CloseInlineInput(restore_escape: bool = true)
+    this._delete_user_entry_pending = false
     this._inline_view.Close()
     this._mode_view.Close()
     this._inline_mode_view_active = false
@@ -549,6 +551,9 @@ export class Binding
   enddef
 
   def _DispatchInline(key: string)
+    if this._ResolveDeleteUserEntryConfirmation(key)
+      return
+    endif
     if key ==# '<Esc>'
       if this._inline_input.InCandidate()
         this._AppendInlineResults(this._inline_input.Commit())
@@ -635,8 +640,7 @@ export class Binding
       this._inline_input.ToggleDemote()
       this._RefreshInlinePopup()
     elseif action ==# 'DeleteUserEntry' && this._inline_input.CanDeleteUserEntry()
-      this._AppendInlineResults([this._inline_input.DeleteUserEntry()])
-      this._RefreshInlinePopup()
+      this._RequestDeleteUserEntryConfirmation()
     elseif action ==# 'Commit'
       this._AppendInlineResults(this._inline_input.Commit())
     elseif action ==# 'OpenRegistration'
@@ -650,6 +654,37 @@ export class Binding
     else
       this._FeedInline(key)
     endif
+  enddef
+
+  def _RequestDeleteUserEntryConfirmation()
+    this._delete_user_entry_pending = true
+    const message = 'ユーザー辞書から削除しますか？ y:削除 n/Esc:取消'
+    if this._inline_input isnot null_object
+      this._RefreshInlinePopup(message)
+    elseif this._editor isnot null_object
+      this._editor.ShowDeleteUserEntryConfirmation(message)
+    endif
+  enddef
+
+  def _ResolveDeleteUserEntryConfirmation(key: string): bool
+    if !this._delete_user_entry_pending
+      return false
+    endif
+    this._delete_user_entry_pending = false
+    if key ==# 'y' || key ==# 'Y'
+      if this._inline_input isnot null_object && this._inline_input.CanDeleteUserEntry()
+        this._AppendInlineResults([this._inline_input.DeleteUserEntry()])
+      elseif this._editor isnot null_object && this._editor.CanDeleteUserEntry()
+        this._Record([this._editor.DeleteUserEntry()])
+      endif
+      return true
+    endif
+    if this._inline_input isnot null_object
+      this._RefreshInlinePopup()
+    elseif this._editor isnot null_object
+      this._editor.ShowDeleteUserEntryConfirmation('')
+    endif
+    return key ==# 'n' || key ==# 'N' || key ==# '<Esc>'
   enddef
 
   def _CanRunAction(action: string): bool
@@ -733,6 +768,7 @@ export class Binding
   enddef
 
   def Leave(force: bool = false)
+    this._delete_user_entry_pending = false
     if this._editor is null_object
       return
     endif
@@ -754,6 +790,9 @@ export class Binding
 
   def Dispatch(key: string)
     this._CheckTarget()
+    if this._ResolveDeleteUserEntryConfirmation(key)
+      return
+    endif
     if this._inline_input isnot null_object
       this._DispatchInline(key)
       return
@@ -799,7 +838,7 @@ export class Binding
     elseif action ==# 'ToggleDemote'
       this._editor.ToggleDemote()
     elseif action ==# 'DeleteUserEntry'
-      this._Record([this._editor.DeleteUserEntry()])
+      this._RequestDeleteUserEntryConfirmation()
     elseif action ==# 'Commit'
       this._Record(this._editor.Commit())
     elseif action ==# 'OpenRegistration'
