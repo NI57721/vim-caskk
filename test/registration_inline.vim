@@ -3,6 +3,7 @@ vim9script
 import autoload 'caskk.vim' as Caskk
 import autoload 'caskk/user_state.vim' as user_state
 import autoload 'caskk/user_state/runtime.vim' as user_runtime
+import autoload 'caskk/presentation/registration_inline.vim' as RegistrationInline
 
 final suite = themis#suite('in-buffer dictionary registration')
 const assert = themis#helper('assert')
@@ -31,7 +32,8 @@ def g:CaskkTestInlineCapture()
     const lines = getbufline(winbufnr(window), 1, '$')
     if !empty(lines) && lines[0] =~# '^辞書登録'
       popup_lines = lines
-      popup_screen_line = popup_getpos(window).line
+      const position = popup_getpos(window)
+      popup_screen_line = position.line
       popup_buffer = winbufnr(window)
       popup_options = popup_getoptions(window)
       if !empty(prop_type_get('caskk_preedit', {bufnr: popup_buffer}))
@@ -235,6 +237,31 @@ suite.inline_candidate_selection_keeps_the_registration_draft_visible = (): void
   assert.equals(getline(1), '前科後')
   assert.equals(popup_list() == [], true)
   assert.equals(Caskk.GetRegistrationRequest() is null_object, true)
+}
+
+suite.registration_popup_keeps_its_screen_position_when_candidate_list_expands = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  append(0, repeat([''], 7))
+  cursor(8, 1)
+  const inline_popup = RegistrationInline.View.new()
+  const old_popups = popup_list()
+  inline_popup.Show(['辞書登録: く', '登録語: │'])
+  const popup = filter(popup_list(), (_, id) => index(old_popups, id) < 0)[0]
+  const initial = popup_getpos(popup)
+  var candidates = ['辞書登録: く', '登録語: か│']
+  for index in range(1, 35)
+    candidates->add((index == 1 ? '▶ ' : '  ') .. index .. '/35 候補' .. index)
+  endfor
+  inline_popup.Show(candidates)
+  const updated = popup_getpos(popup)
+  const options = popup_getoptions(popup)
+  assert.equals([updated.line, updated.col], [initial.line, initial.col])
+  assert.equals(options.line, initial.line)
+  assert.equals(options.col, initial.col)
+  assert.equals(options.pos, 'topleft')
+  assert.equals(options.posinvert, false)
+  inline_popup.Close()
 }
 
 suite.escape_commits_the_selected_registration_candidate_without_cancelling_registration = (): void => {
