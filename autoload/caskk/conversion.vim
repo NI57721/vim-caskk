@@ -19,7 +19,7 @@ export class Candidates
     if index < 0 || index >= len(this.candidates)
       throw 'caskk: conversion candidate index out of range: ' .. index
     endif
-    return numeric.ExpandZeroPlaceholders(this.candidates[index].text, this.query.reading) .. this.okuri
+    return numeric.ExpandPlaceholders(this.candidates[index].text, this.query.reading) .. this.okuri
   enddef
 endclass
 

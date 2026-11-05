@@ -99,6 +99,20 @@ suite.abbreviation_numeric_placeholder_preserves_each_input_number = (): void =>
   assert.equals(ime.Commit()[-1].text, '12時34分')
 }
 
+suite.abbreviation_dictionary_candidates_render_kanji_and_roman_numeric_forms = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('# /#3/#5/#6/')]])
+  const ime = session.Session.new(scheme.Compile({}, {}), '', entries, user_state.State.new())
+  ime.SetInputMode(input_mode.ABBREVIATION)
+  for key in split('2026', '\zs')
+    ime.Feed(key)
+  endfor
+  const results = ime.StartConversion(entries, user_state.State.new())
+  assert.equals(results[-1].text, '二千二十六')
+  const candidates = ime.GetCandidates()
+  assert.equals([candidates.TextAt(0), candidates.TextAt(1), candidates.TextAt(2)],
+    ['二千二十六', '弐阡弐拾六', 'MMXXVI'])
+}
+
 suite.abbreviation_mode_returns_to_the_mode_it_came_from_after_candidate_commit = (): void => {
   const entries = merger.Merge([[parser.ParseLine('apple /アップル/')]])
   const ime = session.Session.new(scheme.Compile({}, {}), '', entries, user_state.State.new())
