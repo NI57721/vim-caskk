@@ -94,7 +94,7 @@ export class Editor
         cursor(position.line, byteidxcomp(text, charidx(text, byte, true)) + 1)
       endif
     endfor
-    this._candidate_view.Render(this._session.GetCandidateInfo())
+    this._candidate_view.Render(this._session.GetCandidatesInfo())
     return results
   enddef
 
@@ -230,13 +230,13 @@ export class Editor
   def TogglePin()
     this._CheckInput()
     this._session.TogglePin()
-    this._candidate_view.Render(this._session.GetCandidateInfo())
+    this._candidate_view.Render(this._session.GetCandidatesInfo())
   enddef
 
   def ToggleDemote()
     this._CheckInput()
     this._session.ToggleDemote()
-    this._candidate_view.Render(this._session.GetCandidateInfo())
+    this._candidate_view.Render(this._session.GetCandidatesInfo())
   enddef
 
   def Commit(): list<session.Result>

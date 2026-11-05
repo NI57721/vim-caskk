@@ -256,6 +256,19 @@ export class Session
     return conversion.CandidateInfo.new(info.index, info.count, this._Render(info.text), info.annotations, info.tier)
   enddef
 
+  def GetCandidatesInfo(): conversion.CandidateListInfo
+    if !this.InCandidate()
+      return null_object
+    endif
+    const info = this._selection.GetCandidatesInfo()
+    final candidates: list<conversion.CandidateInfo> = []
+    for candidate in info.candidates
+      candidates->add(conversion.CandidateInfo.new(candidate.index, candidate.count,
+        this._Render(candidate.text), candidate.annotations, candidate.tier))
+    endfor
+    return conversion.CandidateListInfo.new(info.selected_index, candidates)
+  enddef
+
   def TogglePin()
     if !this.InCandidate()
       throw 'caskk: no active conversion selection'

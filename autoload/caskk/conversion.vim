@@ -35,6 +35,16 @@ export class CandidateInfo
   enddef
 endclass
 
+# Presentation data for the ranked candidates and the current selection.
+export class CandidateListInfo
+  const selected_index: number
+  const candidates: list<CandidateInfo>
+
+  def new(this.selected_index, candidates: list<CandidateInfo>)
+    this.candidates = copy(candidates)
+  enddef
+endclass
+
 # One selection lifecycle. Buffer changes and returning to Preedit are handled
 # by the caller; Cancel returns the original reading text to display there.
 export class Selection
@@ -72,6 +82,18 @@ export class Selection
     return CandidateInfo.new(this._index, len(this._prepared.candidates),
       this._prepared.TextAt(this._index), candidate.annotations,
       this._preferences.GetCandidateTier(this._prepared.query, candidate.text))
+  enddef
+
+  def GetCandidatesInfo(): CandidateListInfo
+    this._CheckActive()
+    final candidates: list<CandidateInfo> = []
+    const count = len(this._prepared.candidates)
+    for index in range(0, count - 1)
+      const candidate = this._prepared.candidates[index]
+      candidates->add(CandidateInfo.new(index, count, this._prepared.TextAt(index), candidate.annotations,
+        this._preferences.GetCandidateTier(this._prepared.query, candidate.text)))
+    endfor
+    return CandidateListInfo.new(this._index, candidates)
   enddef
 
   def TogglePin(): string

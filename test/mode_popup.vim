@@ -76,7 +76,7 @@ suite.candidate_popup_replaces_the_transient_mode_popup = (): void => {
   Setup({dictionaries: [dictionary], mode_popup_time: 10000})
   defer Cleanup()
   feedkeys("aKa\<Space>\<F12>\<Esc>", 'xt')
-  assert.equals(captures, [[['▼あ'], ['1/2 蚊']]])
+  assert.equals(captures, [[['▼あ'], ['▶ 1/2 蚊', '  2/2 家']]])
 }
 
 suite.modified_preedit_prefixes_the_mode_label_with_start_marker = (): void => {
@@ -104,7 +104,7 @@ suite.modified_and_candidate_markers_can_be_customized = (): void => {
     mode_popup_time: 10000})
   defer Cleanup()
   feedkeys("aKa\<F12>\<Space>\<F12>\<Esc>", 'xt')
-  assert.equals(captures, [[['＊あ']], [['●あ'], ['1/1 蚊']]])
+  assert.equals(captures, [[['＊あ']], [['●あ'], ['▶ 1/1 蚊']]])
 }
 
 suite.disabled_mode_popup_creates_no_popup = (): void => {

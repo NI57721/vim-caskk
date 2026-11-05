@@ -104,13 +104,13 @@ def Cleanup(fixture: Fixture)
   endtry
 enddef
 
-suite.navigation_shows_position_and_annotations_without_moving_the_input_cursor = (): void => {
+suite.navigation_updates_the_ranked_candidate_list_without_moving_the_input_cursor = (): void => {
   const fixture = Setup()
   defer Cleanup(fixture)
   feedkeys('aKas' .. CAPTURE .. 'n' .. CAPTURE .. 'p' .. CAPTURE .. "c\<Esc>", 'xt')
-  assert.equals(observations[0].lines, ['1/2 蚊', '昆虫'])
-  assert.equals(observations[1].lines, ['2/2 科', '学科'])
-  assert.equals(observations[2].lines, ['1/2 蚊', '昆虫'])
+  assert.equals(observations[0].lines, ['▶ 1/2 蚊 — 昆虫', '  2/2 科 — 学科'])
+  assert.equals(observations[1].lines, ['  1/2 蚊 — 昆虫', '▶ 2/2 科 — 学科'])
+  assert.equals(observations[2].lines, ['▶ 1/2 蚊 — 昆虫', '  2/2 科 — 学科'])
   for observed in observations
     assert.equals(len(observed.popups), 1)
     assert.equals(observed.buffer, fixture.buffer)
@@ -124,9 +124,9 @@ suite.mappings_toggle_pin_and_demote_for_the_selected_candidate = (): void => {
   const fixture = Setup(true, {v: 'TogglePin', b: 'ToggleDemote'})
   defer Cleanup(fixture)
   feedkeys("aKasv" .. CAPTURE .. "b" .. CAPTURE .. "b" .. CAPTURE .. "c\<Esc>", 'xt')
-  assert.equals(observations[0].lines, ['1/2 ★ 蚊', '昆虫'])
-  assert.equals(observations[1].lines, ['1/2 ↓ 蚊', '昆虫'])
-  assert.equals(observations[2].lines, ['1/2 蚊', '昆虫'])
+  assert.equals(observations[0].lines, ['▶ 1/2 ★ 蚊 — 昆虫', '  2/2 科 — 学科'])
+  assert.equals(observations[1].lines, ['▶ 1/2 ↓ 蚊 — 昆虫', '  2/2 科 — 学科'])
+  assert.equals(observations[2].lines, ['▶ 1/2 蚊 — 昆虫', '  2/2 科 — 学科'])
   const snapshot = user_runtime.Get().GetSnapshot()
   assert.equals(snapshot.pinned, {})
   assert.equals(snapshot.demoted, {})
@@ -175,7 +175,7 @@ suite.cancelling_registration_discards_the_inner_candidate_popup_without_learnin
   defer Cleanup(fixture)
   const before = codec.Encode(user_runtime.Get().GetSnapshot())
   feedkeys('aZX' .. "\<BS>Kas" .. CAPTURE .. "\<Esc>ka\<Esc>", 'xt')
-  assert.equals(observations[0].lines, ['1/2 蚊', '昆虫'])
+  assert.equals(observations[0].lines, ['▶ 1/2 蚊 — 昆虫', '  2/2 科 — 学科'])
   assert.equals(empty(popup_getpos(observations[0].popups[0])), true)
   assert.equals(bufexists(observations[0].buffers[0]), 0)
   assert.equals(getline(1), '前いくらいか後')

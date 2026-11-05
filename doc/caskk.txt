@@ -360,14 +360,14 @@ not change the configuration.  Changes to sticky_key and mappings take effect
 on the next activation; use Disable() then Enable(name) to update an enabled
 buffer.  Highlight settings continue to apply to presentation independently.
 
-candidate_popup is a boolean that controls the small popup for the selected
-candidate.  It defaults to true.  The popup shows the candidate position,
-display text, and annotations without taking focus.  Existing candidate
-navigation mappings move between candidates.  It closes when candidate
-selection ends or the input session is cleaned up.  Changes take effect on the
-next presentation update.  The popup uses Vim's Pmenu highlight group and is
-limited to a small wrapped window.  It does not show the full candidate list
-or provide annotation editing.
+candidate_popup is a boolean that controls the candidate list popup.  It
+defaults to true.  The popup lists all ranked candidates with their position,
+display text, and annotations without taking focus.  '▶' marks the current
+selection, '★' marks a pinned candidate, and '↓' marks a demoted candidate.
+Existing candidate-navigation mappings move the selection through the list.
+It closes when candidate selection ends or the input session is cleaned up.
+Changes take effect on the next presentation update.  The popup uses Vim's
+Pmenu highlight group and wraps long lines.
 
 TogglePin and ToggleDemote apply to the currently selected candidate.  Each
 action toggles that candidate's preference on or off.  A pinned candidate is
