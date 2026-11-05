@@ -113,6 +113,19 @@ suite.mode_mappings_switch_between_modes_and_convert_abbreviations = (): void =>
   assert.equals(getline(1), '前カかｶＩ　ｌｉｋｅ　ａｐｐｌｅｓ！　Ｄｏ　ｙｏｕ？アップルｋａ後')
 }
 
+suite.abbreviation_numeric_placeholders_convert_through_public_insert_mappings = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const dictionary = tempname()
+  defer delete(dictionary)
+  writefile(['#:# /#0時#0分/'], dictionary)
+  Caskk.Config({dictionaries: [dictionary], candidate_popup: false, mode_popup: false,
+    mappings: {"\<F4>": 'AbbreviationMode', "\<Space>": 'Convert', "\<F10>": 'Commit'}})
+  Caskk.Enable('configured')
+  feedkeys("a\<F4>12:34\<Space>\<F10>\<Esc>", 'xt')
+  assert.equals(getline(1), '前12時34分後')
+}
+
 suite.mode_actions_commit_modified_reading_in_the_target_kana_script = (): void => {
   for [key, action, expected] in [
     ["\<F1>", 'KatakanaMode', 'カ'],
