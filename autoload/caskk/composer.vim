@@ -288,6 +288,14 @@ export class Composer
       for replayed in match.replay
         this._Replay(replayed, results)
       endfor
+      if match.output isnot null_object && len(match.events) == 1
+          && match.events[0].modified && this._SymbolKey(match.events) != ''
+        # A Modified N/T consonant starts an okuri boundary even when its
+        # unmodified spelling is also a single-key special such as `l` -> っ.
+        this._Replay(match.events[0], results)
+        remaining = match.rest
+        continue
+      endif
       if match.output isnot null_object && !empty(this._consonant)
           && len(match.events) == 1
           && has_key(this._table.combinations, match.events[0].key)

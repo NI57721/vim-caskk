@@ -38,9 +38,11 @@ def CapturePendingBuffer()
   g:caskk_pending_snapshot = getline(1)
   g:caskk_pending_properties = prop_list(1, {types: ['caskk_preedit']})
   g:caskk_pending_has_okuri_marker = false
+  g:caskk_pending_marker_column = 0
   for property in g:caskk_pending_properties
     if get(property, 'text', '') ==# '*'
       g:caskk_pending_has_okuri_marker = true
+      g:caskk_pending_marker_column = property.col
     endif
   endfor
 enddef
@@ -164,14 +166,28 @@ suite.modified_input_after_unmodified_latent_boundary_starts_preedit = (): void 
 suite.modified_small_tsu_consonant_starts_okuri_in_preedit = (): void => {
   const context = Setup()
   defer Cleanup(context)
-  const compiled = scheme.Compile({s: 's', l: 'T'}, {i: 'i'})
+  const compiled = scheme.Compile({s: 's', l: 'T'}, {i: 'i'},
+    [scheme.SpecialDefinition.new(['l'], 'っ')])
   const keys = binding.Binding.new(compiled, ';')
   inoremap <buffer> <F11> <ScriptCmd>CapturePendingBuffer()<CR>
   keys.Enable()
   feedkeys("aSiL\<F11>\<Esc>", 'xt')
   assert.equals(g:caskk_pending_snapshot, '前しっ後')
   assert.equals(g:caskk_pending_has_okuri_marker, true)
+  assert.equals(g:caskk_pending_marker_column, 7)
   iunmap <buffer> <F11>
+  keys.Disable()
+}
+
+suite.unmodified_small_tsu_special_keeps_its_direct_output = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const compiled = scheme.Compile({s: 's', l: 'T'}, {i: 'i'},
+    [scheme.SpecialDefinition.new(['l'], 'っ')])
+  const keys = binding.Binding.new(compiled, ';')
+  keys.Enable()
+  feedkeys("al\<Esc>", 'xt')
+  assert.equals(getline(1), '前っ後')
   keys.Disable()
 }
 
