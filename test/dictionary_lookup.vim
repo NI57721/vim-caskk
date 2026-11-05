@@ -86,7 +86,7 @@ suite.small_tsu_uses_t_prefix_by_default_and_can_use_standard_x_prefix = (): voi
     const query = lookup.CreateQuery('か', okuri)
     assert.equals(query.reading, 'か')
     assert.equals(query.exact_okuri, 'っ')
-    assert.equals(query.lookup_key, 'かっt')
+    assert.equals(query.lookup_key, 'かt')
 
     const standard = lookup.CreateQuery('か', okuri, false)
     assert.equals(standard.lookup_key, 'かx')

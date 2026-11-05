@@ -26,7 +26,7 @@ export def CreateQuery(reading: string, okuri: string, small_tsu_okuri_as_t: boo
   if !has_key(OKURI_PREFIXES, exact_okuri)
     throw 'caskk: unsupported SKK okuri: ' .. exact_okuri
   endif
-  const prefix = exact_okuri ==# 'っ' && small_tsu_okuri_as_t ? 'っt' : OKURI_PREFIXES[exact_okuri]
+  const prefix = exact_okuri ==# 'っ' && small_tsu_okuri_as_t ? 't' : OKURI_PREFIXES[exact_okuri]
   return dictionary.Query.new(reading, exact_okuri, numeric.NormalizeLookupReading(reading) .. prefix)
 enddef
 

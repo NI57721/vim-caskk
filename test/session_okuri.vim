@@ -59,8 +59,8 @@ suite.modified_standalone_vowel_starts_vowel_initial_okuri = (): void => {
   assert.equals(ime.GetCandidates().query.lookup_key, 'あまi')
 }
 
-suite.small_tsu_okuri_uses_t_suffix_lookup_by_default = (): void => {
-  const entries = merger.Merge([[parser.ParseLine('けっt /蹴/')]])
+suite.small_tsu_okuri_uses_t_prefix_by_default = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('けt /蹴/')]])
   const compiled = scheme.Compile({k: 'k'}, {q: 'e*Tte'})
   for keys in [['K', 'Q'], [';', 'k', ';', 'q']]
     const ime = session.Session.new(compiled, ';', entries)
@@ -73,12 +73,12 @@ suite.small_tsu_okuri_uses_t_suffix_lookup_by_default = (): void => {
     assert.equals(results[0].in_candidate, true)
     assert.equals(results[0].state.reading, 'け')
     assert.equals(results[0].state.okuri, 'って')
-    assert.equals(ime.GetCandidates().query.lookup_key, 'けっt')
+    assert.equals(ime.GetCandidates().query.lookup_key, 'けt')
   endfor
 }
 
-suite.modified_small_tsu_symbol_looks_up_the_small_tsu_t_suffix = (): void => {
-  const entries = merger.Merge([[parser.ParseLine('しっt /知/')]])
+suite.modified_small_tsu_symbol_looks_up_t_prefix_without_small_tsu_in_key = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('しt /知/')]])
   const compiled = scheme.Compile({s: 's', l: 'T'}, {i: 'i'},
     [scheme.SpecialDefinition.new(['l'], 'っ')])
   const ime = session.Session.new(compiled, ';', entries)
@@ -91,7 +91,7 @@ suite.modified_small_tsu_symbol_looks_up_the_small_tsu_t_suffix = (): void => {
   assert.equals(results[0].in_candidate, true)
   assert.equals(results[0].state.reading, 'し')
   assert.equals(results[0].state.okuri, 'っ')
-  assert.equals(ime.GetCandidates().query.lookup_key, 'しっt')
+  assert.equals(ime.GetCandidates().query.lookup_key, 'しt')
 }
 
 suite.completed_okuri_immediately_displays_the_first_ranked_candidate = (): void => {

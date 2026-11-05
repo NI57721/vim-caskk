@@ -179,10 +179,10 @@ suite.modified_small_tsu_consonant_starts_okuri_in_preedit = (): void => {
   keys.Disable()
 }
 
-suite.small_tsu_symbol_okuri_selects_dictionary_entry_using_t_suffix = (): void => {
+suite.small_tsu_symbol_okuri_selects_dictionary_entry_using_t_prefix = (): void => {
   const context = Setup()
   defer Cleanup(context)
-  const entries = merger.Merge([[parser.ParseLine('しっt /知/')]])
+  const entries = merger.Merge([[parser.ParseLine('しt /知/')]])
   const compiled = scheme.Compile({s: 's', l: 'T'}, {i: 'i'},
     [scheme.SpecialDefinition.new(['l'], 'っ')])
   const keys = binding.Binding.new(compiled, '', entries)

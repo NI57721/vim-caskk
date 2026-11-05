@@ -373,7 +373,7 @@ suite.small_tsu_dictionary_prefix_is_enabled_by_default_and_can_be_disabled = ()
   defer Cleanup(context)
   const path = tempname()
   defer delete(path)
-  writefile(['けっt /蹴/', 'けx /標準/'], path)
+  writefile(['けt /蹴/', 'けx /標準/'], path)
   Caskk.RegisterInputScheme({name: 'small-tsu-prefix', consonants: {k: 'k'}, combinations: {q: 'e*Tte'}})
 
   for [options, expected] in [
@@ -395,7 +395,7 @@ suite.keyboard_layout_config_maps_shifted_number_row_to_okuri_boundary = (): voi
   defer Cleanup(context)
   const path = tempname()
   defer delete(path)
-  writefile(['けっt /蹴/'], path)
+  writefile(['けt /蹴/'], path)
   Caskk.RegisterInputScheme({name: 'layout-okuri', consonants: {k: 'k'},
     combinations: {1: 'e*Tte', 2: 'e*Tte'}})
   Caskk.Config({keyboard_layout: 'US', dictionaries: [path]})
@@ -418,7 +418,7 @@ suite.keyboard_layout_override_replaces_one_shifted_symbol_through_public_config
   defer Cleanup(context)
   const path = tempname()
   defer delete(path)
-  writefile(['けっt /蹴/'], path)
+  writefile(['けt /蹴/'], path)
   Caskk.RegisterInputScheme({name: 'layout-override-okuri', consonants: {k: 'k'},
     combinations: {1: 'e*Tte', 2: 'e*Tte'}})
   var overrides = {1: '?'}
