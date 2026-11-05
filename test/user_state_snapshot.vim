@@ -54,7 +54,7 @@ suite.restore_preserves_entries_annotations_mru_and_explicit_choices = (): void 
   restored.Reset(equivalent, '往')
   restored.Reset(equivalent, '行')
   assert.equals(Texts(restored.Rank(equivalent, [])), ['逝', '行', '往'])
-  assert.equals(restored.Rank(lookup.CreateQuery('い', 'こない'), []), [])
+  assert.equals(Texts(restored.Rank(lookup.CreateQuery('い', 'こない'), [])), ['行', '往', '逝'])
   assert.equals(restored.Rank(lookup.CreateQuery('いく', ''), []), [])
 }
 

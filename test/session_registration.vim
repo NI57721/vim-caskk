@@ -128,7 +128,7 @@ suite.registration_preserves_full_okuri_but_stores_only_the_candidate_body = ():
   assert.equals(preferences.GetSnapshot().entries[key][0].text, '行')
   assert.equals(preferences.GetSnapshot().mru[key], ['行'])
   assert.equals(conversion.Prepare({}, preferences, 'い', 'くれば').TextAt(0), '行くれば')
-  assert.equals(conversion.Prepare({}, preferences, 'い', 'こない').candidates, [])
+  assert.equals(conversion.Prepare({}, preferences, 'い', 'こない').TextAt(0), '行こない')
 }
 
 suite.registration_after_exhaustion_keeps_system_candidates_and_ranks_the_new_entry_first = (): void => {

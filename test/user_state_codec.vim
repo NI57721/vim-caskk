@@ -52,7 +52,8 @@ suite.records_preserve_entries_annotations_and_preference_order = (): void => {
   assert.equals(ranked[0].text, '往')
   assert.equals(ranked[1].text, '逝')
   assert.equals(ranked[2].text, '行')
-  assert.equals(state.Rank(lookup.CreateQuery('い', 'こない'), []), [])
+  assert.equals(mapnew(state.Rank(lookup.CreateQuery('い', 'こない'), []), (_, candidate) => candidate.text),
+    ['行', '往', '逝'])
 }
 
 suite.encoding_preserves_special_characters_and_empty_okuri = (): void => {

@@ -51,17 +51,26 @@ suite.deletion_removes_only_the_user_source = (): void => {
   assert.equals(state.Rank(query, []), [])
 }
 
-suite.entries_are_scoped_to_reading_and_first_okuri_character = (): void => {
+suite.entries_follow_skk_okuri_consonant_keys_while_other_readings_stay_separate = (): void => {
   const state = user_state.State.new()
   state.AddEntry(lookup.CreateQuery('い', 'くらい'), dictionary.Candidate.new('行', []))
   assert.equals(Texts(state.Rank(lookup.CreateQuery('い', 'くれば'), [])), ['行'])
-  for query in [lookup.CreateQuery('い', 'こない'), lookup.CreateQuery('いく', ''), lookup.CreateQuery('ゆ', 'く')]
+  assert.equals(Texts(state.Rank(lookup.CreateQuery('い', 'こない'), [])), ['行'])
+  for query in [lookup.CreateQuery('いく', ''), lookup.CreateQuery('ゆ', 'く'), lookup.CreateQuery('い', 'さ')]
     state.DeleteEntry(query, '行')
     assert.equals(state.Rank(query, []), [])
   endfor
   assert.equals(Texts(state.Rank(lookup.CreateQuery('い', 'く'), [])), ['行'])
   state.DeleteEntry(lookup.CreateQuery('い', 'くれば'), '行')
   assert.equals(state.Rank(lookup.CreateQuery('い', 'くらい'), []), [])
+}
+
+suite.okuri_registration_is_reused_for_the_same_skk_consonant_key = (): void => {
+  const state = user_state.State.new()
+  state.AddEntry(lookup.CreateQuery('い', 'く'), dictionary.Candidate.new('行', []))
+  assert.equals(Texts(state.Rank(lookup.CreateQuery('い', 'か'), [])), ['行'])
+  assert.equals(Texts(state.Rank(lookup.CreateQuery('い', 'こ'), [])), ['行'])
+  assert.equals(state.Rank(lookup.CreateQuery('い', 'さ'), []), [])
 }
 
 suite.user_entries_obey_learning_pin_and_demote = (): void => {

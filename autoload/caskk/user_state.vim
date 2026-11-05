@@ -209,14 +209,16 @@ export class State
 
   def Rank(query: dictionary.Query, candidates: list<dictionary.Candidate>): list<dictionary.Candidate>
     const key = Identity(query)
-    var combined = candidates
-    if has_key(this._entries, key)
-      const merged = merger.Merge([
-        [dictionary.Entry.new(query.lookup_key, candidates)],
-        [dictionary.Entry.new(query.lookup_key, this._entries[key])],
-      ])
-      combined = merged[query.lookup_key].candidates
-    endif
+    final registered: list<dictionary.Entry> = []
+    for identity in sort(keys(this._entries))
+      const entries = this._entries[identity]
+      const pair: list<string> = json_decode(identity)
+      if lookup.CreateQuery(pair[0], pair[1]).lookup_key ==# query.lookup_key
+        registered->add(dictionary.Entry.new(query.lookup_key, entries))
+      endif
+    endfor
+    const merged = merger.Merge([[dictionary.Entry.new(query.lookup_key, candidates)], registered])
+    const combined = get(merged, query.lookup_key, dictionary.Entry.new(query.lookup_key, [])).candidates
     return ranking.Rank(combined, get(this._pinned, key, ''),
       get(this._mru, key, []), get(this._demoted, key, []))
   enddef

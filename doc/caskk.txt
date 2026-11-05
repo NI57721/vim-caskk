@@ -135,6 +135,10 @@ The entry is registered and learned for reading plus exact_okuri, and the buffer
 preedit is replaced and committed with the complete okuri appended.  For example,
 registering '行' for reading 'い' and okuri 'くらい' commits '行くらい' and stores
 only '行' under reading 'い' and exact okuri 'く'.  SaveState() can persist it.
+The registered entry is looked up using its SKK dictionary key: another okuri
+with the same first consonant, such as 'か', can also find an entry registered
+under 'く' when both use the key 'いk'.  Candidate learning and pin/demote
+preferences remain scoped to the exact first okuri character.
 If the candidate text is exactly the hiragana reading, the text is committed as
 entered but no dictionary entry or learning preference is created.
 
