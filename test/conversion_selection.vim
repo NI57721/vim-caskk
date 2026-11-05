@@ -82,6 +82,24 @@ suite.committing_pinned_or_demoted_candidates_preserves_explicit_choices = (): v
   assert.equals(codec.Encode(preferences.GetSnapshot()), before)
 }
 
+suite.selected_candidate_reports_and_toggles_its_explicit_tier = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('か /蚊/家/')]])
+  const preferences = user_state.State.new()
+  const selected = conversion.Selection.new(conversion.Prepare(entries, preferences, 'か'), preferences)
+  assert.equals(selected.GetInfo().tier, '')
+  assert.equals(selected.TogglePin(), 'pinned')
+  assert.equals(selected.GetInfo().tier, 'pinned')
+  assert.equals(selected.TogglePin(), '')
+  assert.equals(selected.GetInfo().tier, '')
+  assert.equals(selected.ToggleDemote(), 'demoted')
+  assert.equals(selected.GetInfo().tier, 'demoted')
+  assert.equals(selected.ToggleDemote(), '')
+  assert.equals(selected.GetInfo().tier, '')
+  const reranked = conversion.Prepare(entries, preferences, 'か')
+  assert.equals(reranked.TextAt(0), '蚊')
+  assert.equals(reranked.TextAt(1), '家')
+}
+
 suite.invalid_index_preserves_the_selection_and_learning_state = (): void => {
   const entries = merger.Merge([[parser.ParseLine('かんじ /漢字/感じ/')]])
   const preferences = user_state.State.new()

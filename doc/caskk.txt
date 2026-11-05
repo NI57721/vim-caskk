@@ -328,7 +328,8 @@ Angle-bracket key-name strings such as '<Space>' and '<F10>' are rejected.
 Ordinary printable keys such as 'q' remain single-character strings.  Multiple
 entries that resolve to the same physical key are rejected.  Supported actions are
 Convert, NextCandidate, PreviousCandidate, Commit, OpenRegistration,
-AbbreviationMode, KatakanaMode, HalfwidthKatakanaMode, and FullwidthAlphanumericMode.
+TogglePin, ToggleDemote, AbbreviationMode, KatakanaMode,
+HalfwidthKatakanaMode, and FullwidthAlphanumericMode.
 The default is an empty dictionary.  Unknown actions and invalid key names are rejected.  Conflicts with
 the selected input grammar are checked when Enable() installs the mappings.
 
@@ -367,6 +368,12 @@ selection ends or the input session is cleaned up.  Changes take effect on the
 next presentation update.  The popup uses Vim's Pmenu highlight group and is
 limited to a small wrapped window.  It does not show the full candidate list
 or provide annotation editing.
+
+TogglePin and ToggleDemote apply to the currently selected candidate.  Each
+action toggles that candidate's preference on or off.  A pinned candidate is
+marked with '★' and a demoted candidate with '↓' in the candidate popup.  The
+choice affects ranking on subsequent conversions; it does not change the
+candidate currently being selected.
 
 mode_popup is a boolean that controls the short-lived popup showing the active
 input mode.  It defaults to true.  The popup appears when an Insert-mode input

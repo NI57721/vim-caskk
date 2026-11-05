@@ -28,8 +28,9 @@ export class CandidateInfo
   const count: number
   const text: string
   const annotations: list<string>
+  const tier: string
 
-  def new(this.index, this.count, this.text, annotations: list<string>)
+  def new(this.index, this.count, this.text, annotations: list<string>, this.tier)
     this.annotations = copy(annotations)
   enddef
 endclass
@@ -67,8 +68,22 @@ export class Selection
 
   def GetInfo(): CandidateInfo
     this._CheckActive()
+    const candidate = this._prepared.candidates[this._index]
     return CandidateInfo.new(this._index, len(this._prepared.candidates),
-      this._prepared.TextAt(this._index), this._prepared.candidates[this._index].annotations)
+      this._prepared.TextAt(this._index), candidate.annotations,
+      this._preferences.GetCandidateTier(this._prepared.query, candidate.text))
+  enddef
+
+  def TogglePin(): string
+    this._CheckActive()
+    const text = this._prepared.candidates[this._index].text
+    return this._preferences.TogglePin(this._prepared.query, text)
+  enddef
+
+  def ToggleDemote(): string
+    this._CheckActive()
+    const text = this._prepared.candidates[this._index].text
+    return this._preferences.ToggleDemote(this._prepared.query, text)
   enddef
 
   def Select(index: number): string

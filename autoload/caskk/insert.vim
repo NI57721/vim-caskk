@@ -227,6 +227,18 @@ export class Editor
     return this._Apply([this._session.PreviousCandidate()])[0]
   enddef
 
+  def TogglePin()
+    this._CheckInput()
+    this._session.TogglePin()
+    this._candidate_view.Render(this._session.GetCandidateInfo())
+  enddef
+
+  def ToggleDemote()
+    this._CheckInput()
+    this._session.ToggleDemote()
+    this._candidate_view.Render(this._session.GetCandidateInfo())
+  enddef
+
   def Commit(): list<session.Result>
     this._CheckInput()
     const results = this._Apply(this._session.Commit())

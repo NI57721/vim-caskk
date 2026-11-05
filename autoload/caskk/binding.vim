@@ -298,7 +298,8 @@ export class Binding
       lines->add(message)
     elseif this._inline_input.InCandidate()
       const info = this._inline_input.GetCandidateInfo()
-      lines->add((info.index + 1) .. '/' .. info.count .. ' ' .. info.text)
+      const marker = info.tier ==# 'pinned' ? '★ ' : info.tier ==# 'demoted' ? '↓ ' : ''
+      lines->add((info.index + 1) .. '/' .. info.count .. ' ' .. marker .. info.text)
     else
       const snapshot = this._inline_input.GetSnapshot()
       var draft = this._inline_text
@@ -441,6 +442,12 @@ export class Binding
       this._AppendInlineResults([this._inline_input.NextCandidate()])
     elseif action ==# 'PreviousCandidate' && this._inline_input.InCandidate()
       this._AppendInlineResults([this._inline_input.PreviousCandidate()])
+    elseif action ==# 'TogglePin' && this._inline_input.InCandidate()
+      this._inline_input.TogglePin()
+      this._RefreshInlinePopup()
+    elseif action ==# 'ToggleDemote' && this._inline_input.InCandidate()
+      this._inline_input.ToggleDemote()
+      this._RefreshInlinePopup()
     elseif action ==# 'Commit'
       this._AppendInlineResults(this._inline_input.Commit())
     elseif this._ModeForAction(action) !=# '' && this._inline_input.CanChangeInputMode()
@@ -460,6 +467,8 @@ export class Binding
     if action ==# 'Convert'
       return has_candidate || snapshot.in_preedit
     elseif action ==# 'NextCandidate' || action ==# 'PreviousCandidate'
+      return has_candidate
+    elseif action ==# 'TogglePin' || action ==# 'ToggleDemote'
       return has_candidate
     elseif action ==# 'Commit'
       return has_candidate || snapshot.in_preedit
@@ -582,6 +591,10 @@ export class Binding
       this._Record([this._editor.NextCandidate()])
     elseif action ==# 'PreviousCandidate'
       this._Record([this._editor.PreviousCandidate()])
+    elseif action ==# 'TogglePin'
+      this._editor.TogglePin()
+    elseif action ==# 'ToggleDemote'
+      this._editor.ToggleDemote()
     elseif action ==# 'Commit'
       this._Record(this._editor.Commit())
     elseif action ==# 'OpenRegistration'

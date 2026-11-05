@@ -52,7 +52,7 @@ class Fixture
   enddef
 endclass
 
-def Setup(candidate_popup: bool = true): Fixture
+def Setup(candidate_popup: bool = true, extra_mappings: dict<string> = {}): Fixture
   const previous = bufnr('%')
   const existing_buffers = mapnew(getbufinfo(), (_, info) => info.bufnr)
   const existing_popups = popup_list()
@@ -73,8 +73,10 @@ def Setup(candidate_popup: bool = true): Fixture
   observations = []
   Caskk.RegisterInputScheme({name: 'candidate-popup', consonants: {k: 'k'},
     combinations: {a: 'a'}, specials: {d: '漢字', zx: 'い*くらい'}})
+  var mappings = {s: 'Convert', n: 'NextCandidate', p: 'PreviousCandidate', c: 'Commit'}
+  extend(mappings, extra_mappings)
   Caskk.Config({candidate_popup: candidate_popup, mode_popup: false, dictionaries: [directory .. '/system'],
-    mappings: {s: 'Convert', n: 'NextCandidate', p: 'PreviousCandidate', c: 'Commit'}})
+    mappings: mappings})
   Caskk.Enable('candidate-popup')
   return Fixture.new(previous, number, window, directory, snapshot, existing_buffers, existing_popups)
 enddef
@@ -116,6 +118,18 @@ suite.navigation_shows_position_and_annotations_without_moving_the_input_cursor 
     assert.equals(observed.cursor, [1, 7])
   endfor
   assert.equals(getline(1), '前蚊後')
+}
+
+suite.mappings_toggle_pin_and_demote_for_the_selected_candidate = (): void => {
+  const fixture = Setup(true, {v: 'TogglePin', b: 'ToggleDemote'})
+  defer Cleanup(fixture)
+  feedkeys("aKasv" .. CAPTURE .. "b" .. CAPTURE .. "b" .. CAPTURE .. "c\<Esc>", 'xt')
+  assert.equals(observations[0].lines, ['1/2 ★ 蚊', '昆虫'])
+  assert.equals(observations[1].lines, ['1/2 ↓ 蚊', '昆虫'])
+  assert.equals(observations[2].lines, ['1/2 蚊', '昆虫'])
+  const snapshot = user_runtime.Get().GetSnapshot()
+  assert.equals(snapshot.pinned, {})
+  assert.equals(snapshot.demoted, {})
 }
 
 suite.commit_closes_owned_popup_and_buffer_without_closing_an_unrelated_popup = (): void => {

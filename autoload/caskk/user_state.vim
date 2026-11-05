@@ -117,6 +117,9 @@ export class State
       if position >= 0
         remove(this._demoted[key], position)
       endif
+      if empty(this._demoted[key])
+        remove(this._demoted, key)
+      endif
     endif
   enddef
 
@@ -144,7 +147,38 @@ export class State
       if position >= 0
         remove(this._demoted[key], position)
       endif
+      if empty(this._demoted[key])
+        remove(this._demoted, key)
+      endif
     endif
+  enddef
+
+  def GetCandidateTier(query: dictionary.Query, text: string): string
+    const key = Identity(query)
+    if get(this._pinned, key, '') ==# text
+      return 'pinned'
+    elseif index(get(this._demoted, key, []), text) >= 0
+      return 'demoted'
+    endif
+    return ''
+  enddef
+
+  def TogglePin(query: dictionary.Query, text: string): string
+    if this.GetCandidateTier(query, text) ==# 'pinned'
+      this.Reset(query, text)
+    else
+      this.Pin(query, text)
+    endif
+    return this.GetCandidateTier(query, text)
+  enddef
+
+  def ToggleDemote(query: dictionary.Query, text: string): string
+    if this.GetCandidateTier(query, text) ==# 'demoted'
+      this.Reset(query, text)
+    else
+      this.Demote(query, text)
+    endif
+    return this.GetCandidateTier(query, text)
   enddef
 
   def Rank(query: dictionary.Query, candidates: list<dictionary.Candidate>): list<dictionary.Candidate>

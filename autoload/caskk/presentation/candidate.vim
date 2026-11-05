@@ -22,7 +22,8 @@ export class View
     if info is null_object || !configuration.GetCandidatePopup()
       return
     endif
-    final lines = [(info.index + 1) .. '/' .. info.count .. ' ' .. info.text]
+    const marker = info.tier ==# 'pinned' ? '★ ' : info.tier ==# 'demoted' ? '↓ ' : ''
+    final lines = [(info.index + 1) .. '/' .. info.count .. ' ' .. marker .. info.text]
     for annotation in info.annotations
       lines->extend(split(annotation, "\n", true))
     endfor

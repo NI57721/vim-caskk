@@ -148,3 +148,20 @@ suite.reset_missing_or_already_reset_candidate_is_harmless = (): void => {
   state.Reset(query, '往')
   assert.equals(Texts(state.Rank(query, Candidates())), ['行', '往', '逝'])
 }
+
+suite.toggling_pin_and_demote_adds_and_removes_candidate_preferences = (): void => {
+  const state = user_state.State.new()
+  const query = lookup.CreateQuery('い', 'く')
+  state.TogglePin(query, '往')
+  assert.equals(state.GetCandidateTier(query, '往'), 'pinned')
+  assert.equals(Texts(state.Rank(query, Candidates())), ['往', '行', '逝'])
+  state.TogglePin(query, '往')
+  assert.equals(state.GetCandidateTier(query, '往'), '')
+  assert.equals(Texts(state.Rank(query, Candidates())), ['行', '往', '逝'])
+  state.ToggleDemote(query, '逝')
+  assert.equals(state.GetCandidateTier(query, '逝'), 'demoted')
+  assert.equals(Texts(state.Rank(query, Candidates())), ['行', '往', '逝'])
+  state.ToggleDemote(query, '逝')
+  assert.equals(state.GetCandidateTier(query, '逝'), '')
+  assert.equals(Texts(state.Rank(query, Candidates())), ['行', '往', '逝'])
+}

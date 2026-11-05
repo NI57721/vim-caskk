@@ -253,7 +253,21 @@ export class Session
       return null_object
     endif
     const info = this._selection.GetInfo()
-    return conversion.CandidateInfo.new(info.index, info.count, this._Render(info.text), info.annotations)
+    return conversion.CandidateInfo.new(info.index, info.count, this._Render(info.text), info.annotations, info.tier)
+  enddef
+
+  def TogglePin()
+    if !this.InCandidate()
+      throw 'caskk: no active conversion selection'
+    endif
+    this._selection.TogglePin()
+  enddef
+
+  def ToggleDemote()
+    if !this.InCandidate()
+      throw 'caskk: no active conversion selection'
+    endif
+    this._selection.ToggleDemote()
   enddef
 
   # A missing dictionary key leaves an empty set here for registration UI.
