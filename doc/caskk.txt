@@ -522,7 +522,9 @@ candidate placeholders are:
 
 For example, a dictionary entry '# /#3/#5/#6/' converts abbreviation input
 '2026' into '二千二十六', '弐阡弐拾六', and 'MMXXVI'.  Roman numerals use
-standard subtractive notation through 3999 and repeat 'M' for larger values.
+standard subtractive notation through 3999 and combining overlines for larger
+values (for example, 4000 is 'I̅V̅').  This handles digit runs without converting
+the entire value to Vim's fixed-width integer type.
 When positional kanji exceeds the available large-number units, it falls back
 to digit-by-digit kanji.  Numeric relookup (#4) and shogi notation (#9) are not
 implemented; unsupported placeholders remain literal.

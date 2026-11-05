@@ -117,33 +117,55 @@ def GroupThousands(number: string): string
   return output
 enddef
 
-def RomanNumeral(number: string): string
-  var value = str2nr(number)
-  if value == 0
-    return 'N'
-  endif
-  if value > 3999
-    # Additive M notation remains unambiguous for larger ordinary integers.
-    var thousands = value / 1000
-    var output = repeat('M', thousands)
-    value %= 1000
-    for [amount, symbol] in [[900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'],
-        [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']]
-      while value >= amount
-        output ..= symbol
-        value -= amount
-      endwhile
-    endfor
-    return output
-  endif
+def RomanBelowThousand(value: number): string
   var output = ''
-  for [amount, symbol] in [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'],
+  var remaining = value
+  for [amount, symbol] in [[900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'],
       [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']]
-    while value >= amount
+    while remaining >= amount
       output ..= symbol
-      value -= amount
+      remaining -= amount
     endwhile
   endfor
+  return output
+enddef
+
+def RomanNumeral(number: string): string
+  var normalized = substitute(number, '^0\+', '', '')
+  if normalized ==# ''
+    return 'N'
+  endif
+  if strchars(normalized) <= 4 && str2nr(normalized) <= 3999
+    var value = str2nr(normalized)
+    var output = ''
+    while value >= 1000
+      output ..= 'M'
+      value -= 1000
+    endwhile
+    return output .. RomanBelowThousand(value)
+  endif
+
+  # Beyond 3999, use one combining overline for each factor of 1000.
+  # Processing three-digit groups keeps the input magnitude independent of Vim's
+  # fixed-width Number range.
+  const overline = nr2char(0x0305, true)
+  var output = ''
+  var level = 0
+  while normalized !=# ''
+    const group_length = min([3, strchars(normalized)])
+    const group = strcharpart(normalized, strchars(normalized) - group_length, group_length)
+    normalized = strcharpart(normalized, 0, strchars(normalized) - group_length)
+    var roman = RomanBelowThousand(str2nr(group))
+    if roman !=# '' && level > 0
+      var overlined = ''
+      for character in split(roman, '\zs')
+        overlined ..= character .. repeat(overline, level)
+      endfor
+      roman = overlined
+    endif
+    output = roman .. output
+    level += 1
+  endwhile
   return output
 enddef
 

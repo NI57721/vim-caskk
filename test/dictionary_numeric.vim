@@ -32,7 +32,8 @@ suite.numeric_placeholder_zero_preserves_ascii_digits = (): void => {
   assert.equals(numeric.ExpandPlaceholders('#0', '007'), '007')
 }
 
-suite.roman_numerals_repeat_thousands_for_values_above_conventional_range = (): void => {
+suite.roman_numerals_use_overlines_for_arbitrarily_large_values = (): void => {
   assert.equals(numeric.ExpandPlaceholders('#6', '2026'), 'MMXXVI')
-  assert.equals(numeric.ExpandPlaceholders('#6', '4000'), 'MMMM')
+  assert.equals(numeric.ExpandPlaceholders('#6', '4000'), 'I̅V̅')
+  assert.equals(numeric.ExpandPlaceholders('#6', '4000000000'), 'I̅̅̅V̅̅̅')
 }
