@@ -189,7 +189,9 @@ export class Session
       results->extend(this.Commit())
     endif
     this._prepared = null_object
-    for event in this._normalizer.Feed(key)
+    const input_events = this._composer.IsSpecialStart(key)
+      ? this._normalizer.FeedSpecial(key) : this._normalizer.Feed(key)
+    for event in input_events
       if event.modified
         this._direct_input_continuation = false
       endif

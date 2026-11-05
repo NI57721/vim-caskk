@@ -647,6 +647,18 @@ suite.literal_punctuation_is_included_in_the_reading_and_its_undo_checkpoint = (
   keys.Disable()
 }
 
+suite.special_question_mark_takes_precedence_over_us_shift_normalization = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const compiled = scheme.Compile({}, {'/': 'e*ki'},
+    [scheme.SpecialDefinition.new(['?'], '？')])
+  const keys = binding.Binding.new(compiled, '', {}, null_object, {}, '', false, true, 'US', {1: '?'})
+  keys.Enable()
+  feedkeys("a?\<Esc>", 'xt')
+  assert.equals(getline(1), '前？後')
+  keys.Disable()
+}
+
 suite.unfinished_modified_input_is_inserted_as_lowercase_on_insertleave = (): void => {
   const context = Setup()
   defer Cleanup(context)

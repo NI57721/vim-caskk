@@ -96,6 +96,17 @@ export class Composer
     return keys(this._table.consonants) + keys(this._table.symbols)
   enddef
 
+  # An explicitly configured special owns its physical first key before the
+  # keyboard-layout layer interprets shifted punctuation as Modified input.
+  def IsSpecialStart(key: string): bool
+    for rule in this._rules
+      if rule.keys[0] ==# key
+        return true
+      endif
+    endfor
+    return false
+  enddef
+
   def _HasConsonantPrefix(events: list<input.Event>): bool
     for key in this._InputKeys()
       const tokens = scheme.ConsonantKeys(key)

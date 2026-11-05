@@ -30,6 +30,18 @@ export class Normalizer
     return [event]
   enddef
 
+  # Explicit special keys keep their physical token, while a pending sticky
+  # modifier still applies to that token.
+  def FeedSpecial(key: string): list<input.Event>
+    if this._sticky_key != '' && key == this._sticky_key
+      this._modified = true
+      return []
+    endif
+    const event = input.Event.new(key, this._modified)
+    this._modified = false
+    return [event]
+  enddef
+
   def Backspace(): bool
     const pending = this._modified
     this._modified = false
