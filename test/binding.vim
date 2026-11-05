@@ -8,6 +8,15 @@ import autoload 'caskk/user_state.vim' as user_state
 
 final suite = themis#suite('buffer-local IME bindings')
 const assert = themis#helper('assert')
+var captured_preedit_positions: list<number> = []
+var captured_preedit_highlights: list<number> = []
+var captured_preedit_text: list<string> = []
+
+def CapturePreeditPosition()
+  captured_preedit_positions->add(col('.'))
+  captured_preedit_highlights->add(len(prop_list(1, {types: ['caskk_preedit']})))
+  captured_preedit_text->add(getline(1))
+enddef
 
 def Setup(): list<number>
   const previous = bufnr('%')
@@ -670,20 +679,24 @@ suite.non_ascii_direct_input_keeps_its_order_with_mapped_combinations = (): void
   keys.Disable()
 }
 
-suite.left_arrow_commits_reading_and_restarts_input_at_the_native_cursor = (): void => {
+suite.left_arrow_stays_in_preedit_and_following_input_continues_at_its_end = (): void => {
   const context = Setup()
   defer Cleanup(context)
   const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}))
+  captured_preedit_positions = []
+  captured_preedit_text = []
+  inoremap <buffer> <F12> <ScriptCmd>CapturePreeditPosition()<CR>
   keys.Enable()
-  feedkeys("aKa\<Left>ka\<Esc>", 'xt')
+  feedkeys("aKa\<Left>\<F12>ka\<F12>\<Esc>", 'xt')
+  assert.equals(captured_preedit_positions, [4, 10])
+  assert.equals(captured_preedit_text, ['前か後', '前かか後'])
   assert.equals(getline(1), '前かか後')
-  assert.equals(col('.'), 4)
+  assert.equals(col('.'), 7)
   assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
-  normal! u
-  assert.equals(getline(1), '前か後')
   normal! u
   assert.equals(getline(1), '前後')
   keys.Disable()
+  iunmap <buffer> <F12>
 }
 
 suite.enter_commits_reading_then_inserts_a_native_line_break = (): void => {
@@ -720,6 +733,24 @@ suite.native_handoff_does_not_lose_an_unfinished_modified_consonant = (): void =
   keys.Disable()
 }
 
+suite.standalone_vowel_after_direct_syllables_stays_direct_in_insert_mode = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const compiled = scheme.Compile({h: 'h', g: 'g'}, {a: 'a', i: 'i', u: 'u', e: 'e', o: 'o'})
+  const keys = binding.Binding.new(compiled)
+  captured_preedit_positions = []
+  captured_preedit_highlights = []
+  captured_preedit_text = []
+  inoremap <buffer> <F12> <ScriptCmd>CapturePreeditPosition()<CR>
+  keys.Enable()
+  feedkeys("ahogea\<F12>\<Esc>", 'xt')
+  assert.equals(getline(1), '前ほげあ後')
+  assert.equals(captured_preedit_highlights, [0])
+  assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
+  iunmap <buffer> <F12>
+  keys.Disable()
+}
+
 suite.explicit_enter_alias_definition_precedes_native_enter_handoff = (): void => {
   const context = Setup()
   defer Cleanup(context)
@@ -738,6 +769,55 @@ suite.right_arrow_before_ime_input_preserves_native_motion = (): void => {
   keys.Enable()
   feedkeys("a\<Right>ka\<Esc>", 'xt')
   assert.equals(getline(1), '前後か')
+  keys.Disable()
+}
+
+suite.left_and_right_move_only_inside_a_modified_preedit = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const compiled = scheme.Compile({}, {a: 'a', i: 'i', u: 'u', e: 'e', o: 'o'})
+  const keys = binding.Binding.new(compiled, ';')
+  captured_preedit_positions = []
+  captured_preedit_highlights = []
+  inoremap <buffer> <F12> <ScriptCmd>CapturePreeditPosition()<CR>
+  keys.Enable()
+  feedkeys("a;aiueo\<Left>\<F12>\<Left>\<Left>\<Left>\<Left>\<Left>\<F12>\<Left>\<F12>\<Right>\<Right>\<Right>\<Right>\<Right>\<Right>\<F12>\<Right>\<F12>\<Esc>", 'xt')
+  assert.equals(captured_preedit_positions, [16, 4, 4, 19, 19])
+  assert.equals(mapnew(captured_preedit_highlights, (_, count) => count > 0), [true, true, true, true, true])
+  assert.equals(getline(1), '前あいうえお後')
+  iunmap <buffer> <F12>
+  keys.Disable()
+}
+
+suite.vertical_motion_commits_modified_text_and_clears_its_highlight = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  setline(1, ['前後', '別行'])
+  const compiled = scheme.Compile({}, {a: 'a', i: 'i', u: 'u', e: 'e', o: 'o'})
+  const keys = binding.Binding.new(compiled, ';')
+  keys.Enable()
+  feedkeys("a;aiueo\<Down>", 'xt')
+  assert.equals(keys.GetEditor() is null_object, true)
+  assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
+  assert.equals(getline(1, '$'), ['前あいうえお後', '別行'])
+  keys.Disable()
+}
+
+suite.external_cursor_motion_to_another_line_commits_the_modified_range = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  setline(1, ['前後', '別行'])
+  const compiled = scheme.Compile({}, {a: 'a', i: 'i', u: 'u', e: 'e', o: 'o'})
+  const keys = binding.Binding.new(compiled, ';')
+  inoremap <buffer> <F11> <C-O>j
+  keys.Enable()
+  feedkeys("a;aiueo\<F11>", 'xt')
+  assert.equals(keys.GetEditor() is null_object, true)
+  assert.equals(line('.'), 2)
+  assert.equals(col('.'), 4)
+  assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
+  assert.equals(getline(1, '$'), ['前あいうえお後', '別行'])
+  iunmap <buffer> <F11>
   keys.Disable()
 }
 

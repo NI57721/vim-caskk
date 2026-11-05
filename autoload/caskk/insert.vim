@@ -160,6 +160,47 @@ export class Editor
     return true
   enddef
 
+  # Horizontal motion stays inside a single-line preedit. The core composes
+  # input at the end, so a later input action restores the cursor to that end.
+  def MoveWithinPreedit(key: string): bool
+    if key !=# '<Left>' && key !=# '<Right>' || !this._session.GetSnapshot().in_preedit
+        || this._session.InCandidate()
+      return false
+    endif
+    this._CheckTarget()
+    this._undo.Check()
+    const range = this._writer.GetPreeditRange()
+    if range is null_object || range.start.line != range.finish.line
+        || line('.') != range.start.line
+      return false
+    endif
+    const column = col('.')
+    if column < range.start.column || column > range.finish.column
+      return false
+    endif
+    const text = getline(range.start.line)
+    const current = charidx(text, column - 1)
+    const first = charidx(text, range.start.column - 1)
+    const last = charidx(text, range.finish.column - 1)
+    const target = key ==# '<Left>' ? max([first, current - 1]) : min([last, current + 1])
+    if target != current
+      cursor(range.start.line, byteidx(text, target) + 1)
+    endif
+    return true
+  enddef
+
+  def RestorePreeditCursor()
+    if this._closed || !this._session.GetSnapshot().in_preedit || this._session.InCandidate()
+      return
+    endif
+    const range = this._writer.GetPreeditRange()
+    if range isnot null_object && range.start.line == range.finish.line
+        && line('.') == range.start.line && col('.') >= range.start.column
+        && col('.') <= range.finish.column
+      cursor(range.finish.line, range.finish.column)
+    endif
+  enddef
+
   def GetRegistrationRequest(): conversion.Candidates
     if this._session.InCandidate()
       return null_object

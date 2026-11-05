@@ -756,6 +756,12 @@ export class Binding
     if this._editor isnot null_object && this._editor.IsRegistrationSuspended()
       throw 'caskk: input is suspended for dictionary registration'
     endif
+    if this._editor isnot null_object && this._editor.MoveWithinPreedit(key)
+      return
+    endif
+    if this._editor isnot null_object
+      this._editor.RestorePreeditCursor()
+    endif
     if has_key(this._native, key)
       if key ==# '<BS>' && this._editor isnot null_object && this._editor.Backspace()
         this._last = []
