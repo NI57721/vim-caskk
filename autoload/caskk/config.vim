@@ -50,6 +50,7 @@ class Settings
   const registration_prefill: bool
   const registration_auto: bool
   const registration_inline: bool
+  const undo_revert_to_reading: bool
   const candidate_popup: bool
   const mode_popup: bool
   const mode_popup_labels: dict<string>
@@ -58,7 +59,8 @@ class Settings
   const dictionary_sources: list<loader.Source>
 
   def new(this.highlight, this.input, this.state_path, this.state_auto, this.registration_prefill,
-      this.registration_auto, this.registration_inline, this.candidate_popup, this.mode_popup,
+      this.registration_auto, this.registration_inline, this.undo_revert_to_reading,
+      this.candidate_popup, this.mode_popup,
       mode_popup_labels: dict<string>, mode_popup_markers: dict<string>, this.mode_popup_time,
       dictionary_sources: list<loader.Source> = [])
     this.mode_popup_labels = copy(mode_popup_labels)
@@ -271,6 +273,7 @@ def Parse(options: dict<any>, shared_index: dict_index.Database = null_object): 
     if index(['highlight', 'sticky_key', 'keyboard_layout', 'keyboard_layout_overrides', 'mappings', 'dictionaries', 'state_path', 'state_auto',
         'small_tsu_okuri_as_t',
         'registration_prefill', 'registration_auto', 'registration_inline', 'candidate_popup', 'persist_input_mode',
+        'undo_revert_to_reading',
         'register_mode_conversions',
         'mode_popup', 'mode_popup_labels', 'mode_popup_markers', 'mode_popup_time'], section) < 0
       throw 'unknown section: ' .. section
@@ -312,6 +315,10 @@ def Parse(options: dict<any>, shared_index: dict_index.Database = null_object): 
     throw 'registration_inline must be a bool'
   endif
   const registration_inline: bool = get(options, 'registration_inline', false)
+  if type(get(options, 'undo_revert_to_reading', true)) != v:t_bool
+    throw 'undo_revert_to_reading must be a bool'
+  endif
+  const undo_revert_to_reading: bool = get(options, 'undo_revert_to_reading', true)
   if type(get(options, 'candidate_popup', true)) != v:t_bool
     throw 'candidate_popup must be a bool'
   endif
@@ -336,7 +343,8 @@ def Parse(options: dict<any>, shared_index: dict_index.Database = null_object): 
   const destination = state_path == '' ? '' : fnamemodify(state_path, ':p')
   return Settings.new(highlight, Input.new(sticky_key, keyboard_layout, keyboard_layout_overrides,
     actions, dictionary_index, small_tsu_okuri_as_t, persist_input_mode, register_mode_conversions), destination, state_auto,
-    registration_prefill, registration_auto, registration_inline, candidate_popup, mode_popup, mode_popup_labels,
+    registration_prefill, registration_auto, registration_inline, undo_revert_to_reading,
+    candidate_popup, mode_popup, mode_popup_labels,
     mode_popup_markers, mode_popup_time, sources)
 enddef
 
@@ -365,6 +373,7 @@ def SameDictionaryIndependentSettings(left: Settings, right: Settings): bool
     && left.registration_auto == right.registration_auto
     && left.registration_prefill == right.registration_prefill
     && left.registration_inline == right.registration_inline
+    && left.undo_revert_to_reading == right.undo_revert_to_reading
     && left.state_path ==# right.state_path
     && left.state_auto == right.state_auto
     && left.candidate_popup == right.candidate_popup
@@ -460,6 +469,10 @@ enddef
 
 export def GetRegistrationInline(): bool
   return current.registration_inline
+enddef
+
+export def GetUndoRevertToReading(): bool
+  return current.undo_revert_to_reading
 enddef
 
 export def GetCandidatePopup(): bool

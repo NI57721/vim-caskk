@@ -587,6 +587,14 @@ katakana.  Kanji in candidates are unchanged.  FullwidthAlphanumericMode bypasse
 kana composition and dictionary conversion; it maps ASCII letters, digits,
 punctuation, and space to their fullwidth forms.
 
+undo_revert_to_reading                *caskk-config-undo-revert-to-reading*
+
+undo_revert_to_reading is a boolean that defaults to true.  When true, one undo
+after conversion restores the hiragana reading, and a second undo removes that
+reading.  Set it to false to combine the reading and conversion into one undo
+unit; one undo then removes the converted text and restores the text from before
+the reading was entered.
+
 persist_input_mode                         *caskk-config-persist-input-mode*
 
 persist_input_mode is a boolean that defaults to false.  When false, leaving

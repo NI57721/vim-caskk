@@ -40,7 +40,7 @@ def Handle(key: string)
   endfor
 enddef
 
-def Setup(): list<number>
+def Setup(revert_to_reading: bool = true): list<number>
   const previous = bufnr('%')
   const number = bufadd('')
   bufload(number)
@@ -55,7 +55,7 @@ def Setup(): list<number>
   ])
   ime = session.Session.new(compiled, '', merger.Merge([[parser.ParseLine('いk /行/')]]), preferences)
   const writer = buffer.Writer.new(number, 1, 1)
-  manager = undo.Manager.new(writer)
+  manager = undo.Manager.new(writer, revert_to_reading)
   view = presentation.Highlighter.new(writer)
   for key in ['k', 'a', 'K', 'd', 'S', 'N', 'B', 'C', 'R', 'G', 'H', 'V', 'W', 't']
     execute 'inoremap <buffer> ' .. key .. " <ScriptCmd>Handle('" .. key .. "')<CR>"
@@ -102,6 +102,17 @@ suite.cancelled_conversion_and_reading_commit_form_one_undo_unit = (): void => {
   assert.equals(getline(1), '')
   execute "normal! \<C-r>"
   assert.equals(getline(1), 'か')
+}
+
+suite.disabling_reading_restore_undoes_conversion_and_reading_together = (): void => {
+  const context = Setup(false)
+  defer Cleanup(context)
+  feedkeys("iKaSC\<Esc>", 'xt')
+  assert.equals(getline(1), '蚊')
+  normal! u
+  assert.equals(getline(1), '')
+  execute "normal! \<C-r>"
+  assert.equals(getline(1), '蚊')
 }
 
 suite.multiline_conversion_undo_restores_reading_before_removing_it = (): void => {

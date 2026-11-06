@@ -507,6 +507,7 @@ suite.invalid_input_types_keys_and_actions_preserve_all_previous_settings = (): 
     {mappings: {'two': 'Commit'}},
     {mappings: {'<NotAKey>': 'Commit'}},
     {persist_input_mode: 'yes'},
+    {undo_revert_to_reading: 'no'},
     {register_mode_conversions: 'yes'},
     {small_tsu_okuri_as_t: 'yes'},
     {registration_inline: 'yes'},
@@ -542,6 +543,31 @@ suite.register_mode_conversions_defaults_on_and_can_be_disabled = (): void => {
   assert.equals(configuration.GetInput().register_mode_conversions, true)
   Caskk.Config({register_mode_conversions: false})
   assert.equals(configuration.GetInput().register_mode_conversions, false)
+}
+
+suite.undo_revert_to_reading_defaults_on_and_can_be_disabled = (): void => {
+  Caskk.Config({})
+  assert.equals(configuration.GetUndoRevertToReading(), true)
+  Caskk.Config({undo_revert_to_reading: false})
+  assert.equals(configuration.GetUndoRevertToReading(), false)
+}
+
+suite.disabling_reading_restore_uses_one_undo_for_the_conversion = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const dictionary = tempname()
+  defer delete(dictionary)
+  writefile(['か /蚊/'], dictionary)
+  setline(1, '')
+  Caskk.Config({dictionaries: [dictionary], undo_revert_to_reading: false,
+    mappings: {"\<Space>": 'Convert', "\<F10>": 'Commit'}})
+  Caskk.Enable('configured')
+  feedkeys("aKa\<Space>\<F10>\<Esc>", 'xt')
+  assert.equals(getline(1), '蚊')
+  normal! u
+  assert.equals(getline(1), '')
+  execute "normal! \<C-r>"
+  assert.equals(getline(1), '蚊')
 }
 
 suite.invalid_highlight_color_does_not_replace_input_settings = (): void => {

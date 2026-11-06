@@ -917,7 +917,8 @@ export class Binding
       this._keyboard_layout_overrides, this._input_mode, this._register_mode_conversions,
       this._dictionary_index,
       reconverting ? this._reconversion_record.okuri : '',
-      reconverting ? this._reconversion_record.text : '')
+      reconverting ? this._reconversion_record.text : '',
+      configuration.GetUndoRevertToReading())
     this._initial_reading = ''
     this._mode_marker = ''
     this._mode_view.Show(this._input_mode, this._mode_marker)

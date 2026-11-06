@@ -7,6 +7,7 @@ import autoload 'caskk/state.vim' as state_types
 export class Manager
   const _writer: buffer.Writer
   const _buffer: number
+  const _revert_to_reading: bool
   var _tick: number
   var _unit_open: bool = false
   var _preedit: bool = false
@@ -15,9 +16,10 @@ export class Manager
   var _reading_display: string = ''
   var _existing_conversion: bool = false
 
-  def new(writer: buffer.Writer)
+  def new(writer: buffer.Writer, revert_to_reading: bool = true)
     this._writer = writer
     this._buffer = writer.GetBufferNumber()
+    this._revert_to_reading = revert_to_reading
     this._CheckTarget()
     this._tick = getbufvar(this._buffer, 'changedtick')
   enddef
@@ -72,7 +74,8 @@ export class Manager
     if !empty(result.unhandled)
       return
     endif
-    if result.commit_preedit && !this._existing_conversion && this._reading_state isnot null_object
+    if result.commit_preedit && this._revert_to_reading && !this._existing_conversion
+        && this._reading_state isnot null_object
         && result.text !=# (this._reading_state.reading .. this._reading_state.okuri)
       # Finish the composition's existing undo block as plain reading text.
       # Only the final committed candidate gets a separate block; browsing
