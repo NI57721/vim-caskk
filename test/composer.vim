@@ -147,6 +147,17 @@ suite.vowel_combination_composes_without_a_consonant = (): void => {
   assert.equals(results[0].events[0].key, 'a')
 }
 
+suite.standalone_combination_keeps_a_latent_okuri_boundary_inert = (): void => {
+  const engine = composer.Composer.new(scheme.Compile({}, {'!': 'a*N'}))
+  const matched = engine.Feed(input.Event.new('!'))
+  assert.equals(len(matched), 1)
+  const result = composer.Compose(matched[0])
+  assert.equals(result.start_conversion, true)
+  assert.equals(result.reading, 'あん')
+  assert.equals(result.okuri, '')
+  assert.equals(result.okuri_started, false)
+}
+
 suite.special_overrides_generated_combination = (): void => {
   const definitions = [scheme.SpecialDefinition.new(['k', 'a'], '特別')]
   const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}, definitions))

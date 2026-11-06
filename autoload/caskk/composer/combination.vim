@@ -30,9 +30,8 @@ enddef
 export def ComposeEvents(pattern: pattern_types.OutputPattern, events: list<input.Event>,
     in_preedit: bool = false): composition.Result
   if len(events) == 1
-    if pattern.boundary != -1
-      throw 'caskk: standalone combination cannot activate latent okuri boundary'
-    endif
+    # A latent boundary is meaningful only when the combination follows a
+    # consonant. Standalone input emits the complete pattern as ordinary text.
     if in_preedit && events[0].modified
       return composition.Result.new(false, '', pattern.text, true)
     endif
