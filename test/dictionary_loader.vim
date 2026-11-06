@@ -41,6 +41,26 @@ suite.euc_jp_source_is_decoded_before_merging_with_utf8 = (): void => {
   assert.equals(entries['かな'].candidates[0].annotations, ['表記', '注釈'])
 }
 
+suite.euc_jp_dictionary_search_uses_the_encoded_key_sort_order = (): void => {
+  const path = tempname()
+  defer delete(path)
+  const lines = [';; okuri-ari entries.', ';; okuri-nasi entries.',
+    'しゅうせいていあん /候補/', 'なかあだち /候補/', 'べつぶんしょ /候補/',
+    'ほんやくじ /候補/', 'ぼせいほご /候補/', 'ぽあそんひ /候補/', 'ぽりぶくろ /候補/',
+    'ぽんとちょう /候補/', 'ぽんぷしゃ /候補/', 'ま> /候補/', 'まーじゃん /候補/',
+    'まーじゃんよう /候補/', 'まいかい /毎回/', 'まいくろめーとる /候補/',
+    'まいにち /候補/', 'まくらざき /候補/', 'まんず /候補/', 'ものがたりてき /候補/']
+  writefile(mapnew(lines, (_, line) => iconv(line, 'utf-8', 'euc-jp')), path)
+  const database = loader.Open([loader.Source.new(path, 'euc-jp')])
+  const query = lookup.CreateQuery('まいかい', '')
+  assert.equals(mapnew(database.Lookup(query), (_, candidate) => candidate.text), ['毎回'])
+  const builder = loader.DatabaseBuilder.new([loader.Source.new(path, 'euc-jp')])
+  while !builder.IsDone()
+    builder.Step(3)
+  endwhile
+  assert.equals(mapnew(builder.Result().Lookup(query), (_, candidate) => candidate.text), ['毎回'])
+}
+
 suite.file_and_line_order_determine_candidate_order = (): void => {
   const first_path = tempname()
   const second_path = tempname()

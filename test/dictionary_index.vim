@@ -23,6 +23,18 @@ suite.binary_search_uses_descending_okuri_and_ascending_plain_sections = (): voi
   assert.equals(len(database.Lookup(lookup.CreateQuery('さ', ''))), 0)
 }
 
+suite.binary_search_uses_the_source_encoding_order_for_euc_jp_sections = (): void => {
+  const lines = [';; okuri-ari entries.', ';; okuri-nasi entries.',
+    'しゅうせいていあん /候補/', 'なかあだち /候補/',
+    'べつぶんしょ /候補/', 'ほんやくじ /候補/', 'ぼせいほご /候補/', 'ぽあそんひ /候補/',
+    'ぽりぶくろ /候補/', 'ぽんとちょう /候補/', 'ぽんぷしゃ /候補/', 'ま> /候補/',
+    'まーじゃん /候補/', 'まーじゃんよう /候補/', 'まいかい /毎回/',
+    'まいくろめーとる /候補/', 'まいにち /候補/', 'まくらざき /候補/',
+    'まんず /候補/', 'ものがたりてき /候補/']
+  const database = dict_index.Database.new([dict_index.SourceFromLines(lines, 'euc-jp')])
+  assert.equals(CandidateTexts(database.Lookup(lookup.CreateQuery('まいかい', ''))), ['毎回'])
+}
+
 suite.binary_search_preserves_source_order_and_merges_duplicate_annotations = (): void => {
   const first = tempname()
   const second = tempname()

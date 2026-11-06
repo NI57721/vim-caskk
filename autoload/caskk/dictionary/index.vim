@@ -15,9 +15,20 @@ def EntryKey(line: string): string
   return empty(fields) ? '' : fields[1]
 enddef
 
-def CompareKeys(left: string, right: string): number
-  const left_codes = str2list(left, true)
-  const right_codes = str2list(right, true)
+# SKK keys are sorted as bytes in the source encoding, which may differ from
+# Unicode codepoint order (for example, prolonged sound marks in EUC-JP).
+def EncodedBytes(value: string, encoding: string): list<number>
+  const encoded = iconv(value, &encoding, encoding)
+  final bytes: list<number> = []
+  for offset in range(strlen(encoded))
+    bytes->add(char2nr(strpart(encoded, offset, 1), true))
+  endfor
+  return bytes
+enddef
+
+def CompareKeys(left: string, right: string, encoding: string): number
+  const left_codes = EncodedBytes(left, encoding)
+  const right_codes = EncodedBytes(right, encoding)
   const common = min([len(left_codes), len(right_codes)])
   for offset in range(common)
     if left_codes[offset] != right_codes[offset]
@@ -36,9 +47,12 @@ export class SourceData
   const _plain_lines: list<number>
   const _sectioned: bool
   const _fallback: dict<dictionary.Entry>
+  const _encoding: string
 
   def new(lines: list<string>, okuri_lines: list<number> = [], plain_lines: list<number> = [],
-      sectioned: bool = false, fallback: dict<dictionary.Entry> = {}, prepared: bool = false)
+      sectioned: bool = false, fallback: dict<dictionary.Entry> = {}, prepared: bool = false,
+      encoding: string = 'utf-8')
+    this._encoding = encoding
     if prepared
       this._lines = lines
       this._sectioned = sectioned
@@ -122,7 +136,7 @@ export class SourceData
     while low <= high
       const middle = (low + high) / 2
       const middle_key = EntryKey(this._lines[lines[middle]])
-      const comparison = CompareKeys(middle_key, key)
+      const comparison = CompareKeys(middle_key, key, this._encoding)
       if comparison == 0
         var first = middle
         var last = middle
@@ -147,6 +161,7 @@ endclass
 # physical rows, allowing callers to schedule the next slice with a timer.
 export class Builder
   const _lines: list<string>
+  const _encoding: string
   var _position: number = 0
   var _phase: string = 'scan'
   var _okuri_header: number = -1
@@ -156,8 +171,9 @@ export class Builder
   var _fallback: dict<dictionary.Entry> = {}
   var _result: SourceData = null_object
 
-  def new(lines: list<string>)
+  def new(lines: list<string>, encoding: string = 'utf-8')
     this._lines = lines
+    this._encoding = encoding
   enddef
 
   def IsDone(): bool
@@ -198,7 +214,7 @@ export class Builder
   def _Finish()
     const sectioned = this._phase ==# 'sections'
     this._result = SourceData.new(this._lines, this._okuri_lines, this._plain_lines,
-      sectioned, this._fallback, true)
+      sectioned, this._fallback, true, this._encoding)
     this._phase = 'done'
   enddef
 
@@ -303,8 +319,8 @@ export class Database
   enddef
 endclass
 
-export def SourceFromLines(lines: list<string>): SourceData
-  const builder = Builder.new(lines)
+export def SourceFromLines(lines: list<string>, encoding: string = 'utf-8'): SourceData
+  const builder = Builder.new(lines, encoding)
   while !builder.Step(max([1, len(lines)]))
   endwhile
   return builder.Result()

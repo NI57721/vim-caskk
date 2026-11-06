@@ -642,6 +642,12 @@ by Vim timers after Config() returns.  Candidate order is retained across source
 candidates are merged while preserving the first occurrence's order and
 combining annotations.  System dictionaries are never written.
 
+When both SKK section headers are present, lookups use binary search.  Key
+comparison follows the source encoding's byte order: okuri-ari entries must be
+in descending order and okuri-nasi entries in ascending order.  This also
+supports EUC-JP dictionaries whose key order differs from Unicode codepoint
+order.  Sectionless files use the fallback lookup path.
+
 Config() validates its options and applies highlighting before returning.  For
 large sources, dictionary loading continues afterward; Caskk.GetDictionaryLoadStatus()
 returns a dictionary with state 'loading', 'ready', or 'error', and an error

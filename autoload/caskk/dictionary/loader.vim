@@ -156,7 +156,7 @@ enddef
 export def Open(sources: list<Source>): index.Database
   final indexed_sources: list<index.SourceData> = []
   for source in sources
-    indexed_sources->add(index.SourceFromLines(ReadLines(source)))
+    indexed_sources->add(index.SourceFromLines(ReadLines(source), source.encoding))
   endfor
   return index.Database.new(indexed_sources)
 enddef
@@ -203,7 +203,8 @@ export class DatabaseBuilder
       if !this._source_reader.Step()
         return false
       endif
-      this._source_builder = index.Builder.new(this._source_reader.Lines())
+      this._source_builder = index.Builder.new(this._source_reader.Lines(),
+        this._sources[this._source_index].encoding)
       this._source_reader = null_object
     endif
     if this._source_builder.Step(max_lines)
