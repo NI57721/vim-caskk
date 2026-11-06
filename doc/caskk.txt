@@ -656,15 +656,17 @@ indexes at most 1000 rows per callback.  Decoding waits for a complete line so
 multibyte characters are not split across chunks.  An unusually long single
 dictionary line is decoded as a whole.
 
-Missing files and decoding failures in an incremental load leave the previous
-dictionary active, set the status to 'error', and display an error message.
-When no dictionary has loaded yet, conversion during loading keeps the current
-reading and does not open registration; retry conversion after loading finishes.
-Each later successful dictionary is published as one change.  A reload request
-cancels an older pending request, so only the newest request can be published.
-Candidate selection already in progress keeps its prepared candidates; new
-conversions use the new dictionary after publication.  A Config() call that
-changes non-dictionary binding settings still releases existing bindings.
+On the first incremental load, each source becomes available after that source
+has been fully read and indexed.  While later sources are still loading,
+conversions can use candidates from completed sources.  If no candidate is
+found yet, Caskk keeps the reading and does not open registration.  If a later
+source fails, completed sources remain available, the status becomes 'error',
+and Caskk displays an error message.  During a reload, the previous complete
+dictionary remains active until the new source set has finished; then the new
+set is published at once.  Candidate selection already in progress keeps its
+prepared candidates.  A reload request cancels an older pending request, so
+only the newest request can be published.  A Config() call that changes
+non-dictionary binding settings still releases existing bindings.
 
 Conversion uses in-memory data.  Editing or removing a source file does not
 change it.  Call Config() again to reload.  A dictionary-only reload keeps

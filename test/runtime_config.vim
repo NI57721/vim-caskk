@@ -133,14 +133,70 @@ suite.large_dictionary_config_returns_before_indexing_and_publishes_when_complet
 
   Caskk.Config({dictionaries: [path]})
   assert.equals(Caskk.GetDictionaryLoadStatus().state, 'loading')
-  # Setup installed a ready empty dictionary; reload leaves that version usable.
-  assert.equals(configuration.GetInput().dictionary_index.IsReady(), true)
+  # No dictionary source was active, so this is an initial load.
+  assert.equals(configuration.GetInput().dictionary_index.IsReady(), false)
   WaitForDictionaryLoad()
   assert.equals(Caskk.GetDictionaryLoadStatus().state, 'ready')
   const candidates = configuration.GetInput().dictionary_index.Lookup(dictionary_lookup.CreateQuery('かな', ''))
   assert.equals(mapnew(candidates, (_, candidate) => candidate.text), [])
   assert.equals(configuration.GetInput().dictionary_index.Lookup(dictionary_lookup.CreateQuery(LargeDictionaryKey(1), ''))[0].text,
     '候補00001')
+}
+
+suite.initial_load_publishes_completed_sources_before_a_large_later_source = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const early = tempname()
+  const large = tempname()
+  defer delete(early)
+  defer delete(large)
+  writefile(['か /先行候補/'], early)
+  WriteLargeDictionary(large)
+
+  Caskk.Config({dictionaries: [early, large]})
+  var waits = 0
+  while empty(configuration.GetInput().dictionary_index.Lookup(dictionary_lookup.CreateQuery('か', '')))
+      && Caskk.GetDictionaryLoadStatus().state ==# 'loading' && waits < 100
+    sleep 10m
+    waits += 1
+  endwhile
+  assert.equals(Caskk.GetDictionaryLoadStatus().state, 'loading')
+  assert.equals(configuration.GetInput().dictionary_index.IsReady(), false)
+  assert.equals(configuration.GetInput().dictionary_index.Lookup(dictionary_lookup.CreateQuery('か', ''))[0].text,
+    '先行候補')
+
+  const active = session.Session.new(Caskk.GetInputScheme('configured'), '', {}, null_object,
+    'か', true, '', {}, input_mode.HIRAGANA, true, configuration.GetInput().dictionary_index)
+  const converted = active.StartConversion({}, user_state.State.new())
+  assert.equals(converted[0].in_candidate, true)
+  assert.equals(converted[0].text, '先行候補')
+
+  const waiting = session.Session.new(Caskk.GetInputScheme('configured'), '', {}, null_object,
+    '見つからない', true, '', {}, input_mode.HIRAGANA, true, configuration.GetInput().dictionary_index)
+  const unavailable = waiting.StartConversion({}, user_state.State.new())
+  assert.equals(unavailable[0].dictionary_loading, true)
+  assert.equals(unavailable[0].registration_requested, false)
+  WaitForDictionaryLoad()
+  assert.equals(Caskk.GetDictionaryLoadStatus().state, 'ready')
+}
+
+suite.failed_later_source_keeps_completed_sources_from_the_initial_load = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const early = tempname()
+  const later = tempname()
+  defer delete(early)
+  defer delete(later)
+  writefile(['か /先行候補/'], early)
+  WriteLargeDictionary(later)
+
+  Caskk.Config({dictionaries: [early, later]})
+  delete(later)
+  WaitForDictionaryLoad()
+  assert.equals(Caskk.GetDictionaryLoadStatus().state, 'error')
+  assert.equals(configuration.GetInput().dictionary_index.IsReady(), true)
+  assert.equals(configuration.GetInput().dictionary_index.Lookup(dictionary_lookup.CreateQuery('か', ''))[0].text,
+    '先行候補')
 }
 
 suite.async_dictionary_reload_keeps_bindings_and_future_sessions_use_the_new_index = (): void => {

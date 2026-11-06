@@ -189,6 +189,14 @@ export class DatabaseBuilder
     return this._result
   enddef
 
+  def CompletedSourceCount(): number
+    return len(this._indexed_sources)
+  enddef
+
+  def CompletedResult(): index.Database
+    return index.Database.new(this._indexed_sources)
+  enddef
+
   def Step(max_lines: number): bool
     if max_lines <= 0
       throw 'caskk: dictionary load step must be positive'

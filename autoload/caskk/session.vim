@@ -80,14 +80,15 @@ export class Session
 
   def _PrepareConversion(entries: dict<dictionary.Entry>, preferences: user_state.State): Result
     this._reading_after_cancel = false
-    if this._dictionary_index isnot null_object && !this._dictionary_index.IsReady()
-      return Result.new('', [], this._state.GetSnapshot(), false, false, false, false, false,
-        this._DisplayPreedit(), true)
-    endif
     this._prepared = conversion.Prepare(entries, preferences, this._state.reading, this._state.okuri,
       this._small_tsu_okuri_as_t, this._dictionary_index)
     this._request_preferences = preferences
     if empty(this._prepared.candidates)
+      if this._dictionary_index isnot null_object && !this._dictionary_index.IsReady()
+        this._prepared = null_object
+        return Result.new('', [], this._state.GetSnapshot(), false, false, false, false, false,
+          this._DisplayPreedit(), true)
+      endif
       return Result.new('', [], this._state.GetSnapshot(), false, false, false, true, false,
         this._DisplayPreedit())
     endif

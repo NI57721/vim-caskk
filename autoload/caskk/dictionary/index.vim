@@ -313,6 +313,24 @@ export class Database
     this._ready = false
   enddef
 
+  def ResetForLoading()
+    this._sources = []
+    this._ready = false
+  enddef
+
+  def ReplacePartialWith(database: Database)
+    this._sources = copy(database._sources)
+    this._ready = false
+  enddef
+
+  def MarkReady()
+    this._ready = true
+  enddef
+
+  def SourceCount(): number
+    return len(this._sources)
+  enddef
+
   def ReplaceWith(database: Database)
     this._sources = copy(database._sources)
     this._ready = true

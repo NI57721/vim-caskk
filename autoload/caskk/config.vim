@@ -347,6 +347,8 @@ var dictionary_timer = -1
 var dictionary_load_state = 'ready'
 var dictionary_load_error = ''
 var has_loaded_dictionary = false
+var progressive_initial_load = false
+var published_dictionary_source_count = 0
 
 const INDEX_LINES_PER_TICK = 1000
 
@@ -377,7 +379,13 @@ def AdvanceDictionaryLoad(timer: number)
     return
   endif
   try
-    if pending_dictionary_builder.Step(INDEX_LINES_PER_TICK)
+    const done = pending_dictionary_builder.Step(INDEX_LINES_PER_TICK)
+    const completed_sources = pending_dictionary_builder.CompletedSourceCount()
+    if progressive_initial_load && completed_sources > published_dictionary_source_count
+      shared_dictionary_index.ReplacePartialWith(pending_dictionary_builder.CompletedResult())
+      published_dictionary_source_count = completed_sources
+    endif
+    if done
       shared_dictionary_index.ReplaceWith(pending_dictionary_builder.Result())
       has_loaded_dictionary = true
       pending_dictionary_builder = null_object
@@ -389,6 +397,10 @@ def AdvanceDictionaryLoad(timer: number)
     dictionary_timer = timer_start(0, AdvanceDictionaryLoad)
   catch
     dictionary_load_error = v:exception
+    if progressive_initial_load
+      shared_dictionary_index.MarkReady()
+      has_loaded_dictionary = shared_dictionary_index.SourceCount() > 0
+    endif
     pending_dictionary_builder = null_object
     dictionary_timer = -1
     dictionary_load_state = 'error'
@@ -504,7 +516,7 @@ export def Configure(options: dict<any>)
   endif
   pending_dictionary_builder = null_object
   current = parsed
-  has_loaded_dictionary = true
+  has_loaded_dictionary = !empty(parsed.dictionary_sources)
   dictionary_load_state = 'ready'
   dictionary_load_error = ''
 enddef
@@ -558,8 +570,10 @@ export def ConfigureIncrementally(options: dict<any>): bool
     dictionary_timer = -1
   endif
   dictionary_load_error = ''
-  if !has_loaded_dictionary
-    shared_dictionary_index.MarkLoading()
+  progressive_initial_load = !has_loaded_dictionary
+  published_dictionary_source_count = 0
+  if progressive_initial_load
+    shared_dictionary_index.ResetForLoading()
   endif
   pending_dictionary_builder = loader.DatabaseBuilder.new(parsed.dictionary_sources)
   current = parsed
@@ -568,7 +582,7 @@ export def ConfigureIncrementally(options: dict<any>): bool
     shared_dictionary_index.ReplaceWith(pending_dictionary_builder.Result())
     pending_dictionary_builder = null_object
     dictionary_load_state = 'ready'
-    has_loaded_dictionary = true
+    has_loaded_dictionary = !empty(parsed.dictionary_sources)
   else
     dictionary_timer = timer_start(0, AdvanceDictionaryLoad)
   endif
