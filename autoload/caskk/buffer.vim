@@ -31,13 +31,19 @@ export class Writer
   var _text: string = ''
   var _active: bool = false
 
-  def new(number: number, line: number, column: number)
+  def new(number: number, line: number, column: number, existing_text: string = '')
     this._buffer = number
     this._start_line = line
     this._end_line = line
     this._start_column = column
-    this._end_column = column
+    this._end_column = column + strlen(existing_text)
+    this._text = existing_text
+    this._active = existing_text != ''
     this._CheckPosition(line, column)
+    this._CheckPosition(line, this._end_column)
+    if existing_text !=# strpart(getbufline(number, line)[0], column - 1, strlen(existing_text))
+      throw 'caskk: initial tracked text does not match the buffer'
+    endif
   enddef
 
   def _CheckPosition(line: number, column: number)

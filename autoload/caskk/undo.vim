@@ -13,6 +13,7 @@ export class Manager
   var _pending_display: bool = false
   var _reading_state: state_types.Snapshot = null_object
   var _reading_display: string = ''
+  var _existing_conversion: bool = false
 
   def new(writer: buffer.Writer)
     this._writer = writer
@@ -71,7 +72,7 @@ export class Manager
     if !empty(result.unhandled)
       return
     endif
-    if result.commit_preedit && this._reading_state isnot null_object
+    if result.commit_preedit && !this._existing_conversion && this._reading_state isnot null_object
         && result.text !=# (this._reading_state.reading .. this._reading_state.okuri)
       # Finish the composition's existing undo block as plain reading text.
       # Only the final committed candidate gets a separate block; browsing
@@ -87,7 +88,7 @@ export class Manager
     endif
     if result.commit_preedit
       this.Close()
-    elseif result.state.in_preedit
+    elseif result.state.in_preedit && !this._existing_conversion
       this._reading_state = result.state
       this._reading_display = result.preedit_text
     endif
@@ -101,6 +102,16 @@ export class Manager
     this._pending_display = false
     this._reading_state = null_object
     this._reading_display = ''
+    this._existing_conversion = false
     this._tick = getbufvar(this._buffer, 'changedtick')
+  enddef
+
+  # A reconversion replaces confirmed text directly with its selected
+  # candidate.  The existing buffer text is the undo origin, so committing
+  # that candidate must not first create an intermediate reading undo unit.
+  def MarkExistingConversion()
+    this._reading_state = null_object
+    this._reading_display = ''
+    this._existing_conversion = true
   enddef
 endclass

@@ -35,7 +35,8 @@ export class Editor
       entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
       initial_reading: string = '', small_tsu_okuri_as_t: bool = true, keyboard_layout: string = '',
       keyboard_layout_overrides: dict<string> = {}, input_mode_name: string = input_mode.HIRAGANA,
-      register_mode_conversions: bool = true, dictionary_index: dict_index.Database = null_object)
+      register_mode_conversions: bool = true, dictionary_index: dict_index.Database = null_object,
+      initial_okuri: string = '', initial_text: string = '')
     if mode(1) !~# '^i'
       throw 'caskk: editor must be started in Insert mode'
     endif
@@ -46,13 +47,18 @@ export class Editor
     this._preferences = preferences is null_object ? user_state.State.new() : preferences
     this._session = session.Session.new(compiled, sticky_key, this._entries, this._preferences,
       initial_reading, small_tsu_okuri_as_t, keyboard_layout, keyboard_layout_overrides, input_mode_name,
-      register_mode_conversions, dictionary_index)
-    this._writer = buffer.Writer.new(this._buffer, line('.'), col('.'))
+      register_mode_conversions, dictionary_index, initial_okuri)
+    this._writer = buffer.Writer.new(this._buffer, line('.'), col('.'), initial_text)
     this._undo = undo.Manager.new(this._writer)
     this._view = presentation.Highlighter.new(this._writer)
     this._candidate_view = candidate_view.View.new()
     if initial_reading != ''
-      this._Apply([session.Result.new('', [], this._session.GetSnapshot())])
+      if initial_text != ''
+        this._Apply(this._session.StartConversion(this._entries, this._preferences))
+        this._undo.MarkExistingConversion()
+      else
+        this._Apply([session.Result.new('', [], this._session.GetSnapshot())])
+      endif
     endif
   enddef
 

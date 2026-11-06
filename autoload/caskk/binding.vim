@@ -116,11 +116,9 @@ export class Binding
   var _delete_escape_installed: Mapping = null_object
   var _reconversion_pending: conversion.Candidates = null_object
   var _reconversion_record: reconversion.Record = null_object
-  var _reconversion_selection: conversion.Selection = null_object
   var _reconversion_start: list<number> = []
   var _reconversion_saved: dict<Mapping> = {}
   var _reconversion_installed: dict<Mapping> = {}
-  var _reconversion_view: candidate_view.View = null_object
 
   def new(compiled: scheme.CompiledScheme, sticky_key: string = '',
       entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
@@ -295,6 +293,10 @@ export class Binding
   enddef
 
   def _DisableCompletely()
+    if this.HasActiveReconversion()
+      this._DisableForReconversion()
+      return
+    endif
     if this._registration_window isnot null_object
       this.SubmitRegistrationWindow(this._registration_window.buffer, true)
     endif
@@ -313,6 +315,34 @@ export class Binding
       this._mode_view.Close()
       this._CloseInlineInput()
     endtry
+  enddef
+
+  def _DisableForReconversion()
+    execute 'autocmd! caskk_input * <buffer=' .. this._buffer .. '>'
+    const id = string(this._buffer)
+    this._Restore()
+    remove(bindings, id)
+    this._enabled = false
+    this._mode_view.Close()
+    this._CloseInlineInput()
+    this._InstallReconversionActionMappings()
+    execute 'autocmd caskk_reconversion InsertLeave,BufLeave,WinLeave <buffer='
+      .. this._buffer .. '> call caskk#binding#CancelReconversion(' .. this._buffer .. ')'
+    execute 'autocmd caskk_reconversion BufWipeout <buffer=' .. this._buffer
+      .. '> call caskk#binding#ForgetReconversion(' .. this._buffer .. ')'
+  enddef
+
+  def _InstallReconversionActionMappings()
+    for [key, action] in items(this._actions)
+      if action !=# 'Convert' && action !=# 'Commit'
+        continue
+      endif
+      const lhs = this._keys[key]
+      this._reconversion_saved[key] = Mapping.new(lhs, 'i')
+      execute 'inoremap <buffer> <silent> ' .. lhs .. ' <ScriptCmd>ReconversionInput('
+        .. this._buffer .. ', ' .. string(key) .. ')<CR>'
+      this._reconversion_installed[key] = Mapping.new(lhs, 'i')
+    endfor
   enddef
 
   def _FinishDeferredDisable()
@@ -347,6 +377,10 @@ export class Binding
       this._reconversion_pending = this._editor.GetCandidates()
     elseif !committed_conversion && !empty(results)
       this._reconversion_pending = null_object
+    endif
+    if committed_conversion
+      this._reconversion_record = null_object
+      this._reconversion_start = []
     endif
     if this._registration_auto && requested && this._editor isnot null_object
         && !this._editor.IsRegistrationSuspended() && this._editor.GetRegistrationRequest() isnot null_object
@@ -874,16 +908,31 @@ export class Binding
     if this._editor isnot null_object && this._editor.IsRegistrationSuspended()
       throw 'caskk: input is suspended for dictionary registration'
     endif
+    const reconverting = this._reconversion_record isnot null_object && !empty(this._reconversion_start)
+    if reconverting
+      cursor(this._reconversion_start[0], this._reconversion_start[1])
+    endif
     this._editor = insert.Editor.new(this._compiled, this._sticky, this._entries, this._preferences,
       this._initial_reading, this._small_tsu_okuri_as_t, this._keyboard_layout,
       this._keyboard_layout_overrides, this._input_mode, this._register_mode_conversions,
-      this._dictionary_index)
+      this._dictionary_index,
+      reconverting ? this._reconversion_record.okuri : '',
+      reconverting ? this._reconversion_record.text : '')
     this._initial_reading = ''
     this._mode_marker = ''
     this._mode_view.Show(this._input_mode, this._mode_marker)
+    if reconverting
+      this._reconversion_start = []
+      this._reconversion_pending = this._editor.GetCandidates()
+    endif
   enddef
 
   def EnterOnInsertEnter()
+    if this._reconversion_record isnot null_object && !empty(this._reconversion_start)
+        && this._editor is null_object
+      this.Enter()
+      return
+    endif
     const id = string(this._buffer)
     if (has_key(reconversion_owners, id) && reconversion_owners[id].HasActiveReconversion())
         || this.HasActiveReconversion()
@@ -930,6 +979,8 @@ export class Binding
     finally
       this._editor.Abandon()
       this._editor = null_object
+      this._reconversion_record = null_object
+      this._reconversion_start = []
       this._mode_view.Close()
       this._CloseInlineInput()
     endtry
@@ -946,7 +997,8 @@ export class Binding
 
   def _DispatchInput(key: string)
     this._CheckTarget()
-    if this._reconversion_selection isnot null_object
+    if this._reconversion_record isnot null_object && this._editor isnot null_object
+        && this._editor.IsInCandidate()
       this._CloseReconversion()
     endif
     this._AbandonExternallyChangedEditor()
@@ -1037,7 +1089,7 @@ export class Binding
     endif
   enddef
 
-  def _RestoreReconversionMappings()
+  def RestoreReconversionMappings()
     for [key, installed] in items(this._reconversion_installed)
       const lhs = mapping.Lhs(key)
       if installed.MatchesCurrent(lhs)
@@ -1050,15 +1102,14 @@ export class Binding
   enddef
 
   def _CloseReconversion()
-    if this._reconversion_view isnot null_object
-      this._reconversion_view.Close()
-      this._reconversion_view = null_object
-    endif
-    this._RestoreReconversionMappings()
+    this.RestoreReconversionMappings()
     execute 'autocmd! caskk_reconversion * <buffer=' .. this._buffer .. '>'
     this._reconversion_record = null_object
-    this._reconversion_selection = null_object
     this._reconversion_start = []
+    if !this._enabled && this._editor isnot null_object
+      this._editor.Abandon()
+      this._editor = null_object
+    endif
     const id = string(this._buffer)
     if has_key(bindings, id) && bindings[id].IsEnabled() && mode(1) =~# '^i'
       bindings[id].ResumeAfterReconversion()
@@ -1068,7 +1119,7 @@ export class Binding
   def Reconvert(): bool
     this._CheckTarget()
     if !&l:modifiable || mode(1) !~# '^n'
-        || this._reconversion_selection isnot null_object
+        || this.HasActiveReconversion()
       return false
     endif
     const current_line = getline('.')
@@ -1083,64 +1134,43 @@ export class Binding
       return false
     endif
     this._reconversion_record = record
-    this._reconversion_selection = conversion.Selection.new(prepared, this._preferences)
     this._reconversion_start = [line('.'), start_column]
-    this._reconversion_view = candidate_view.View.new()
-    this._reconversion_view.Render(this._reconversion_selection.GetCandidatesInfo())
-    try
-      for key in ['<C-N>', '<C-P>', '<CR>', '<Esc>']
-        const lhs = mapping.Lhs(key)
-        this._reconversion_saved[key] = Mapping.new(lhs, 'i')
-        const argument = substitute(string(key), '<', '<lt>', 'g')
-        execute 'inoremap <buffer> <silent> ' .. lhs .. ' <ScriptCmd>ReconversionInput('
-          .. this._buffer .. ', ' .. argument .. ')<CR>'
-        this._reconversion_installed[key] = Mapping.new(lhs, 'i')
-      endfor
+    this._initial_reading = record.reading
+    if !this._enabled
+      this._InstallReconversionActionMappings()
+      execute 'autocmd caskk_reconversion InsertEnter <buffer=' .. this._buffer
+        .. '> call caskk#binding#EnterReconversion(' .. this._buffer .. ')'
       execute 'autocmd caskk_reconversion InsertLeave,BufLeave,WinLeave <buffer='
         .. this._buffer .. '> call caskk#binding#CancelReconversion(' .. this._buffer .. ')'
       execute 'autocmd caskk_reconversion BufWipeout <buffer=' .. this._buffer
         .. '> call caskk#binding#ForgetReconversion(' .. this._buffer .. ')'
-    catch
-      const reason = v:exception
-      this._CloseReconversion()
-      throw reason
-    endtry
-    startinsert
+    endif
+    startinsert!
     return true
   enddef
 
   def ReconversionInput(key: string)
-    if this._reconversion_selection is null_object
+    if this._enabled
+      this.Dispatch(key)
       return
     endif
-    if key ==# '<Esc>'
-      this._CloseReconversion()
-    elseif key ==# '<CR>'
-      const start = this._reconversion_start
-      const record = this._reconversion_record
-      const original = getline(start[0])
-      if !&l:modifiable || strpart(original, start[1] - 1, strlen(record.text)) !=# record.text
+    if this._editor isnot null_object && this._editor.IsInCandidate()
+      const action = get(this._actions, key, '')
+      if action ==# 'Convert'
+        this._Record([this._editor.NextCandidate()])
+      elseif action ==# 'Commit'
+        this._Record(this._editor.Commit())
+        this._editor.Abandon()
+        this._editor = null_object
         this._CloseReconversion()
-        return
       endif
-      const finish = start[1] - 1 + strlen(record.text)
-      const replacement = input_mode.Render(this._reconversion_selection.Commit(), this._input_mode)
-      setline(start[0], strpart(original, 0, start[1] - 1) .. replacement .. strpart(original, finish))
-      cursor(start[0], start[1] + strlen(replacement))
-      this._CloseReconversion()
-    elseif key ==# '<C-N>'
-      if this._reconversion_selection.Next()
-        this._reconversion_view.Render(this._reconversion_selection.GetCandidatesInfo())
-      endif
-    elseif key ==# '<C-P>'
-      if this._reconversion_selection.Previous()
-        this._reconversion_view.Render(this._reconversion_selection.GetCandidatesInfo())
-      endif
+      return
     endif
+    return
   enddef
 
   def CancelReconversion()
-    if this._reconversion_selection isnot null_object
+    if this._reconversion_record isnot null_object
       this._CloseReconversion()
     endif
   enddef
@@ -1150,7 +1180,8 @@ export class Binding
   enddef
 
   def HasActiveReconversion(): bool
-    return this._reconversion_selection isnot null_object
+    return this._reconversion_record isnot null_object && this._editor isnot null_object
+      && this._editor.IsInCandidate()
   enddef
 
   def PrepareForBindingDisable(active: Binding)
@@ -1164,29 +1195,6 @@ export class Binding
     endfor
   enddef
 
-  def PauseEditorForReconversion()
-    if this._editor isnot null_object
-      this._editor.Abandon()
-      this._editor = null_object
-    endif
-    this._mode_view.Close()
-  enddef
-
-  def ReinstallReconversionMappings(active: Binding)
-    if !this.HasActiveReconversion()
-      return
-    endif
-    for key in keys(this._reconversion_installed)
-      const lhs = mapping.Lhs(key)
-      active._saved[key] = this._reconversion_saved[key]
-      this._reconversion_saved[key] = Mapping.new(lhs, 'i')
-      const argument = substitute(string(key), '<', '<lt>', 'g')
-      execute 'inoremap <buffer> <silent> ' .. lhs .. ' <ScriptCmd>ReconversionInput('
-        .. this._buffer .. ', ' .. argument .. ')<CR>'
-      this._reconversion_installed[key] = Mapping.new(lhs, 'i')
-    endfor
-  enddef
-
   def ResumeAfterReconversion()
     if this._enabled && this._editor is null_object && mode(1) =~# '^i'
         && bufnr('%') == this._buffer
@@ -1195,11 +1203,6 @@ export class Binding
   enddef
 
   def ForgetReconversion()
-    if this._reconversion_view isnot null_object
-      this._reconversion_view.Close()
-      this._reconversion_view = null_object
-    endif
-    this._reconversion_selection = null_object
     this._reconversion_record = null_object
   enddef
 
@@ -1552,17 +1555,17 @@ export def Enable(compiled: scheme.CompiledScheme, sticky_key: string = '', acti
     bindings[id].Enable()
   else
     const previous_owner = get(reconversion_owners, id, null_object)
+    if previous_owner isnot null_object && previous_owner.HasActiveReconversion()
+      previous_owner.RestoreReconversionMappings()
+      previous_owner.Enable()
+      return
+    endif
     const history = previous_owner is null_object ? null_object : previous_owner.GetReconversionHistory()
     const current = Binding.new(compiled, sticky_key, entries, preferences, actions, '', registration_auto,
       small_tsu_okuri_as_t, keyboard_layout, keyboard_layout_overrides, persist_input_mode,
       register_mode_conversions, dictionary_index, history)
     current.Enable()
-    if previous_owner isnot null_object && previous_owner.HasActiveReconversion()
-      current.PauseEditorForReconversion()
-      previous_owner.ReinstallReconversionMappings(current)
-    else
-      reconversion_owners[id] = current
-    endif
+    reconversion_owners[id] = current
   endif
 enddef
 
@@ -1694,6 +1697,20 @@ enddef
 export def EnterAfterInsertEnter(number: number)
   if has_key(bindings, string(number))
     bindings[string(number)].EnterOnInsertEnter()
+  endif
+enddef
+
+export def EnterReconversion(number: number)
+  const id = string(number)
+  if has_key(reconversion_owners, id)
+    feedkeys("\<Cmd>call caskk#binding#EnterReconversionNow(" .. number .. ")\<CR>", 'in')
+  endif
+enddef
+
+export def EnterReconversionNow(number: number)
+  const id = string(number)
+  if has_key(reconversion_owners, id)
+    reconversion_owners[id].EnterOnInsertEnter()
   endif
 enddef
 

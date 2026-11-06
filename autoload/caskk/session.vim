@@ -60,7 +60,8 @@ export class Session
       entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
       initial_reading: string = '', small_tsu_okuri_as_t: bool = true, keyboard_layout: string = '',
       keyboard_layout_overrides: dict<string> = {}, input_mode_name: string = input_mode.HIRAGANA,
-      register_mode_conversions: bool = true, dictionary_index: dict_index.Database = null_object)
+      register_mode_conversions: bool = true, dictionary_index: dict_index.Database = null_object,
+      initial_okuri: string = '')
     this._normalizer = normalize.Normalizer.new(sticky_key, keyboard_layout, keyboard_layout_overrides)
     this._composer = composer.Composer.new(compiled)
     this._state = state_types.State.new()
@@ -74,7 +75,7 @@ export class Session
     endif
     this._input_mode = input_mode_name
     if initial_reading != ''
-      this._state.Apply(composition.Result.new(true, initial_reading, '', false))
+      this._state.Apply(composition.Result.new(true, initial_reading, initial_okuri, initial_okuri != ''))
     endif
   enddef
 
