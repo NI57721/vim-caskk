@@ -563,6 +563,26 @@ suite.keyboard_layout_config_maps_shifted_number_row_to_okuri_boundary = (): voi
   assert.equals(getline(1), '前蹴って後')
 }
 
+suite.shifted_number_symbols_with_latent_boundaries_are_safe_as_standalone_input = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  Caskk.RegisterInputScheme({name: 'standalone-shifted', consonants: {}, combinations: {
+    4: 'e*Tte', 5: 'o*si', 6: 'u*ka', 7: 'u*to', 8: 'a*si', 9: 'a*ri', 0: 'a*na'}})
+  Caskk.Config({keyboard_layout: 'US'})
+  Caskk.Enable('standalone-shifted')
+  for symbol in split('$%^&*()', '\zs')
+    setline(1, '前後')
+    cursor(1, 1)
+    var caught = ''
+    try
+      feedkeys('a' .. symbol .. "\<Esc>", 'xt')
+    catch
+      caught = v:exception
+    endtry
+    assert.equals(caught, '')
+  endfor
+}
+
 suite.keyboard_layout_override_replaces_one_shifted_symbol_through_public_config = (): void => {
   const context = Setup()
   defer Cleanup(context)
