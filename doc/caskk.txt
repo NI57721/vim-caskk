@@ -101,6 +101,48 @@ remains disabled so that activation can be retried.
 Enable() uses the current sticky_key, mappings, and loaded dictionaries from
 Config().
 
+COMMAND-LINE INPUT                                       *caskk-commandline*
+
+Enable(), Disable(), Toggle(), and IsEnabled() also work in the outermost :, /,
+and ? command lines.  Their state there is independent of Insert-mode input and
+is cleared when the command line ends.  Add your own activation mapping, for
+example in a Vim9 configuration script: >vim9
+
+    import autoload 'caskk.vim' as Caskk
+    cnoremap <C-J> <ScriptCmd>Caskk.Toggle('custom')<CR>
+<
+No activation key is installed automatically.  The current sticky_key,
+keyboard layout, dictionaries, user entries, candidate ranking, and supported
+mappings are shared with Insert input.  Configure Convert, NextCandidate,
+PreviousCandidate, Commit, and the input-mode actions as needed.
+
+Kana, sticky input, okuri conversion, abbreviation conversion, and output-mode
+switching are supported.  Enter commits pending input or the selected candidate;
+press Enter again to execute the command or search.  With no pending input,
+Enter executes immediately.  Backspace cancels candidate selection to its
+reading, then edits unfinished input and reading.  PreviousCandidate before
+the first candidate also returns to the reading.  A missing dictionary entry or
+advancing past the last candidate returns to editable reading without opening
+registration.  Committing a candidate shares the usual user-state learning.
+
+Movement, history, completion, and register insertion commit input before Vim
+performs its normal operation.  Surrounding command-line text is preserved.
+External edits abandon the old tracked range while keeping its displayed text.
+Esc and CTRL-C abort normally and remove the input session and mode popup.
+Nested input() prompts, expression input, and the command-line window use native
+Vim input; returning from nested input starts a fresh IME session.
+
+The candidate list uses candidate_popup and appears above the command-line
+mode popup. It shows the selected candidate, other candidates, and annotations.
+Unsupported candidate actions on printable keys use the input scheme instead,
+so pin/demote mappings do not consume kana input outside their action context.
+
+The mode popup uses mode_popup, mode_popup_time, mode_popup_labels, and
+mode_popup_markers, and follows the command-line cursor with screen-edge and
+wrapping adjustments.  Command-line input has no highlighting,
+dictionary registration, reconversion, pin/demote actions, or dedicated
+undo handling.
+
 RECONVERSION                                             *caskk-reconversion*
 
 Recent dictionary conversions can be selected again from Normal mode. In a

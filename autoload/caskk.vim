@@ -4,6 +4,7 @@ import autoload 'caskk/config.vim' as configuration
 import autoload 'caskk/scheme.vim' as scheme
 import autoload 'caskk/scheme/registry.vim' as registry
 import autoload 'caskk/binding.vim' as binding
+import autoload 'caskk/commandline.vim' as commandline
 import autoload 'caskk/user_state/runtime.vim' as user_runtime
 import autoload 'caskk/dictionary/export.vim' as dictionary_export
 import 'caskk/registration.vim' as registration
@@ -40,6 +41,7 @@ export def RegisterInputScheme(definition: dict<any>)
   final specials: dict<string> = has_key(definition, 'specials')
     ? ReadSchemeMap(definition, 'specials') : {}
   schemes.Register(name, consonants, combinations, scheme.SpecialDefinitions(specials))
+  commandline.Disable()
   binding.DisableAll()
 enddef
 
@@ -49,6 +51,15 @@ enddef
 
 export def Enable(name: string)
   const compiled = schemes.Get(name)
+  if commandline.IsTarget()
+    if configuration.GetStateAuto()
+      user_runtime.InitializeAutomatic(configuration.GetStatePath())
+    endif
+    commandline.Enable(compiled)
+    return
+  elseif getcmdtype() != '' || getcmdwintype() != ''
+    return
+  endif
   if binding.IsEnabled()
     return
   endif
@@ -69,19 +80,25 @@ export def Enable(name: string)
 enddef
 
 export def Disable()
+  if getcmdtype() != ''
+    if commandline.IsTarget()
+      commandline.Disable()
+    endif
+    return
+  endif
   binding.Disable()
 enddef
 
 export def Toggle(name: string)
-  if binding.IsEnabled()
-    binding.Disable()
+  if IsEnabled()
+    Disable()
   else
     Enable(name)
   endif
 enddef
 
 export def IsEnabled(): bool
-  return binding.IsEnabled()
+  return getcmdtype() != '' ? commandline.IsEnabled() : binding.IsEnabled()
 enddef
 
 export def GetRegistrationRequest(): registration.Request
@@ -119,6 +136,7 @@ enddef
 # The heterogeneous user dictionary is validated at the configuration boundary.
 export def Config(options: dict<any>)
   if configuration.ConfigureIncrementally(options)
+    commandline.Disable()
     binding.DisableAll()
   endif
 enddef

@@ -2,6 +2,7 @@ vim9script
 
 import autoload 'caskk/conversion.vim' as conversion
 import autoload 'caskk/config.vim' as configuration
+import autoload 'caskk/presentation/mode_popup.vim' as mode_popup
 
 export def Format(info: conversion.CandidateListInfo): list<string>
   if info is null_object
@@ -35,7 +36,7 @@ export class View
     this._window = 0
   enddef
 
-  def Render(info: conversion.CandidateListInfo, message: string = '')
+  def Render(info: conversion.CandidateListInfo, message: string = '', commandline: bool = false)
     this.Close()
     if info is null_object || empty(info.candidates) || !configuration.GetCandidatePopup()
       return
@@ -44,11 +45,20 @@ export class View
     if message !=# ''
       lines->add(message)
     endif
-    this._window = popup_create(lines, {
+    final position: dict<any> = {
       line: 'cursor+1', col: 'cursor', pos: 'topleft', posinvert: true,
       firstline: info.selected_index + 1,
       padding: [0, 1, 0, 1], maxwidth: 60,
       wrap: true, highlight: 'Pmenu', moved: 'any',
-    })
+    }
+    if commandline
+      const anchor = mode_popup.CommandlineAnchor()
+      position.line = max([1, anchor[0] - 1])
+      position.col = anchor[1]
+      position.pos = 'botleft'
+      position.maxheight = max([1, anchor[0] - 1])
+      remove(position, 'moved')
+    endif
+    this._window = popup_create(lines, position)
   enddef
 endclass
