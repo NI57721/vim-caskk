@@ -302,7 +302,7 @@ export class Session
 
   def CanDeleteUserEntry(): bool
     return this.InCandidate() && this._preferences.HasEntryForLookup(
-      this._prepared.query, this._selection.GetInfo().text)
+      this._prepared.query, this._selection.CurrentCandidateText())
   enddef
 
   def DeleteUserEntry(): Result
@@ -310,7 +310,8 @@ export class Session
       throw 'caskk: selected candidate is not a user entry'
     endif
     const info = this._selection.GetInfo()
-    this._preferences.DeleteEntryForLookup(this._prepared.query, info.text)
+    const candidate_text = this._selection.CurrentCandidateText()
+    this._preferences.DeleteEntryForLookup(this._prepared.query, candidate_text)
     const prepared = conversion.Prepare(this._entries, this._preferences,
       this._prepared.query.reading, this._prepared.okuri, this._small_tsu_okuri_as_t,
       this._dictionary_index)
@@ -323,7 +324,7 @@ export class Session
     endif
     this._selection = conversion.Selection.new(prepared, this._preferences)
     const texts = mapnew(prepared.candidates, (_, candidate) => candidate.text)
-    const selected = index(texts, info.text)
+    const selected = index(texts, candidate_text)
     return this.SelectCandidate(selected >= 0 ? selected : min([info.index, len(texts) - 1]))
   enddef
 

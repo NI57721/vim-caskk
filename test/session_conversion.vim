@@ -8,6 +8,8 @@ import autoload 'caskk/user_state.vim' as user_state
 import autoload 'caskk/user_state/codec.vim' as codec
 import autoload 'caskk/input/mode.vim' as input_mode
 import autoload 'caskk/dictionary/index.vim' as dict_index
+import autoload 'caskk/dictionary/lookup.vim' as lookup
+import 'caskk/dictionary.vim' as dictionary
 
 final suite = themis#suite('session conversion')
 const assert = themis#helper('assert')
@@ -507,6 +509,21 @@ suite.dictionary_swap_does_not_change_active_candidates_but_affects_next_convers
   ime.Feed('K')
   ime.Feed('a')
   assert.equals(ime.StartConversion({}, preferences)[0].text, '新')
+}
+
+suite.okuri_candidate_can_be_deleted_using_its_registered_body_without_display_okuri = (): void => {
+  const preferences = user_state.State.new()
+  const query = lookup.CreateQuery('い', 'くらい')
+  preferences.AddEntry(query, dictionary.Candidate.new('行', []))
+  const ime = session.Session.new(scheme.Compile({k: 'k'}, {u: 'u*kurai'}), '', {}, preferences, 'い')
+  ime.Feed('K')
+  ime.Feed('u')
+  assert.equals(ime.InCandidate(), true)
+  assert.equals(ime.GetCandidatesInfo().candidates[0].text, '行くくらい')
+  assert.equals(ime.CanDeleteUserEntry(), true)
+
+  ime.DeleteUserEntry()
+  assert.equals(preferences.GetSnapshot().entries, {})
 }
 
 suite.active_selection_rejects_restarting_conversion = (): void => {

@@ -86,6 +86,11 @@ export class Selection
       this._preferences.GetCandidateTier(this._prepared.query, candidate.text))
   enddef
 
+  def CurrentCandidateText(): string
+    this._CheckActive()
+    return this._prepared.candidates[this._index].text
+  enddef
+
   def GetCandidatesInfo(): CandidateListInfo
     this._CheckActive()
     final candidates: list<CandidateInfo> = []
