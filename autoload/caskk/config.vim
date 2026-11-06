@@ -32,10 +32,11 @@ export class Input
   const small_tsu_okuri_as_t: bool
   const persist_input_mode: bool
   const register_mode_conversions: bool
+  const completion_min_length: number = 2
 
   def new(this.sticky_key, this.keyboard_layout, keyboard_layout_overrides: dict<string>,
       mappings: dict<string>, dictionary_index: dict_index.Database,
-      this.small_tsu_okuri_as_t, this.persist_input_mode, this.register_mode_conversions)
+      this.small_tsu_okuri_as_t, this.persist_input_mode, this.register_mode_conversions, this.completion_min_length = v:none)
     this.keyboard_layout_overrides = copy(keyboard_layout_overrides)
     this.mappings = copy(mappings)
     this.dictionary_index = dictionary_index
@@ -274,7 +275,7 @@ def Parse(options: dict<any>, shared_index: dict_index.Database = null_object): 
         'small_tsu_okuri_as_t',
         'registration_prefill', 'registration_auto', 'registration_inline', 'candidate_popup', 'persist_input_mode',
         'undo_revert_to_reading',
-        'register_mode_conversions',
+        'register_mode_conversions', 'completion_min_length',
         'mode_popup', 'mode_popup_labels', 'mode_popup_markers', 'mode_popup_time'], section) < 0
       throw 'unknown section: ' .. section
     endif
@@ -283,6 +284,11 @@ def Parse(options: dict<any>, shared_index: dict_index.Database = null_object): 
   const sticky_key = ReadStickyKey(get(options, 'sticky_key', ''))
   const keyboard_layout = ReadKeyboardLayout(get(options, 'keyboard_layout', 'US'))
   const keyboard_layout_overrides = ReadKeyboardLayoutOverrides(get(options, 'keyboard_layout_overrides', {}))
+  if type(get(options, 'completion_min_length', 2)) != v:t_number
+      || get(options, 'completion_min_length', 2) < 1
+    throw 'completion_min_length must be a positive number'
+  endif
+  const completion_min_length: number = get(options, 'completion_min_length', 2)
   const actions = ReadMappings(get(options, 'mappings', {}))
   if type(get(options, 'persist_input_mode', false)) != v:t_bool
     throw 'persist_input_mode must be a bool'
@@ -342,7 +348,7 @@ def Parse(options: dict<any>, shared_index: dict_index.Database = null_object): 
   const dictionary_index = shared_index is null_object ? loader.Open(sources) : shared_index
   const destination = state_path == '' ? '' : fnamemodify(state_path, ':p')
   return Settings.new(highlight, Input.new(sticky_key, keyboard_layout, keyboard_layout_overrides,
-    actions, dictionary_index, small_tsu_okuri_as_t, persist_input_mode, register_mode_conversions), destination, state_auto,
+    actions, dictionary_index, small_tsu_okuri_as_t, persist_input_mode, register_mode_conversions, completion_min_length), destination, state_auto,
     registration_prefill, registration_auto, registration_inline, undo_revert_to_reading,
     candidate_popup, mode_popup, mode_popup_labels,
     mode_popup_markers, mode_popup_time, sources)
@@ -370,6 +376,7 @@ def SameDictionaryIndependentSettings(left: Settings, right: Settings): bool
     && a.small_tsu_okuri_as_t == b.small_tsu_okuri_as_t
     && a.persist_input_mode == b.persist_input_mode
     && a.register_mode_conversions == b.register_mode_conversions
+    && a.completion_min_length == b.completion_min_length
     && left.registration_auto == right.registration_auto
     && left.registration_prefill == right.registration_prefill
     && left.registration_inline == right.registration_inline
@@ -448,7 +455,7 @@ export def GetInput(): Input
   return Input.new(current.input.sticky_key, current.input.keyboard_layout,
     current.input.keyboard_layout_overrides, current.input.mappings, current.input.dictionary_index,
     current.input.small_tsu_okuri_as_t, current.input.persist_input_mode,
-    current.input.register_mode_conversions)
+    current.input.register_mode_conversions, current.input.completion_min_length)
 enddef
 
 export def GetStatePath(): string

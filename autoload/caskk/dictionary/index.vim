@@ -204,6 +204,64 @@ export class SourceData
     return entries
   enddef
 
+  # Prefix ranges are contiguous in each SKK section, including dictionaries
+  # whose source encoding sorts differently from Unicode.
+  def Prefix(prefix: string): list<dictionary.Entry>
+    if !this._sectioned
+      return filter(values(this._fallback), (_, entry) => stridx(entry.lookup_key, prefix) == 0)
+    endif
+    final entries: list<dictionary.Entry> = []
+    for has_okuri in [true, false]
+      const start = has_okuri ? this._okuri_start : this._plain_start
+      const end = has_okuri ? this._plain_start - 2 : len(this._lines) - 1
+      var low = start
+      var high = end
+      while low <= high
+        const midpoint = (low + high) / 2
+        const middle = this._NextEntry(midpoint, high, 1)
+        if middle > high
+          high = midpoint - 1
+          continue
+        endif
+        const key = EntryKey(this._lines[middle])
+        if stridx(key, prefix) == 0
+          var first = middle
+          var previous = this._NextEntry(first - 1, start, -1)
+          while previous >= start && stridx(EntryKey(this._lines[previous]), prefix) == 0
+            first = previous
+            previous = this._NextEntry(first - 1, start, -1)
+          endwhile
+          var row = first
+          while row <= end
+            const matched = EntryKey(this._lines[row])
+            if matched != '' && stridx(matched, prefix) != 0
+              break
+            endif
+            if matched != ''
+              try
+                const entry = parser.ParseLine(this._lines[row])
+                if entry isnot null_object
+                  entries->add(entry)
+                endif
+              catch
+                # As with exact lookup, invalid rows do not hide valid ones.
+              endtry
+            endif
+            row += 1
+          endwhile
+          break
+        endif
+        const comparison = CompareKeys(key, prefix, this._encoding)
+        if (has_okuri && comparison > 0) || (!has_okuri && comparison < 0)
+          low = middle + 1
+        else
+          high = midpoint - 1
+        endif
+      endwhile
+    endfor
+    return entries
+  enddef
+
   def Lookup(key: string, has_okuri: bool): list<dictionary.Entry>
     if !this._sectioned
       return has_key(this._fallback, key) ? [this._fallback[key]] : []
@@ -345,6 +403,17 @@ export class Database
 
   def new(sources: list<SourceData>)
     this._sources = copy(sources)
+  enddef
+
+  def Prefix(prefix: string): dict<dictionary.Entry>
+    if prefix == ''
+      return {}
+    endif
+    final sources: list<list<dictionary.Entry>> = []
+    for source in this._sources
+      sources->add(source.Prefix(prefix))
+    endfor
+    return merger.Merge(sources)
   enddef
 
   def Lookup(query: dictionary.Query): list<dictionary.Candidate>

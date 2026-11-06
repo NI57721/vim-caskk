@@ -3,7 +3,7 @@ vim9script
 import autoload 'caskk/input/keycode.vim' as keycode
 
 const ACTIONS = [
-  'Convert', 'NextCandidate', 'PreviousCandidate', 'Commit', 'OpenRegistration',
+  'ShowCompletion', 'CancelCompletion', 'Convert', 'NextCandidate', 'PreviousCandidate', 'Commit', 'OpenRegistration',
   'TogglePin', 'ToggleDemote', 'DeleteUserEntry',
   'AbbreviationMode', 'KatakanaMode', 'HalfwidthKatakanaMode', 'FullwidthAlphanumericMode',
 ]

@@ -4,6 +4,7 @@ import 'caskk/input.vim' as input
 import 'caskk/dictionary.vim' as dictionary
 import 'caskk/composition.vim' as composition
 import autoload 'caskk/conversion.vim' as conversion
+import autoload 'caskk/completion.vim' as completion
 import autoload 'caskk/dictionary/lookup.vim' as lookup
 import autoload 'caskk/dictionary/index.vim' as dict_index
 import autoload 'caskk/user_state.vim' as user_state
@@ -48,6 +49,8 @@ export class Session
   const _preferences: user_state.State
   const _small_tsu_okuri_as_t: bool
   const _register_mode_conversions: bool
+  var _completions: list<completion.Candidate> = []
+  var _completion_index: number = 0
   var _prepared: conversion.Candidates = null_object
   var _selection: conversion.Selection = null_object
   var _request_preferences: user_state.State = null_object
@@ -183,6 +186,7 @@ export class Session
 
   # Input is one physical KeyToken, already named by the integration layer.
   def Feed(key: string): list<Result>
+    this.CancelCompletion()
     final results: list<Result> = []
     if this._input_mode == input_mode.FULLWIDTH_ALPHANUMERIC
       return [this._FeedFullwidthAlphanumeric(key)]
@@ -237,6 +241,7 @@ export class Session
   enddef
 
   def BackspacePreedit(): Result
+    this.CancelCompletion()
     if this.InCandidate() || !this._state.Backspace()
       return null_object
     endif
@@ -247,6 +252,21 @@ export class Session
   enddef
 
   def Commit(): list<Result>
+    if this.InCompletion()
+      const chosen = this._completions[this._completion_index]
+      const text = this._Render(chosen.text)
+      if chosen.learnable
+        this._preferences.Learn(chosen.query, chosen.candidate.text)
+      endif
+      this.CancelCompletion()
+      this._state.Commit()
+      this._normalizer.Reset()
+      this._prepared = null_object
+      this._direct_input_continuation = true
+      this._reading_after_cancel = false
+      this._RestoreAbbreviationMode()
+      return [Result.new(text, [], this._state.GetSnapshot(), true, false, true)]
+    endif
     this._reading_after_cancel = false
     if this.InCandidate()
       const text = this._Render(this._selection.Commit())
@@ -267,6 +287,54 @@ export class Session
       this._RestoreAbbreviationMode()
     endif
     return results
+  enddef
+
+  def InCompletion(): bool
+    return !empty(this._completions)
+  enddef
+
+  def ShowCompletion(minimum: number): bool
+    if this.InCompletion()
+      this.MoveCompletion(1)
+      return true
+    endif
+    if this.InCandidate() || !this._state.in_preedit || strchars(this._state.reading) < minimum
+        || !empty(this._composer.Pending()) || this._normalizer.HasPendingModifier()
+      return false
+    endif
+    this._completions = completion.Prepare(this._entries, this._preferences,
+      this._state.reading, this._state.okuri, this._dictionary_index, this._small_tsu_okuri_as_t)
+    this._completion_index = 0
+    return this.InCompletion()
+  enddef
+
+  def MoveCompletion(delta: number)
+    if !this.InCompletion()
+      throw 'caskk: no active completion'
+    endif
+    const count = len(this._completions)
+    this._completion_index = ((this._completion_index + delta) % count + count) % count
+  enddef
+
+  def CancelCompletion()
+    this._completions = []
+    this._completion_index = 0
+  enddef
+
+  def GetCompletionInfo(): conversion.CandidateListInfo
+    if !this.InCompletion()
+      return null_object
+    endif
+    final candidates: list<conversion.CandidateInfo> = []
+    const count = len(this._completions)
+    for index in range(count)
+      const item = this._completions[index]
+      const annotations = item.candidate.annotations + ['読み: ' .. item.query.reading
+        .. (item.okuri == '' ? '' : '*' .. item.okuri)]
+      candidates->add(conversion.CandidateInfo.new(index, count, this._Render(item.text),
+        annotations, item.tier))
+    endfor
+    return conversion.CandidateListInfo.new(this._completion_index, candidates)
   enddef
 
   def InCandidate(): bool
@@ -343,6 +411,7 @@ export class Session
   enddef
 
   def StartConversion(entries: dict<dictionary.Entry>, preferences: user_state.State): list<Result>
+    this.CancelCompletion()
     if this.InCandidate()
       throw 'caskk: conversion selection is active'
     endif
@@ -452,7 +521,7 @@ export class Session
   enddef
 
   def CanChangeInputMode(): bool
-    return !this._state.in_preedit && !this.InCandidate() && empty(this._composer.Pending())
+    return !this._state.in_preedit && !this.InCandidate() && !this.InCompletion() && empty(this._composer.Pending())
       && !this._normalizer.HasPendingModifier()
   enddef
 
@@ -472,7 +541,7 @@ export class Session
   enddef
 
   def CanCommitPreeditAsMode(requested: string): bool
-    if !this._state.in_preedit || this.InCandidate() || !empty(this._composer.Pending())
+    if !this._state.in_preedit || this.InCandidate() || this.InCompletion() || !empty(this._composer.Pending())
         || this._normalizer.HasPendingModifier()
       return false
     endif

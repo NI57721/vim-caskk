@@ -143,6 +143,49 @@ wrapping adjustments.  Command-line input has no highlighting,
 dictionary registration, reconversion, pin/demote actions, or dedicated
 undo handling.
 
+READING COMPLETION                                        *caskk-completion*
+
+Insert-mode preedit can be completed from SKK dictionary headwords and user
+entries.  Add these fields to your existing Config() call, keeping your other
+settings, dictionaries, and mappings: >vim9
+
+    completion_min_length: 2,
+    mappings: {
+      "\<Tab>": 'ShowCompletion',
+      "\<S-Tab>": 'PreviousCandidate',
+      "\<C-E>": 'CancelCompletion',
+      "\<Space>": 'Convert',
+    },
+<
+ShowCompletion searches readings that start with the current reading.  It
+requires preedit of at least completion_min_length characters and no unfinished
+key sequence or sticky modifier.  There is no automatic activation or default
+completion mapping.  Short readings, unfinished input, and no matches leave
+preedit unchanged and do not request registration.
+
+The popup uses candidate_popup and shows the completed words, annotations, and
+source readings.  Headwords are ordered by reading; candidates within each
+known reading/okuri use the usual pin, MRU, and demotion preferences.
+Showing or moving through the list keeps the original reading in the buffer.
+ShowCompletion again, NextCandidate, or an otherwise unmapped Down moves focus
+forward; PreviousCandidate or an otherwise unmapped Up moves backward.  Moving
+past an end wraps within the completion list.  Enter or Commit accepts the
+focused word directly, closes preedit, and shares normal learning using the
+completed word's reading.  A second conversion step is not required.  Undo
+follows undo_revert_to_reading, as for other committed conversions.
+
+CancelCompletion and Backspace close the list while keeping the reading.
+Ordinary input closes it and continues editing; Convert closes it and starts
+normal conversion of the reading.  Leaving Insert mode, disabling the IME, or
+native movement does not accept the focused completion.
+
+Okuri entries are included.  Already entered okuri and known user-entry okuri
+are preserved.  A coarse system key such as 'かk' supplies no exact suffix:
+its candidate may be completed without okuri, and acceptance does not create
+an invented exact-okuri learning record.  Inflection filtering is not performed.
+Completion is currently available in ordinary Insert input (including a
+registration window), not command-line input or inline registration.
+
 RECONVERSION                                             *caskk-reconversion*
 
 Recent dictionary conversions can be selected again from Normal mode. In a
@@ -464,7 +507,7 @@ Supported settings are |caskk-config-sticky-key|, |caskk-config-keyboard-layout|
 |caskk-config-state-auto|, |caskk-config-small-tsu-okuri-as-t|,
 |caskk-config-persist-input-mode|, |caskk-config-registration-prefill|,
 |caskk-config-registration-auto|, |caskk-config-registration-inline|,
-|caskk-config-register-mode-conversions|,
+|caskk-config-register-mode-conversions|, |caskk-config-completion-min-length|,
 |caskk-config-candidate-popup|, |caskk-config-mode-popup|,
 |caskk-config-mode-popup-labels|, |caskk-config-mode-popup-markers|,
 |caskk-config-mode-popup-time|, and |caskk-config-highlight|. Input scheme
@@ -501,6 +544,12 @@ override takes precedence for that symbol.  Keys and values must each be one
 printable character, and override values must be unique.  The default is an
 empty dictionary.
 
+completion_min_length                       *caskk-config-completion-min-length*
+
+The minimum number of characters in the preedit reading required by
+ShowCompletion.  It must be a positive integer and defaults to 2.  This setting
+does not automatically open a completion list.  See |caskk-completion|.
+
 mappings                                             *caskk-config-mappings*
 
 mappings is a dictionary from KeyTokens to action names.  Vim special keys must
@@ -508,6 +557,7 @@ use an actual keycode expression, such as "\<Space>", "\<C-N>", or "\<F10>".
 Angle-bracket key-name strings such as '<Space>' and '<F10>' are rejected.
 Ordinary printable keys such as 'q' remain single-character strings.  Multiple
 entries that resolve to the same physical key are rejected.  Supported actions are
+|caskk-action-show-completion|, |caskk-action-cancel-completion|,
 |caskk-action-convert|, |caskk-action-next-candidate|,
 |caskk-action-previous-candidate|, |caskk-action-commit|,
 |caskk-action-open-registration|, |caskk-action-toggle-pin|,
@@ -520,6 +570,13 @@ installs the mappings.
 
 Each action may be assigned to one or more physical keys.  The action names
 are documented below; the default action dictionary is empty.
+
+ShowCompletion                                  *caskk-action-show-completion*
+Opens reading completion during Insert preedit.  With a completion list open,
+moves focus to the next item without changing buffer text.  See |caskk-completion|.
+
+CancelCompletion                              *caskk-action-cancel-completion*
+Closes the completion list and preserves the current reading.
 
 Convert                                                  *caskk-action-convert*
 Starts conversion for preedit text.  During candidate selection, the same
@@ -534,7 +591,8 @@ Selects the previous candidate.  At the first candidate, it returns to the
 editable reading.
 
 Commit                                                    *caskk-action-commit*
-Commits the selected candidate or current preedit text.
+Commits the focused completion, selected conversion candidate, or current
+preedit text.
 
 OpenRegistration                                *caskk-action-open-registration*
 Opens the pending dictionary-registration request when automatic registration

@@ -408,7 +408,7 @@ export class Binding
     endif
     const mode = this._editor.GetInputMode()
     const snapshot = this._editor.GetSnapshot()
-    const marker = this._editor.IsInCandidate() ? 'candidate'
+    const marker = this._editor.IsInCandidate() || this._editor.IsInCompletion() ? 'candidate'
       : snapshot.in_preedit || this._editor.HasPendingModifier() ? 'modified' : ''
     this._input_mode = mode
     this._mode_marker = marker
@@ -731,7 +731,9 @@ export class Binding
       this._AppendInlineResults(this._inline_input.Feed(key))
       return
     endif
-    if action ==# 'Convert'
+    if action ==# 'ShowCompletion' || action ==# 'CancelCompletion'
+      return
+    elseif action ==# 'Convert'
       if this._inline_input.InCandidate()
         this._AppendInlineResults([this._inline_input.NextCandidate()])
       else
@@ -840,10 +842,14 @@ export class Binding
     endif
     const snapshot = this._editor.GetSnapshot()
     const has_candidate = this._editor.IsInCandidate()
-    if action ==# 'Convert'
+    if action ==# 'ShowCompletion'
+      return this._editor.IsInCompletion() || (!has_candidate && snapshot.in_preedit)
+    elseif action ==# 'CancelCompletion'
+      return this._editor.IsInCompletion()
+    elseif action ==# 'Convert'
       return has_candidate || snapshot.in_preedit
     elseif action ==# 'NextCandidate' || action ==# 'PreviousCandidate'
-      return has_candidate
+      return has_candidate || this._editor.IsInCompletion()
     elseif action ==# 'TogglePin' || action ==# 'ToggleDemote'
       return has_candidate
     elseif action ==# 'DeleteUserEntry'
@@ -1013,6 +1019,29 @@ export class Binding
     if this._editor isnot null_object && this._editor.IsRegistrationSuspended()
       throw 'caskk: input is suspended for dictionary registration'
     endif
+    if this._editor isnot null_object && this._editor.IsInCompletion()
+      const completion_action = get(this._actions, key, '')
+      if key ==# '<CR>' || completion_action ==# 'Commit'
+        this._Record(this._editor.Commit())
+        return
+      elseif completion_action ==# 'ShowCompletion' || completion_action ==# 'NextCandidate'
+          || (completion_action == '' && key ==# '<Down>')
+        this._editor.MoveCompletion(1)
+        this._SyncInputMode()
+        return
+      elseif completion_action ==# 'PreviousCandidate'
+          || (completion_action == '' && key ==# '<Up>')
+        this._editor.MoveCompletion(-1)
+        this._SyncInputMode()
+        return
+      elseif completion_action ==# 'CancelCompletion' || key ==# '<BS>'
+        this._editor.CancelCompletion()
+        this._SyncInputMode()
+        return
+      else
+        this._editor.CancelCompletion()
+      endif
+    endif
     if this._editor isnot null_object && this._editor.MoveWithinPreedit(key)
       this._SyncInputMode()
       return
@@ -1049,6 +1078,9 @@ export class Binding
     endif
     if action !=# '' && !this._CanRunAction(action)
       this._FallbackActionKey(key)
+    elseif action ==# 'ShowCompletion'
+      this._editor.ShowCompletion(configuration.GetInput().completion_min_length)
+      this._SyncInputMode()
     elseif action ==# 'Convert'
       if this._editor.IsInCandidate()
         this._Record([this._editor.NextCandidate()])

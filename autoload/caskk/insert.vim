@@ -105,7 +105,7 @@ export class Editor
         cursor(position.line, byteidxcomp(text, charidx(text, byte, true)) + 1)
       endif
     endfor
-    this._candidate_view.Render(this._session.GetCandidatesInfo())
+    this._candidate_view.Render(this.GetDisplayCandidatesInfo())
     return results
   enddef
 
@@ -141,6 +141,33 @@ export class Editor
     endif
   enddef
 
+  def GetDisplayCandidatesInfo(): conversion.CandidateListInfo
+    return this._session.InCompletion() ? this._session.GetCompletionInfo()
+      : this._session.GetCandidatesInfo()
+  enddef
+
+  def IsInCompletion(): bool
+    return this._session.InCompletion()
+  enddef
+
+  def ShowCompletion(minimum: number): bool
+    this._CheckInput()
+    const shown = this._session.ShowCompletion(minimum)
+    this._candidate_view.Render(this.GetDisplayCandidatesInfo())
+    return shown
+  enddef
+
+  def MoveCompletion(delta: number)
+    this._CheckInput()
+    this._session.MoveCompletion(delta)
+    this._candidate_view.Render(this.GetDisplayCandidatesInfo())
+  enddef
+
+  def CancelCompletion()
+    this._session.CancelCompletion()
+    this._candidate_view.Close()
+  enddef
+
   def StartConversion(): list<session.Result>
     this._CheckInput()
     const results = this._Apply(this._session.StartConversion(this._entries, this._preferences))
@@ -159,6 +186,10 @@ export class Editor
 
   def Backspace(): bool
     this._CheckInput()
+    if this.IsInCompletion()
+      this.CancelCompletion()
+      return true
+    endif
     if this._session.BackspacePending()
       this._RefreshPendingDisplay()
       return true
@@ -287,13 +318,13 @@ export class Editor
   def TogglePin()
     this._CheckInput()
     this._session.TogglePin()
-    this._candidate_view.Render(this._session.GetCandidatesInfo())
+    this._candidate_view.Render(this.GetDisplayCandidatesInfo())
   enddef
 
   def ToggleDemote()
     this._CheckInput()
     this._session.ToggleDemote()
-    this._candidate_view.Render(this._session.GetCandidatesInfo())
+    this._candidate_view.Render(this.GetDisplayCandidatesInfo())
   enddef
 
   def CanDeleteUserEntry(): bool
@@ -303,7 +334,7 @@ export class Editor
 
   def ShowDeleteUserEntryConfirmation(message: string)
     this._CheckInput()
-    this._candidate_view.Render(this._session.GetCandidatesInfo(), message)
+    this._candidate_view.Render(this.GetDisplayCandidatesInfo(), message)
   enddef
 
   def DeleteUserEntry(): session.Result
@@ -326,6 +357,7 @@ export class Editor
     endif
     this._CheckTarget()
     this._undo.Check()
+    this._session.CancelCompletion()
     const results = this._Apply(this._session.Commit())
     this._view.Clear()
     this._undo.Close()
