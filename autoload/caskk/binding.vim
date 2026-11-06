@@ -667,6 +667,11 @@ export class Binding
       this._AppendInlineResults(this._inline_input.Commit())
     elseif action ==# 'OpenRegistration'
       return
+    elseif this._ModeForAction(action) ==# input_mode.ABBREVIATION
+        && this._inline_input.InCandidate()
+      this._AppendInlineResults(this._inline_input.Commit())
+      this._inline_input.SetInputMode(input_mode.ABBREVIATION)
+      this._RefreshInlinePopup()
     elseif this._ModeForAction(action) !=# '' && this._inline_input.CanChangeInputMode()
       this._inline_input.SetInputMode(this._ModeForAction(action))
       this._RefreshInlinePopup()
@@ -757,7 +762,8 @@ export class Binding
     elseif action ==# 'OpenRegistration'
       return this.GetRegistrationRequest() isnot null_object
     elseif this._ModeForAction(action) != ''
-      return this._editor.CanChangeInputMode()
+      return (this._ModeForAction(action) ==# input_mode.ABBREVIATION && has_candidate)
+        || this._editor.CanChangeInputMode()
         || this._editor.CanCommitPreeditAsMode(this._ModeForAction(action))
     endif
     return false
@@ -914,6 +920,12 @@ export class Binding
       this._Record(this._editor.Commit())
     elseif action ==# 'OpenRegistration'
       this.OpenRegistrationWindow(configuration.GetRegistrationPrefill())
+    elseif this._ModeForAction(action) ==# input_mode.ABBREVIATION && this._editor.IsInCandidate()
+      this._Record(this._editor.Commit())
+      this._editor.SetInputMode(input_mode.ABBREVIATION)
+      this._input_mode = this._editor.GetInputMode()
+      this._mode_marker = ''
+      this._mode_view.Show(this._input_mode, this._mode_marker)
     elseif this._ModeForAction(action) != ''
       const mode = this._ModeForAction(action)
       if this._editor.CanCommitPreeditAsMode(mode)

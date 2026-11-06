@@ -231,6 +231,19 @@ suite.mode_mappings_switch_between_modes_and_convert_abbreviations = (): void =>
   assert.equals(getline(1), '前カかｶＩ　ｌｉｋｅ　ａｐｐｌｅｓ！　Ｄｏ　ｙｏｕ？アップルｋａ後')
 }
 
+suite.abbreviation_mode_mapping_commits_candidate_and_switches_mode = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const dictionary = tempname()
+  defer delete(dictionary)
+  writefile(['か /蚊/', 'apple /アップル/'], dictionary)
+  Caskk.Config({sticky_key: ';', dictionaries: [dictionary], mappings: {
+    '/': 'AbbreviationMode', "\<Space>": 'Convert', "\<F10>": 'Commit'}})
+  Caskk.Enable('configured')
+  feedkeys("a;ka\<Space>/apple\<Space>\<F10>\<Esc>", 'xt')
+  assert.equals(getline(1), '前蚊アップル後')
+}
+
 suite.abbreviation_numeric_placeholders_convert_through_public_insert_mappings = (): void => {
   const context = Setup()
   defer Cleanup(context)

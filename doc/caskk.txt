@@ -474,9 +474,10 @@ non-hiragana mode again returns to hiragana.  While a modified hiragana reading
 is in preedit, KatakanaMode and HalfwidthKatakanaMode commit it as katakana or
 halfwidth katakana while keeping the input mode as hiragana.  While abbreviation
 text is in preedit, FullwidthAlphanumericMode commits it as fullwidth
-alphanumeric while keeping abbreviation mode active.  Other mode actions are
-unavailable during preedit or candidate selection; in that state their keys
-fall through to normal input.
+alphanumeric while keeping abbreviation mode active.  AbbreviationMode during
+candidate selection commits the selected candidate and enters abbreviation
+mode.  Other mode actions are unavailable during preedit or candidate
+selection; in that state their keys fall through to normal input.
 
 AbbreviationMode                              *caskk-action-abbreviation-mode*
 Enters abbreviation input, where typed characters are used directly as the
