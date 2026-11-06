@@ -215,7 +215,3 @@ export def ExpandPlaceholders(candidate: string, reading: string): string
   endwhile
   return expanded
 enddef
-
-export def ExpandZeroPlaceholders(candidate: string, reading: string): string
-  return ExpandPlaceholders(candidate, reading)
-enddef

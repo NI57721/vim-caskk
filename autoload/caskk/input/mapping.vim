@@ -1,6 +1,7 @@
 vim9script
 
 import autoload 'caskk/input/keycode.vim' as keycode
+import autoload 'caskk/input/mode.vim' as input_mode
 
 const ACTIONS = [
   'ShowCompletion', 'CancelCompletion', 'Convert', 'NextCandidate', 'PreviousCandidate', 'Commit', 'OpenRegistration',
@@ -33,4 +34,17 @@ export def Lhs(token: string): string
     return token
   endif
   throw 'caskk: unsupported mapping KeyToken: ' .. token
+enddef
+
+export def ModeForAction(action: string): string
+  if action ==# 'AbbreviationMode'
+    return input_mode.ABBREVIATION
+  elseif action ==# 'KatakanaMode'
+    return input_mode.KATAKANA
+  elseif action ==# 'HalfwidthKatakanaMode'
+    return input_mode.HALFWIDTH_KATAKANA
+  elseif action ==# 'FullwidthAlphanumericMode'
+    return input_mode.FULLWIDTH_ALPHANUMERIC
+  endif
+  return ''
 enddef

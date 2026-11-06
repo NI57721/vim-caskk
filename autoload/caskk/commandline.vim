@@ -289,8 +289,8 @@ def Dispatch(key: string)
       endif
       Apply([result])
     endif
-  elseif action =~# 'Mode$'
-    const requested = substitute(action, 'Mode$', '', '')
+  elseif mapping.ModeForAction(action) !=# ''
+    const requested = mapping.ModeForAction(action)
     if current.CanChangeInputMode()
       current.SetInputMode(requested)
     elseif current.CanCommitPreeditAsMode(requested)

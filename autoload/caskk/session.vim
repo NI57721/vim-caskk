@@ -341,14 +341,6 @@ export class Session
     return this._selection isnot null_object && this._selection.IsActive()
   enddef
 
-  def GetCandidateInfo(): conversion.CandidateInfo
-    if !this.InCandidate()
-      return null_object
-    endif
-    const info = this._selection.GetInfo()
-    return conversion.CandidateInfo.new(info.index, info.count, this._Render(info.text), info.annotations, info.tier)
-  enddef
-
   def GetCandidatesInfo(): conversion.CandidateListInfo
     if !this.InCandidate()
       return null_object

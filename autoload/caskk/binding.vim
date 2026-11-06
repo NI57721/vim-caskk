@@ -6,6 +6,7 @@ import autoload 'caskk/session.vim' as session
 import autoload 'caskk/user_state.vim' as user_state
 import autoload 'caskk/input/keycode.vim' as keycode
 import autoload 'caskk/input/mapping.vim' as mapping
+import autoload 'caskk/input/mapping_state.vim' as mapping_state
 import autoload 'caskk/input/mode.vim' as input_mode
 import autoload 'caskk/presentation/mode_popup.vim' as mode_popup
 import autoload 'caskk/presentation/candidate.vim' as candidate_view
@@ -26,48 +27,6 @@ const INLINE_GUARD_KEYS = ['<C-A>', '<C-B>', '<C-D>', '<C-E>', '<C-F>', '<C-G>',
   '<PageDown>', '<Insert>', '<F1>', '<F2>', '<F3>', '<F4>', '<F5>', '<F6>', '<F7>', '<F8>',
   '<F9>', '<F10>', '<F11>', '<F12>']
 
-# Preserve raw keycodes and the defining script context in typed fields.
-class Mapping
-  const text: dict<string>
-  const numbers: dict<number>
-  const alternate: dict<string>
-
-  def new(lhs: string, mode: string = 'i')
-    const native = maparg(lhs, mode, false, true)
-    final text: dict<string> = {}
-    for name in ['lhs', 'lhsraw', 'rhs', 'mode']
-      text[name] = get(native, name, name ==# 'mode' ? mode : '')
-    endfor
-    final numbers: dict<number> = {}
-    for name in ['silent', 'noremap', 'script', 'expr', 'buffer', 'sid', 'scriptversion', 'lnum', 'nowait']
-      numbers[name] = get(native, name, 0)
-    endfor
-    this.text = text
-    this.numbers = numbers
-    this.alternate = has_key(native, 'lhsrawalt') ? {lhsrawalt: native.lhsrawalt} : {}
-  enddef
-
-  def MatchesCurrent(lhs: string): bool
-    const other = Mapping.new(lhs, this.text.mode)
-    return this.text ==# other.text && this.numbers == other.numbers && this.alternate ==# other.alternate
-  enddef
-
-  def Restore()
-    if !this.numbers.buffer
-      return
-    endif
-    # Heterogeneous native mapping data stays at the mapset() boundary.
-    mapset(this.text.mode, false, extend({
-      lhs: this.text.lhs, lhsraw: this.text.lhsraw, rhs: this.text.rhs,
-      silent: this.numbers.silent, noremap: this.numbers.noremap,
-      script: this.numbers.script, expr: this.numbers.expr,
-      buffer: this.numbers.buffer, sid: this.numbers.sid,
-      scriptversion: this.numbers.scriptversion, lnum: this.numbers.lnum,
-      nowait: this.numbers.nowait,
-    }, this.alternate))
-  enddef
-endclass
-
 export class Binding
   const _buffer: number
   const _compiled: scheme.CompiledScheme
@@ -87,8 +46,10 @@ export class Binding
   const _mode_view: mode_popup.View
   const _inline_view: registration_inline.View
   const _reconversion_history: reconversion.History
-  var _saved: dict<Mapping> = {}
-  var _installed: dict<Mapping> = {}
+  const _mappings = mapping_state.State.new()
+  const _inline_mappings = mapping_state.State.new()
+  const _delete_mappings = mapping_state.State.new()
+  const _reconversion_mappings = mapping_state.State.new()
   var _editor: insert.Editor = null_object
   var _last: list<session.Result> = []
   var _enabled: bool = false
@@ -100,25 +61,14 @@ export class Binding
   var _window_closing: bool = false
   var _input_mode: string = input_mode.HIRAGANA
   var _mode_marker: string = ''
-  var _inline_mode_view_active: bool = false
   var _inline_input: session.Session = null_object
   var _inline_text: string = ''
   var _inline_cursor: number = 0
   var _disabled_during_inline_registration: bool = false
-  var _inline_escape_saved: Mapping = null_object
-  var _inline_escape_installed: Mapping = null_object
-  var _inline_interrupt_saved: Mapping = null_object
-  var _inline_interrupt_installed: Mapping = null_object
-  var _inline_guard_saved: dict<Mapping> = {}
-  var _inline_guard_installed: dict<Mapping> = {}
   var _delete_user_entry_pending: bool = false
-  var _delete_escape_saved: Mapping = null_object
-  var _delete_escape_installed: Mapping = null_object
   var _reconversion_pending: conversion.Candidates = null_object
   var _reconversion_record: reconversion.Record = null_object
   var _reconversion_start: list<number> = []
-  var _reconversion_saved: dict<Mapping> = {}
-  var _reconversion_installed: dict<Mapping> = {}
 
   def new(compiled: scheme.CompiledScheme, sticky_key: string = '',
       entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
@@ -208,14 +158,7 @@ export class Binding
   enddef
 
   def _Restore()
-    for [key, installed] in items(this._installed)
-      if installed.MatchesCurrent(this._keys[key])
-        execute 'silent! iunmap <buffer> ' .. this._keys[key]
-        this._saved[key].Restore()
-      endif
-    endfor
-    this._installed = {}
-    this._saved = {}
+    this._mappings.Restore()
   enddef
 
   def Enable()
@@ -236,17 +179,13 @@ export class Binding
     try
       for key in sort(keys(this._keys))
         const lhs = this._keys[key]
-        for installed in values(this._installed)
-          if installed.MatchesCurrent(lhs)
-            throw 'caskk: duplicate physical mapping: ' .. key
-          endif
-        endfor
-        this._saved[key] = Mapping.new(lhs)
+        if this._mappings.Owns(lhs)
+          throw 'caskk: duplicate physical mapping: ' .. key
+        endif
         var argument = substitute(string(key), '<', '<lt>', 'g')
         argument = substitute(argument, '\\', '<Bslash>', 'g')
         argument = substitute(argument, '|', '<Bar>', 'g')
-        execute 'inoremap <buffer> <silent> ' .. lhs .. ' <ScriptCmd>Dispatch(' .. this._buffer .. ', ' .. argument .. ')<CR>'
-        this._installed[key] = Mapping.new(lhs)
+        this._mappings.Install(lhs, '<Cmd>call caskk#binding#DispatchInput(' .. this._buffer .. ', ' .. argument .. ')<CR>')
       endfor
       bindings[id] = this
       this._enabled = true
@@ -286,7 +225,6 @@ export class Binding
       this._enabled = false
       this._disabled_during_inline_registration = true
       this._mode_view.Close()
-      this._inline_mode_view_active = false
       return
     endif
     this._DisableCompletely()
@@ -338,10 +276,8 @@ export class Binding
         continue
       endif
       const lhs = this._keys[key]
-      this._reconversion_saved[key] = Mapping.new(lhs, 'i')
-      execute 'inoremap <buffer> <silent> ' .. lhs .. ' <ScriptCmd>ReconversionInput('
-        .. this._buffer .. ', ' .. string(key) .. ')<CR>'
-      this._reconversion_installed[key] = Mapping.new(lhs, 'i')
+      this._reconversion_mappings.Install(lhs, '<Cmd>call caskk#binding#ReconversionInput('
+        .. this._buffer .. ', ' .. string(key) .. ')<CR>')
     endfor
   enddef
 
@@ -492,7 +428,6 @@ export class Binding
     const marker = this._inline_input.InCandidate() ? 'candidate' : snapshot.in_preedit ? 'modified' : ''
     const mode = this._inline_input.GetInputMode()
     this._mode_view.Show(mode, marker, false, this._inline_view.ModeAnchor())
-    this._inline_mode_view_active = true
     this._input_mode = mode
     this._mode_marker = marker
   enddef
@@ -533,7 +468,6 @@ export class Binding
     this._delete_user_entry_pending = false
     this._inline_view.Close()
     this._mode_view.Close()
-    this._inline_mode_view_active = false
     this._mode_marker = ''
     this._inline_input = null_object
     this._inline_text = ''
@@ -544,41 +478,14 @@ export class Binding
   enddef
 
   def RestoreInlineEscape()
-    if this._inline_escape_installed isnot null_object
-      const lhs = mapping.Lhs('<Esc>')
-      if this._inline_escape_installed.MatchesCurrent(lhs)
-        execute 'silent! iunmap <buffer> ' .. lhs
-        this._inline_escape_saved.Restore()
-      endif
-      this._inline_escape_saved = null_object
-      this._inline_escape_installed = null_object
-    endif
-    if this._inline_interrupt_installed isnot null_object
-      const lhs = mapping.Lhs('<C-C>')
-      if this._inline_interrupt_installed.MatchesCurrent(lhs)
-        execute 'silent! iunmap <buffer> ' .. lhs
-        this._inline_interrupt_saved.Restore()
-      endif
-      this._inline_interrupt_saved = null_object
-      this._inline_interrupt_installed = null_object
-    endif
-    for [key, installed] in items(this._inline_guard_installed)
-      const lhs = mapping.Lhs(key)
-      if installed.MatchesCurrent(lhs)
-        execute 'silent! iunmap <buffer> ' .. lhs
-        this._inline_guard_saved[key].Restore()
-      endif
-    endfor
-    this._inline_guard_saved = {}
-    this._inline_guard_installed = {}
+    this._inline_mappings.RestoreKey(mapping.Lhs('<Esc>'))
+    this._inline_mappings.RestoreKey(mapping.Lhs('<C-C>'))
+    this._inline_mappings.Restore()
   enddef
 
   def _InstallInlineGuards()
     const paste_lhs = '<PasteStart>'
-    this._inline_guard_saved[paste_lhs] = Mapping.new(paste_lhs)
-    execute 'inoremap <buffer> <silent> ' .. paste_lhs
-      .. ' <Cmd>call caskk#binding#PasteInline(' .. this._buffer .. ')<CR>'
-    this._inline_guard_installed[paste_lhs] = Mapping.new(paste_lhs)
+    this._inline_mappings.Install(paste_lhs, '<Cmd>call caskk#binding#PasteInline(' .. this._buffer .. ')<CR>')
     final seen: dict<bool> = {}
     for key in INLINE_GUARD_KEYS
       const lhs = mapping.Lhs(key)
@@ -586,21 +493,17 @@ export class Binding
         continue
       endif
       seen[lhs] = true
-      this._inline_guard_saved[key] = Mapping.new(lhs)
-      execute 'inoremap <buffer> <silent> ' .. lhs .. ' <Nop>'
-      this._inline_guard_installed[key] = Mapping.new(lhs)
+      this._inline_mappings.Install(lhs, '<Nop>')
     endfor
   enddef
 
   def _InstallInlineEscape()
     const lhs = mapping.Lhs('<Esc>')
-    this._inline_escape_saved = Mapping.new(lhs)
     var argument = substitute(string('<Esc>'), '<', '<lt>', 'g')
     argument = substitute(argument, '\\', '<Bslash>', 'g')
     argument = substitute(argument, '|', '<Bar>', 'g')
-    execute 'inoremap <buffer> <silent> ' .. lhs .. ' <Cmd>call caskk#binding#DispatchInput('
-      .. this._buffer .. ', ' .. argument .. ')<CR>'
-    this._inline_escape_installed = Mapping.new(lhs)
+    this._inline_mappings.Install(lhs, '<Cmd>call caskk#binding#DispatchInput('
+      .. this._buffer .. ', ' .. argument .. ')<CR>')
   enddef
 
   def _OpenInlineRegistration(prefill: bool)
@@ -619,14 +522,11 @@ export class Binding
         this._register_mode_conversions, this._dictionary_index)
       this._InstallInlineEscape()
       const interrupt_lhs = mapping.Lhs('<C-C>')
-      this._inline_interrupt_saved = Mapping.new(interrupt_lhs)
       var interrupt_argument = substitute(string('<C-C>'), '<', '<lt>', 'g')
       interrupt_argument = substitute(interrupt_argument, '\\', '<Bslash>', 'g')
       interrupt_argument = substitute(interrupt_argument, '|', '<Bar>', 'g')
-      execute 'inoremap <buffer> <silent> ' .. interrupt_lhs
-        .. ' <Cmd>call caskk#binding#DispatchInput(' .. this._buffer .. ', '
-        .. interrupt_argument .. ')<CR>'
-      this._inline_interrupt_installed = Mapping.new(interrupt_lhs)
+      this._inline_mappings.Install(interrupt_lhs, '<Cmd>call caskk#binding#DispatchInput(' .. this._buffer .. ', '
+        .. interrupt_argument .. ')<CR>')
       this._InstallInlineGuards()
       this._RefreshInlinePopup()
     catch
@@ -791,17 +691,17 @@ export class Binding
       this._AppendInlineResults(this._inline_input.Commit())
     elseif action ==# 'OpenRegistration'
       return
-    elseif this._ModeForAction(action) ==# input_mode.ABBREVIATION
+    elseif mapping.ModeForAction(action) ==# input_mode.ABBREVIATION
         && this._inline_input.InCandidate()
       this._AppendInlineResults(this._inline_input.Commit())
       this._inline_input.SetInputMode(input_mode.ABBREVIATION)
       this._RefreshInlinePopup()
-    elseif this._ModeForAction(action) !=# '' && this._inline_input.CanChangeInputMode()
-      this._inline_input.SetInputMode(this._ModeForAction(action))
+    elseif mapping.ModeForAction(action) !=# '' && this._inline_input.CanChangeInputMode()
+      this._inline_input.SetInputMode(mapping.ModeForAction(action))
       this._RefreshInlinePopup()
-    elseif this._ModeForAction(action) !=# ''
-        && this._inline_input.CanCommitPreeditAsMode(this._ModeForAction(action))
-      this._AppendInlineResults(this._inline_input.CommitPreeditAsMode(this._ModeForAction(action)))
+    elseif mapping.ModeForAction(action) !=# ''
+        && this._inline_input.CanCommitPreeditAsMode(mapping.ModeForAction(action))
+      this._AppendInlineResults(this._inline_input.CommitPreeditAsMode(mapping.ModeForAction(action)))
     else
       this._FeedInline(key)
     endif
@@ -819,30 +719,19 @@ export class Binding
   enddef
 
   def _InstallDeleteEscape()
-    if this._delete_escape_installed isnot null_object
+    if this._delete_mappings.Has(mapping.Lhs('<Esc>'))
       return
     endif
     const lhs = mapping.Lhs('<Esc>')
-    this._delete_escape_saved = Mapping.new(lhs)
     var argument = substitute(string('<Esc>'), '<', '<lt>', 'g')
     argument = substitute(argument, '\\', '<Bslash>', 'g')
     argument = substitute(argument, '|', '<Bar>', 'g')
-    execute 'inoremap <buffer> <silent> ' .. lhs .. ' <Cmd>call caskk#binding#DispatchInput('
-      .. this._buffer .. ', ' .. argument .. ')<CR>'
-    this._delete_escape_installed = Mapping.new(lhs)
+    this._delete_mappings.Install(lhs, '<Cmd>call caskk#binding#DispatchInput('
+      .. this._buffer .. ', ' .. argument .. ')<CR>')
   enddef
 
   def _RestoreDeleteEscape()
-    if this._delete_escape_installed is null_object
-      return
-    endif
-    const lhs = mapping.Lhs('<Esc>')
-    if this._delete_escape_installed.MatchesCurrent(lhs)
-      execute 'silent! iunmap <buffer> ' .. lhs
-      this._delete_escape_saved.Restore()
-    endif
-    this._delete_escape_saved = null_object
-    this._delete_escape_installed = null_object
+    this._delete_mappings.Restore()
   enddef
 
   def _ResolveDeleteUserEntryConfirmation(key: string): bool
@@ -889,25 +778,12 @@ export class Binding
       return has_candidate || snapshot.in_preedit
     elseif action ==# 'OpenRegistration'
       return this.GetRegistrationRequest() isnot null_object
-    elseif this._ModeForAction(action) != ''
-      return (this._ModeForAction(action) ==# input_mode.ABBREVIATION && has_candidate)
+    elseif mapping.ModeForAction(action) != ''
+      return (mapping.ModeForAction(action) ==# input_mode.ABBREVIATION && has_candidate)
         || this._editor.CanChangeInputMode()
-        || this._editor.CanCommitPreeditAsMode(this._ModeForAction(action))
+        || this._editor.CanCommitPreeditAsMode(mapping.ModeForAction(action))
     endif
     return false
-  enddef
-
-  def _ModeForAction(action: string): string
-    if action ==# 'AbbreviationMode'
-      return input_mode.ABBREVIATION
-    elseif action ==# 'KatakanaMode'
-      return input_mode.KATAKANA
-    elseif action ==# 'HalfwidthKatakanaMode'
-      return input_mode.HALFWIDTH_KATAKANA
-    elseif action ==# 'FullwidthAlphanumericMode'
-      return input_mode.FULLWIDTH_ALPHANUMERIC
-    endif
-    return ''
   enddef
 
   def _FallbackActionKey(key: string)
@@ -921,8 +797,7 @@ export class Binding
       return
     endif
     this.Leave()
-    execute 'silent! iunmap <buffer> ' .. this._keys[key]
-    this._saved[key].Restore()
+    this._mappings.Release(this._keys[key])
     feedkeys(keycode.Encode(key) .. "\<Cmd>call caskk#binding#ReinstallActionMapping("
       .. this._buffer .. ', ' .. string(key) .. ")\<CR>\<Cmd>call caskk#binding#ResumeAfterNativeInput("
       .. this._buffer .. ")\<CR>", 'im')
@@ -935,9 +810,7 @@ export class Binding
     var argument = substitute(string(key), '<', '<lt>', 'g')
     argument = substitute(argument, '\\', '<Bslash>', 'g')
     argument = substitute(argument, '|', '<Bar>', 'g')
-    execute 'inoremap <buffer> <silent> ' .. this._keys[key]
-      .. ' <ScriptCmd>Dispatch(' .. this._buffer .. ', ' .. argument .. ')<CR>'
-    this._installed[key] = Mapping.new(this._keys[key])
+    this._mappings.Reinstall(this._keys[key], '<Cmd>call caskk#binding#DispatchInput(' .. this._buffer .. ', ' .. argument .. ')<CR>')
   enddef
 
   def Enter()
@@ -1132,14 +1005,14 @@ export class Binding
       this._Record(this._editor.Commit())
     elseif action ==# 'OpenRegistration'
       this.OpenRegistrationWindow(configuration.GetRegistrationPrefill())
-    elseif this._ModeForAction(action) ==# input_mode.ABBREVIATION && this._editor.IsInCandidate()
+    elseif mapping.ModeForAction(action) ==# input_mode.ABBREVIATION && this._editor.IsInCandidate()
       this._Record(this._editor.Commit())
       this._editor.SetInputMode(input_mode.ABBREVIATION)
       this._input_mode = this._editor.GetInputMode()
       this._mode_marker = ''
       this._mode_view.Show(this._input_mode, this._mode_marker)
-    elseif this._ModeForAction(action) != ''
-      const mode = this._ModeForAction(action)
+    elseif mapping.ModeForAction(action) != ''
+      const mode = mapping.ModeForAction(action)
       if this._editor.CanCommitPreeditAsMode(mode)
         this._Record(this._editor.CommitPreeditAsMode(mode))
       else
@@ -1154,15 +1027,7 @@ export class Binding
   enddef
 
   def RestoreReconversionMappings()
-    for [key, installed] in items(this._reconversion_installed)
-      const lhs = mapping.Lhs(key)
-      if installed.MatchesCurrent(lhs)
-        execute 'silent! iunmap <buffer> ' .. lhs
-        this._reconversion_saved[key].Restore()
-      endif
-    endfor
-    this._reconversion_installed = {}
-    this._reconversion_saved = {}
+    this._reconversion_mappings.Restore()
   enddef
 
   def _CloseReconversion()
@@ -1252,11 +1117,7 @@ export class Binding
     if !this.HasActiveReconversion()
       return
     endif
-    for key in keys(this._reconversion_installed)
-      if has_key(active._saved, key)
-        this._reconversion_saved[key] = active._saved[key]
-      endif
-    endfor
+    this._reconversion_mappings.InheritSaved(active._mappings)
   enddef
 
   def ResumeAfterReconversion()
@@ -1290,8 +1151,7 @@ export class Binding
     endif
     this._editor = null_object
     this._ClearRegistrationReply()
-    this._installed = {}
-    this._saved = {}
+    this._mappings.Forget()
     this._enabled = false
     this._mode_view.Close()
     this._CloseInlineInput()
