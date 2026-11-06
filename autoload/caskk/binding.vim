@@ -830,7 +830,7 @@ export class Binding
     this._mode_view.Show(this._input_mode, this._mode_marker)
   enddef
 
-  def ResumeAfterNativeNewline()
+  def ResumeAfterNativeInput()
     if this._enabled && mode(1) =~# '^i' && bufnr('%') == this._buffer
       this.Enter()
     endif
@@ -889,6 +889,7 @@ export class Binding
       throw 'caskk: input is suspended for dictionary registration'
     endif
     if this._editor isnot null_object && this._editor.MoveWithinPreedit(key)
+      this._SyncInputMode()
       return
     endif
     if this._editor isnot null_object
@@ -897,17 +898,14 @@ export class Binding
     if has_key(this._native, key)
       if key ==# '<BS>' && this._editor isnot null_object && this._editor.Backspace()
         this._last = []
+        this._SyncInputMode()
         return
       endif
       # End the IME transaction before native motion or editing. Replay ahead
       # of later input without remapping back into this binding.
       this.Leave()
-      if key ==# '<CR>'
-        feedkeys(keycode.Encode(key) .. "\<Cmd>call caskk#binding#ResumeAfterNativeNewline("
-          .. this._buffer .. ")\<CR>", 'in')
-        return
-      endif
-      feedkeys(keycode.Encode(key), 'in')
+      feedkeys(keycode.Encode(key) .. "\<Cmd>call caskk#binding#ResumeAfterNativeInput("
+        .. this._buffer .. ")\<CR>", 'in')
       return
     endif
     if this._editor is null_object
@@ -1394,9 +1392,9 @@ export def DispatchInput(number: number, key: string)
   Dispatch(number, key)
 enddef
 
-export def ResumeAfterNativeNewline(number: number)
+export def ResumeAfterNativeInput(number: number)
   if has_key(bindings, string(number))
-    bindings[string(number)].ResumeAfterNativeNewline()
+    bindings[string(number)].ResumeAfterNativeInput()
   endif
 enddef
 

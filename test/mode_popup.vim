@@ -108,6 +108,27 @@ suite.default_hiragana_popup_is_visible_after_native_newline = (): void => {
   assert.equals(getline(1, '$'), ['前', '後'])
 }
 
+suite.mode_popup_returns_after_native_backspace = (): void => {
+  Setup({mode_popup_time: 0})
+  defer Cleanup()
+  feedkeys("a\<BS>\<F12>\<Esc>", 'xt')
+  assert.equals(captures, [[['あ']]])
+}
+
+suite.mode_popup_returns_after_native_delete = (): void => {
+  Setup({mode_popup_time: 0})
+  defer Cleanup()
+  feedkeys("a\<Del>\<F12>\<Esc>", 'xt')
+  assert.equals(captures, [[['あ']]])
+}
+
+suite.mode_popup_returns_after_native_cursor_motion = (): void => {
+  Setup({mode_popup_time: 0})
+  defer Cleanup()
+  feedkeys("a\<Right>\<F12>\<Esc>", 'xt')
+  assert.equals(captures, [[['あ']]])
+}
+
 suite.abbreviation_commit_updates_the_popup_to_the_restored_mode = (): void => {
   const dictionary = tempname()
   defer delete(dictionary)
@@ -134,6 +155,15 @@ suite.modified_preedit_prefixes_the_mode_label_with_start_marker = (): void => {
   defer Cleanup()
   feedkeys("aKa\<F12>\<Esc>", 'xt')
   assert.equals(captures, [[['▽あ']]])
+}
+
+suite.mode_popup_follows_horizontal_motion_inside_preedit = (): void => {
+  Setup({sticky_key: ';', mode_popup_time: 0})
+  defer Cleanup()
+  feedkeys("a;ka\<Left>\<F12>\<Esc>", 'xt')
+  assert.equals(captures, [[['▽あ']]])
+  assert.equals(capture_positions, [[[2, 3]]])
+  assert.equals(capture_cursor_positions, [[1, 3]])
 }
 
 suite.sticky_key_alone_shows_the_modified_mode_marker = (): void => {
