@@ -83,6 +83,14 @@ suite.mode_switches_show_the_configured_label_near_the_insert_cursor = (): void 
   assert.equals(getline(1), '前ア後')
 }
 
+suite.mode_popup_shows_on_insert_enter_before_any_input = (): void => {
+  Setup({mode_popup_time: 0})
+  defer Cleanup()
+  feedkeys("i\<F12>\<Esc>", 'xt')
+  assert.equals(captures, [[['あ']]])
+  assert.equals(getline(1), '前後')
+}
+
 suite.mode_popup_remains_visible_after_the_first_character = (): void => {
   Setup({mode_popup_labels: {katakana: 'カナ'}, mode_popup_time: 10000})
   defer Cleanup()

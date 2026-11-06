@@ -239,6 +239,7 @@ export class Binding
       endfor
       bindings[id] = this
       this._enabled = true
+      execute 'autocmd caskk_input InsertEnter <buffer=' .. this._buffer .. '> OnInsertEnter(' .. this._buffer .. ')'
       execute 'autocmd caskk_input InsertCharPre <buffer=' .. this._buffer .. '> BeforeCharacter(' .. this._buffer .. ')'
       execute 'autocmd caskk_input InsertLeave,BufLeave,WinLeave <buffer=' .. this._buffer .. '> Leave(' .. this._buffer .. ')'
       execute 'autocmd caskk_input BufWipeout <buffer=' .. this._buffer .. '> Forget(' .. this._buffer .. ')'
@@ -831,6 +832,13 @@ export class Binding
     this._mode_view.Show(this._input_mode, this._mode_marker)
   enddef
 
+  def EnterOnInsertEnter()
+    if this._enabled && this._editor is null_object && mode(1) =~# '^i'
+        && bufnr('%') == this._buffer
+      this.Enter()
+    endif
+  enddef
+
   def ResumeAfterNativeInput()
     if this._enabled && mode(1) =~# '^i' && bufnr('%') == this._buffer
       this.Enter()
@@ -1391,6 +1399,18 @@ enddef
 # Native queued commands need a fully qualified autoload entry point.
 export def DispatchInput(number: number, key: string)
   Dispatch(number, key)
+enddef
+
+def OnInsertEnter(number: number)
+  if has_key(bindings, string(number))
+    feedkeys("\<Cmd>call caskk#binding#EnterAfterInsertEnter(" .. number .. ")\<CR>", 'in')
+  endif
+enddef
+
+export def EnterAfterInsertEnter(number: number)
+  if has_key(bindings, string(number))
+    bindings[string(number)].EnterOnInsertEnter()
+  endif
 enddef
 
 export def ResumeAfterNativeInput(number: number)
