@@ -340,6 +340,10 @@ export class Editor
     return this._session.GetSnapshot()
   enddef
 
+  def IsBufferCurrent(): bool
+    return this._undo.IsCurrent()
+  enddef
+
   def IsInCandidate(): bool
     return this._session.InCandidate()
   enddef

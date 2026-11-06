@@ -346,6 +346,22 @@ export class Binding
     this._mode_view.Show(mode, marker)
   enddef
 
+  def _AbandonExternallyChangedEditor(): bool
+    if this._editor is null_object || this._editor.IsBufferCurrent()
+      return false
+    endif
+    # Keep external edits intact; the old editor's tracked range and undo tick
+    # can no longer safely be applied to the changed buffer.
+    if this._inline_input isnot null_object
+      this._CloseInlineInput()
+    endif
+    this._editor.Abandon()
+    this._editor = null_object
+    this._mode_marker = ''
+    this._mode_view.Close()
+    return true
+  enddef
+
   def _InlineHeader(): string
     const request = this.GetRegistrationRequest()
     if request is null_object
@@ -863,6 +879,9 @@ export class Binding
     if !force && this._editor.IsRegistrationSuspended() && this._inline_input is null_object
       return
     endif
+    if this._AbandonExternallyChangedEditor()
+      return
+    endif
     try
       const active_mode = this._editor.GetInputMode()
       this._Record(this._editor.Close())
@@ -887,6 +906,7 @@ export class Binding
 
   def _DispatchInput(key: string)
     this._CheckTarget()
+    this._AbandonExternallyChangedEditor()
     if this._ResolveDeleteUserEntryConfirmation(key)
       return
     endif

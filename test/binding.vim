@@ -666,6 +666,40 @@ suite.ctrl_two_nul_does_not_escape_the_managed_undo_unit = (): void => {
   keys.Disable()
 }
 
+suite.ctrl_o_normal_insert_command_does_not_leave_stale_undo_tracking = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}))
+  keys.Enable()
+  var caught = ''
+  try
+    feedkeys("aKa\<C-O>:normal! ifoo\<CR>ka\<Esc>", 'xt')
+  catch
+    caught = v:exception
+  endtry
+  assert.equals(caught, '')
+  assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
+  keys.Disable()
+}
+
+suite.external_insert_mode_buffer_change_restarts_tracking_without_exception = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}))
+  inoremap <buffer> <F11> <Cmd>call setline(1, '外部')<CR>
+  keys.Enable()
+  var caught = ''
+  try
+    feedkeys("aKa\<F11>ka\<Esc>", 'xt')
+  catch
+    caught = v:exception
+  endtry
+  assert.equals(caught, '')
+  assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
+  iunmap <buffer> <F11>
+  keys.Disable()
+}
+
 suite.literal_punctuation_is_included_in_the_reading_and_its_undo_checkpoint = (): void => {
   const context = Setup()
   defer Cleanup(context)

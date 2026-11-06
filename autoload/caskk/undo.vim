@@ -55,6 +55,10 @@ export class Manager
   enddef
 
   # Also used before core input is consumed by the Insert-mode integration.
+  def IsCurrent(): bool
+    return getbufvar(this._buffer, 'changedtick') == this._tick
+  enddef
+
   def Check()
     this._CheckTarget()
     if getbufvar(this._buffer, 'changedtick') != this._tick
