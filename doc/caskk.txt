@@ -115,12 +115,14 @@ From legacy Vim script, use: >
 <
 Reconvert() searches recent confirmed conversion text beginning at the cursor
 and starts candidate selection for the longest match.  It returns true when a
-match with candidates was found, otherwise false.  While selection is active,
-<C-N> and <C-P> move through candidates, Enter replaces the matched text, and
-Esc cancels.  These temporary buffer-local mappings are restored when selection
-ends or the cursor, buffer, or window changes.  Existing confirmed text remains
-in the buffer until Enter, so cancellation leaves it untouched; the replacement
-is a single undoable edit.
+match with candidates was found, otherwise false.  A successful call enters
+Insert mode.  There, <C-N> and <C-P> move through candidates, Enter replaces the
+matched text and returns to Normal mode, and Esc cancels and returns to Normal
+mode.  Other input cancels the selection and continues through the regular IME
+input path.  Temporary buffer-local mappings are restored when selection ends
+or the buffer or window changes.  Existing confirmed text remains in the buffer
+until Enter, so cancellation leaves it untouched; the replacement is a single
+undoable edit.
 
 History is kept in memory per enabled buffer, stores up to 32 recent dictionary
 conversions, and is cleared when that buffer is disabled or reconfigured.  The

@@ -36,6 +36,9 @@ def Setup(): Fixture
   Caskk.RegisterInputScheme({name: 'reconversion', consonants: {k: 'k'}, combinations: {a: 'a', u: 'u'}})
   Caskk.Config({dictionaries: [directory .. '/system'], candidate_popup: true, mode_popup: false,
     mappings: {s: 'Convert', c: 'Commit'}})
+  g:caskk_reconversion_probe = []
+  inoremap <buffer> <silent> <F11> <ScriptCmd>g:caskk_reconversion_probe = [mode(1), len(popup_list()), maparg('<C-N>', 'i')]<CR>
+  nnoremap <buffer> <silent> <F12> <ScriptCmd>Caskk.Reconvert()<CR>
   Caskk.Enable('reconversion')
   return Fixture.new(previous, number, directory, popup_list(), snapshot)
 enddef
@@ -67,10 +70,12 @@ suite.normal_mode_reconversion_selects_and_commits_a_different_candidate = (): v
   defer Cleanup(fixture)
   ConvertAndCommit()
   cursor(1, 4)
-  assert.equals(Caskk.Reconvert(), true)
-  assert.equals(len(popup_list()), len(fixture.existing_popups) + 1)
-  feedkeys("\<C-N>\<CR>", 'xt')
+  feedkeys("\<F12>\<F11>\<C-N>\<CR>", 'xt')
+  assert.equals(g:caskk_reconversion_probe[0], 'i')
+  assert.equals(g:caskk_reconversion_probe[1], len(fixture.existing_popups) + 1)
+  assert.match(g:caskk_reconversion_probe[2], 'ReconversionInput')
   assert.equals(getline(1), '前科後')
+  assert.equals(mode(1) =~# '^n', true)
   assert.equals(maparg('<C-N>', 'n', false, true).rhs, '2j')
   undo
   assert.equals(getline(1), '前蚊後')
@@ -82,9 +87,9 @@ suite.canceling_reconversion_leaves_the_confirmed_text_untouched = (): void => {
   ConvertAndCommit()
   const confirmed = getline(1)
   cursor(1, 4)
-  assert.equals(Caskk.Reconvert(), true)
-  feedkeys("\<Esc>", 'xt')
+  feedkeys("\<F12>\<Esc>", 'xt')
   assert.equals(getline(1), confirmed)
+  assert.equals(mode(1) =~# '^n', true)
   assert.equals(popup_list(), fixture.existing_popups)
   assert.equals(maparg('<C-N>', 'n', false, true).rhs, '2j')
 }
@@ -94,12 +99,7 @@ suite.cursor_movement_cancels_reconversion_and_restores_buffer_mappings = (): vo
   defer Cleanup(fixture)
   ConvertAndCommit()
   cursor(1, 4)
-  assert.equals(Caskk.Reconvert(), true)
-  assert.match(execute('autocmd caskk_reconversion'), 'CursorMoved')
-  normal! l
-  assert.equals(col('.'), 7)
-  doautocmd <nomodeline> CursorMoved
-  assert.equals(exists('#caskk_reconversion#CursorMoved'), 0)
+  feedkeys("\<F12>\<Right>", 'xt')
   assert.equals(getline(1), '前蚊後')
   assert.equals(popup_list(), fixture.existing_popups)
   assert.equals(maparg('<C-N>', 'n', false, true).rhs, '2j')
@@ -120,7 +120,6 @@ suite.okuri_history_reconverts_using_its_exact_okuri_lookup = (): void => {
   feedkeys("aKaKuc\<Esc>", 'xt')
   assert.equals(getline(1), '前書く後')
   cursor(1, 4)
-  assert.equals(Caskk.Reconvert(), true)
-  feedkeys("\<CR>", 'xt')
+  feedkeys("\<F12>\<CR>", 'xt')
   assert.equals(getline(1), '前書く後')
 }

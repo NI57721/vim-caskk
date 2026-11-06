@@ -931,6 +931,9 @@ export class Binding
 
   def _DispatchInput(key: string)
     this._CheckTarget()
+    if this._reconversion_selection isnot null_object
+      this._CloseReconversion()
+    endif
     this._AbandonExternallyChangedEditor()
     if this._ResolveDeleteUserEntryConfirmation(key)
       return
@@ -1023,7 +1026,7 @@ export class Binding
     for [key, installed] in items(this._reconversion_installed)
       const lhs = mapping.Lhs(key)
       if installed.MatchesCurrent(lhs)
-        execute 'silent! nunmap <buffer> ' .. lhs
+        execute 'silent! iunmap <buffer> ' .. lhs
         this._reconversion_saved[key].Restore()
       endif
     endfor
@@ -1068,13 +1071,13 @@ export class Binding
     try
       for key in ['<C-N>', '<C-P>', '<CR>', '<Esc>']
         const lhs = mapping.Lhs(key)
-        this._reconversion_saved[key] = Mapping.new(lhs, 'n')
+        this._reconversion_saved[key] = Mapping.new(lhs, 'i')
         const argument = substitute(string(key), '<', '<lt>', 'g')
-        execute 'nnoremap <buffer> <silent> ' .. lhs .. ' <ScriptCmd>ReconversionInput('
+        execute 'inoremap <buffer> <silent> ' .. lhs .. ' <ScriptCmd>ReconversionInput('
           .. this._buffer .. ', ' .. argument .. ')<CR>'
-        this._reconversion_installed[key] = Mapping.new(lhs, 'n')
+        this._reconversion_installed[key] = Mapping.new(lhs, 'i')
       endfor
-      execute 'autocmd caskk_reconversion CursorMoved,InsertEnter,BufLeave,WinLeave <buffer='
+      execute 'autocmd caskk_reconversion InsertLeave,BufLeave,WinLeave <buffer='
         .. this._buffer .. '> call caskk#binding#CancelReconversion(' .. this._buffer .. ')'
       execute 'autocmd caskk_reconversion BufWipeout <buffer=' .. this._buffer
         .. '> call caskk#binding#ForgetReconversion(' .. this._buffer .. ')'
@@ -1083,6 +1086,7 @@ export class Binding
       this._CloseReconversion()
       throw reason
     endtry
+    startinsert
     return true
   enddef
 
@@ -1092,6 +1096,7 @@ export class Binding
     endif
     if key ==# '<Esc>'
       this._CloseReconversion()
+      feedkeys("\<Esc>", 'in')
     elseif key ==# '<CR>'
       const start = this._reconversion_start
       const record = this._reconversion_record
@@ -1105,6 +1110,7 @@ export class Binding
       setline(start[0], strpart(original, 0, start[1] - 1) .. replacement .. strpart(original, finish))
       cursor(start[0], start[1])
       this._CloseReconversion()
+      feedkeys("\<Esc>", 'in')
     elseif key ==# '<C-N>'
       if this._reconversion_selection.Next()
         this._reconversion_view.Render(this._reconversion_selection.GetCandidatesInfo())
