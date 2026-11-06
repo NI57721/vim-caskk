@@ -107,6 +107,21 @@ export class Composer
     return false
   enddef
 
+  # Let an already pending special consume the next key before the binding
+  # layer interprets that key as an action such as Convert.
+  def IsSpecialContinuation(key: string): bool
+    if empty(this._special_pending)
+      return false
+    endif
+    final keys: list<string> = []
+    for event in this._special_pending
+      keys->add(event.key)
+    endfor
+    keys->add(key)
+    const match = special.Match(this._rules, keys)
+    return empty(match.replay) && (match.output isnot null_object || !empty(match.pending))
+  enddef
+
   def _HasConsonantPrefix(events: list<input.Event>): bool
     for key in this._InputKeys()
       const tokens = scheme.ConsonantKeys(key)

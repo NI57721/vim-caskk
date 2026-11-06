@@ -100,6 +100,17 @@ suite.mappings_accept_vim_keycode_expressions = (): void => {
   assert.equals(getline(1), '前か後')
 }
 
+suite.special_continuation_precedes_a_convert_mapping_on_space = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  Caskk.RegisterInputScheme({name: 'configured', consonants: {k: 'k'}, combinations: {a: 'a'},
+    specials: {'z ': '　'}})
+  Caskk.Config({sticky_key: ';', mappings: {"\<Space>": 'Convert', "\<F10>": 'Commit'}})
+  Caskk.Enable('configured')
+  feedkeys("a;kaz \<F10>\<Esc>", 'xt')
+  assert.equals(getline(1), '前か　後')
+}
+
 suite.ctrl_n_and_ctrl_p_navigate_candidates_through_configured_mappings = (): void => {
   const context = Setup()
   defer Cleanup(context)

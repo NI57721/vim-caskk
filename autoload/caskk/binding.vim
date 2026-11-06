@@ -640,6 +640,10 @@ export class Binding
     endif
 
     const action = get(this._actions, key, '')
+    if action !=# '' && this._inline_input.IsSpecialContinuation(key)
+      this._AppendInlineResults(this._inline_input.Feed(key))
+      return
+    endif
     if action ==# 'Convert'
       if this._inline_input.InCandidate()
         this._AppendInlineResults([this._inline_input.NextCandidate()])
@@ -898,6 +902,10 @@ export class Binding
       this.Enter()
     endif
     const action = get(this._actions, key, '')
+    if action !=# '' && this._editor.IsSpecialContinuation(key)
+      this._Record(this._editor.Feed(key))
+      return
+    endif
     if action !=# '' && !this._CanRunAction(action)
       this._FallbackActionKey(key)
     elseif action ==# 'Convert'

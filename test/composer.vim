@@ -158,6 +158,16 @@ suite.standalone_combination_keeps_a_latent_okuri_boundary_inert = (): void => {
   assert.equals(result.okuri_started, false)
 }
 
+suite.pending_special_recognizes_space_before_the_binding_action = (): void => {
+  const engine = composer.Composer.new(scheme.Compile({}, {},
+    scheme.SpecialDefinitions({'z ': '　'})))
+  assert.equals(engine.Feed(input.Event.new('z')), [])
+  assert.equals(engine.IsSpecialContinuation('<Space>'), true)
+  const matched = engine.Feed(input.Event.new('<Space>'))
+  assert.equals(len(matched), 1)
+  assert.equals(matched[0].output.text, '　')
+}
+
 suite.special_overrides_generated_combination = (): void => {
   const definitions = [scheme.SpecialDefinition.new(['k', 'a'], '特別')]
   const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}, definitions))

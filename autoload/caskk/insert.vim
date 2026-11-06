@@ -368,4 +368,8 @@ export class Editor
   def Pending(): list<input.Event>
     return this._session.Pending()
   enddef
+
+  def IsSpecialContinuation(key: string): bool
+    return this._session.IsSpecialContinuation(key)
+  enddef
 endclass

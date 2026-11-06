@@ -439,6 +439,10 @@ export class Session
     return this._composer.Pending()
   enddef
 
+  def IsSpecialContinuation(key: string): bool
+    return this._composer.IsSpecialContinuation(key)
+  enddef
+
   def CanChangeInputMode(): bool
     return !this._state.in_preedit && !this.InCandidate() && empty(this._composer.Pending())
       && !this._normalizer.HasPendingModifier()
