@@ -305,6 +305,17 @@ file after writing.  Saved files are readable and writable by their owner only.
 Failures preserve the in-memory state and remove temporary files.  Errors are
 reported to the caller.
 
+ExportUserDictionary({path}) writes only registered user entries as an SKK
+dictionary.  It emits the okuri-ari and okuri-nasi sections, converts exact
+okuri kana to the standard SKK romaji prefix, and sorts okuri-ari keys in
+descending order and okuri-nasi keys in ascending order.  Candidate ranking,
+MRU history, pinned candidates, and demotions are not exported.  The parent
+directory is created when needed.  Candidates containing SKK structural
+delimiters or line breaks cannot be exported and cause an error; the existing
+destination is left intact on failure.
+
+    Caskk.ExportUserDictionary('/path/to/SKK-JISYO.user')
+
 AUTOMATIC USER STATE                                    *caskk-state-auto*
 
 state_auto                                           *caskk-config-state-auto*

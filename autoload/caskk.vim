@@ -5,6 +5,7 @@ import autoload 'caskk/scheme.vim' as scheme
 import autoload 'caskk/scheme/registry.vim' as registry
 import autoload 'caskk/binding.vim' as binding
 import autoload 'caskk/user_state/runtime.vim' as user_runtime
+import autoload 'caskk/dictionary/export.vim' as dictionary_export
 import 'caskk/registration.vim' as registration
 
 const schemes = registry.Registry.new()
@@ -105,6 +106,10 @@ enddef
 
 export def SaveState()
   user_runtime.Save(configuration.GetStatePath())
+enddef
+
+export def ExportUserDictionary(path: string)
+  dictionary_export.Write(path, user_runtime.Get().GetSnapshot())
 enddef
 
 # The heterogeneous user dictionary is validated at the configuration boundary.

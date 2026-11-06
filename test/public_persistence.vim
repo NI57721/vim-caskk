@@ -79,6 +79,27 @@ suite.round_trip_preserves_entries_annotations_mru_pin_and_demotion = (): void =
   assert.equals(getline(1), '前課後')
 }
 
+suite.user_dictionary_export_writes_skk_sections_with_okuri_prefixes_and_sorting = (): void => {
+  const fixture = Setup()
+  defer Cleanup(fixture)
+  const state = user_runtime.Get()
+  state.AddEntry(lookup.CreateQuery('い', 'く'), dictionary.Candidate.new('行', ['動詞']))
+  state.AddEntry(lookup.CreateQuery('い', 'き'), dictionary.Candidate.new('進', ['別注']))
+  state.AddEntry(lookup.CreateQuery('あ', 'っ'), dictionary.Candidate.new('切', []))
+  state.AddEntry(lookup.CreateQuery('かな', ''), dictionary.Candidate.new('仮名', []))
+  state.AddEntry(lookup.CreateQuery('あ', ''), dictionary.Candidate.new('亜', []))
+  const path = fixture.directory .. '/export/nested/SKK-JISYO.user'
+  Caskk.ExportUserDictionary(path)
+  assert.equals(readfile(path), [
+    ';; okuri-ari entries.',
+    'いk /進;別注/行;動詞/',
+    'あt /切/',
+    ';; okuri-nasi entries.',
+    'あ /亜/',
+    'かな /仮名/',
+  ])
+}
+
 suite.loaded_learning_is_used_by_an_already_enabled_buffer = (): void => {
   const fixture = Setup()
   defer Cleanup(fixture)
