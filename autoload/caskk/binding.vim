@@ -829,6 +829,12 @@ export class Binding
     this._mode_view.Show(this._input_mode, this._mode_marker)
   enddef
 
+  def ResumeAfterNativeNewline()
+    if this._enabled && mode(1) =~# '^i' && bufnr('%') == this._buffer
+      this.Enter()
+    endif
+  enddef
+
   def Leave(force: bool = false)
     const previous_revision = this._preferences.Revision()
     try
@@ -895,6 +901,11 @@ export class Binding
       # End the IME transaction before native motion or editing. Replay ahead
       # of later input without remapping back into this binding.
       this.Leave()
+      if key ==# '<CR>'
+        feedkeys(keycode.Encode(key) .. "\<Cmd>call caskk#binding#ResumeAfterNativeNewline("
+          .. this._buffer .. ")\<CR>", 'in')
+        return
+      endif
       feedkeys(keycode.Encode(key), 'in')
       return
     endif
@@ -905,6 +916,12 @@ export class Binding
     if action !=# '' && this._editor.IsSpecialContinuation(key)
       this._Record(this._editor.Feed(key))
       return
+    endif
+    if action ==# 'DeleteUserEntry' && key ==# '<BS>' && !this._editor.IsInCandidate()
+      if this._editor.Backspace()
+        this._SyncInputMode()
+        return
+      endif
     endif
     if action !=# '' && !this._CanRunAction(action)
       this._FallbackActionKey(key)
@@ -1374,6 +1391,12 @@ enddef
 # Native queued commands need a fully qualified autoload entry point.
 export def DispatchInput(number: number, key: string)
   Dispatch(number, key)
+enddef
+
+export def ResumeAfterNativeNewline(number: number)
+  if has_key(bindings, string(number))
+    bindings[string(number)].ResumeAfterNativeNewline()
+  endif
 enddef
 
 export def ReinstallActionMapping(number: number, key: string)

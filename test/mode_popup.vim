@@ -92,6 +92,14 @@ suite.mode_popup_remains_visible_after_the_first_character = (): void => {
   assert.equals(capture_positions, [[[2, 4]]])
 }
 
+suite.mode_popup_is_visible_immediately_after_native_newline = (): void => {
+  Setup({mode_popup_labels: {katakana: 'カナ'}, mode_popup_time: 10000})
+  defer Cleanup()
+  feedkeys("a\<F1>\<CR>\<F12>\<Esc>", 'xt')
+  assert.equals(captures, [[['カナ']]])
+  assert.equals(getline(1, '$'), ['前', '後'])
+}
+
 suite.abbreviation_commit_updates_the_popup_to_the_restored_mode = (): void => {
   const dictionary = tempname()
   defer delete(dictionary)

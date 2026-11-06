@@ -574,6 +574,21 @@ suite.shifted_number_symbols_with_latent_boundaries_are_safe_as_standalone_input
   assert.equals(getline(1), '前1$%^&*()後')
 }
 
+suite.backspace_keeps_public_sticky_vowel_input_modified_and_convertible = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const dictionary = tempname()
+  defer delete(dictionary)
+  writefile(['あいうえ /読み/'], dictionary)
+  Caskk.RegisterInputScheme({name: 'vowel-preedit', consonants: {},
+    combinations: {a: 'a', i: 'i', u: 'u', e: 'e', o: 'o'}})
+  Caskk.Config({sticky_key: ';', keyboard_layout: 'US', dictionaries: [dictionary], mappings: {
+    "\<Space>": 'Convert', "\<F10>": 'Commit', "\<BS>": 'DeleteUserEntry'}})
+  Caskk.Enable('vowel-preedit')
+  feedkeys("a;aiueo\<BS>\<Space>\<F10>\<Esc>", 'xt')
+  assert.equals(getline(1), '前読み後')
+}
+
 suite.keyboard_layout_override_replaces_one_shifted_symbol_through_public_config = (): void => {
   const context = Setup()
   defer Cleanup(context)
