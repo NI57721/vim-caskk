@@ -624,20 +624,42 @@ string (UTF-8), or a dictionary with path and an optional encoding string: >vim9
     })
 <
 Paths are passed directly to Vim's file reader.  Replace the example paths with
-existing files.  Config() eagerly reads, decodes, parses, and merges all sources;
-it does not write to the system dictionaries.  Duplicate candidates are merged,
-preserving the first occurrence's order and combining annotations.
+existing files.  Configured sources smaller than 128 KiB in total are read and
+indexed during Config().  Larger source sets are read and indexed incrementally
+by Vim timers after Config() returns.  Candidate order is retained across sources, and duplicate
+candidates are merged while preserving the first occurrence's order and
+combining annotations.  System dictionaries are never written.
 
-Missing files, decoding failures, or malformed entries reject the entire new
-configuration.  Errors include the source path and, for parse errors, the line
-number.  The previous dictionaries, input settings, and highlight remain usable.
-If highlighting fails after dictionaries were loaded, the previous dictionaries
-are retained too.
+Config() validates its options and applies highlighting before returning.  For
+large sources, dictionary loading continues afterward; Caskk.GetDictionaryLoadStatus()
+returns a dictionary with state 'loading', 'ready', or 'error', and an error
+message when loading fails.  A timer reads at most 64 KiB of source bytes and
+indexes at most 1000 rows per callback.  Decoding waits for a complete line so
+multibyte characters are not split across chunks.  An unusually long single
+dictionary line is decoded as a whole.
 
-Conversion uses the loaded in-memory data.  Editing or removing a source file
-does not change it.  Call Config() again to reload; Disable() then Enable(name)
-applies the new dictionary data to an already enabled buffer.  Omitting
-dictionaries in a Config() call resets the dictionary list to empty.
+Missing files and decoding failures in an incremental load leave the previous
+dictionary active, set the status to 'error', and display an error message.
+When no dictionary has loaded yet, conversion during loading keeps the current
+reading and does not open registration; retry conversion after loading finishes.
+Each later successful dictionary is published as one change.  A reload request
+cancels an older pending request, so only the newest request can be published.
+Candidate selection already in progress keeps its prepared candidates; new
+conversions use the new dictionary after publication.  A Config() call that
+changes non-dictionary binding settings still releases existing bindings.
+
+Conversion uses in-memory data.  Editing or removing a source file does not
+change it.  Call Config() again to reload.  A dictionary-only reload keeps
+existing bindings active; once the new index is published, subsequent
+conversions use it.  Omitting dictionaries in a Config() call resets the
+dictionary list to empty.
+
+GetDictionaryLoadStatus()                         *caskk-dictionary-load-status*
+
+Caskk.GetDictionaryLoadStatus() returns {state: string, error: string}.  The
+error field is empty unless the most recent incremental load failed.  Source
+sets below the size threshold and empty source sets are ready when Config()
+returns.
 
 Config() accepts a heterogeneous dictionary and validates its keys, value types,
 and contents before retaining typed settings.  A failure retains the previous

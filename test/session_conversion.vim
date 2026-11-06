@@ -7,6 +7,7 @@ import autoload 'caskk/dictionary/parser.vim' as parser
 import autoload 'caskk/user_state.vim' as user_state
 import autoload 'caskk/user_state/codec.vim' as codec
 import autoload 'caskk/input/mode.vim' as input_mode
+import autoload 'caskk/dictionary/index.vim' as dict_index
 
 final suite = themis#suite('session conversion')
 const assert = themis#helper('assert')
@@ -471,6 +472,41 @@ suite.no_candidates_preserve_reading_and_expose_the_registration_query = (): voi
   assert.equals(ime.InCandidate(), false)
   assert.equals(ime.GetCandidates().query.reading, 'か')
   assert.equals(ime.GetCandidates().candidates, [])
+}
+
+suite.conversion_while_initial_dictionary_loads_keeps_preedit_without_registration = (): void => {
+  const database = dict_index.Database.new([])
+  database.MarkLoading()
+  const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', {}, null_object,
+    '', true, '', {}, input_mode.HIRAGANA, true, database)
+  ime.Feed('K')
+  ime.Feed('a')
+  const results = ime.StartConversion({}, user_state.State.new())
+  assert.equals(len(results), 1)
+  assert.equals(results[0].dictionary_loading, true)
+  assert.equals(results[0].registration_requested, false)
+  assert.equals(results[0].state.in_preedit, true)
+  assert.equals(results[0].state.reading, 'か')
+  database.ReplaceWith(dict_index.Database.new([]))
+  assert.equals(ime.StartConversion({}, user_state.State.new())[0].registration_requested, true)
+}
+
+suite.dictionary_swap_does_not_change_active_candidates_but_affects_next_conversion = (): void => {
+  const database = dict_index.Database.new([dict_index.SourceFromLines(['か /蚊/家/'])])
+  const preferences = user_state.State.new()
+  const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', {}, preferences,
+    '', true, '', {}, input_mode.HIRAGANA, true, database)
+  ime.Feed('K')
+  ime.Feed('a')
+  assert.equals(ime.StartConversion({}, preferences)[0].text, '蚊')
+
+  database.ReplaceWith(dict_index.Database.new([dict_index.SourceFromLines(['か /新/'])]))
+  assert.equals(ime.NextCandidate().text, '家')
+  assert.equals(ime.Commit()[0].text, '家')
+
+  ime.Feed('K')
+  ime.Feed('a')
+  assert.equals(ime.StartConversion({}, preferences)[0].text, '新')
 }
 
 suite.active_selection_rejects_restarting_conversion = (): void => {

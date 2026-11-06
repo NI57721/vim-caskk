@@ -308,6 +308,9 @@ export class Binding
         throw 'caskk: native handling of unhandled input is not connected'
       endif
       requested = requested || result.registration_requested
+      if result.dictionary_loading
+        echomsg 'Caskk: dictionary is still loading; press Convert again when loading finishes'
+      endif
     endfor
     if this._registration_auto && requested && this._editor isnot null_object
         && !this._editor.IsRegistrationSuspended() && this._editor.GetRegistrationRequest() isnot null_object

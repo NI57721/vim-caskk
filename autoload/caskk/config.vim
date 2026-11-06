@@ -55,12 +55,15 @@ class Settings
   const mode_popup_labels: dict<string>
   const mode_popup_markers: dict<string>
   const mode_popup_time: number
+  const dictionary_sources: list<loader.Source>
 
   def new(this.highlight, this.input, this.state_path, this.state_auto, this.registration_prefill,
       this.registration_auto, this.registration_inline, this.candidate_popup, this.mode_popup,
-      mode_popup_labels: dict<string>, mode_popup_markers: dict<string>, this.mode_popup_time)
+      mode_popup_labels: dict<string>, mode_popup_markers: dict<string>, this.mode_popup_time,
+      dictionary_sources: list<loader.Source> = [])
     this.mode_popup_labels = copy(mode_popup_labels)
     this.mode_popup_markers = copy(mode_popup_markers)
+    this.dictionary_sources = copy(dictionary_sources)
   enddef
 endclass
 
@@ -263,7 +266,7 @@ def ReadModePopupMarkers(raw: any): dict<string>
   return markers
 enddef
 
-def Parse(options: dict<any>): Settings
+def Parse(options: dict<any>, shared_index: dict_index.Database = null_object): Settings
   for section in keys(options)
     if index(['highlight', 'sticky_key', 'keyboard_layout', 'keyboard_layout_overrides', 'mappings', 'dictionaries', 'state_path', 'state_auto',
         'small_tsu_okuri_as_t',
@@ -329,15 +332,75 @@ def Parse(options: dict<any>): Settings
   endif
   const small_tsu_okuri_as_t: bool = get(options, 'small_tsu_okuri_as_t', true)
   const sources = ReadDictionaries(get(options, 'dictionaries', []))
-  const dictionary_index = loader.Open(sources)
+  const dictionary_index = shared_index is null_object ? loader.Open(sources) : shared_index
   const destination = state_path == '' ? '' : fnamemodify(state_path, ':p')
   return Settings.new(highlight, Input.new(sticky_key, keyboard_layout, keyboard_layout_overrides,
     actions, dictionary_index, small_tsu_okuri_as_t, persist_input_mode, register_mode_conversions), destination, state_auto,
     registration_prefill, registration_auto, registration_inline, candidate_popup, mode_popup, mode_popup_labels,
-    mode_popup_markers, mode_popup_time)
+    mode_popup_markers, mode_popup_time, sources)
 enddef
 
 var current = Parse({})
+var shared_dictionary_index = current.input.dictionary_index
+var pending_dictionary_builder: loader.DatabaseBuilder = null_object
+var dictionary_timer = -1
+var dictionary_load_state = 'ready'
+var dictionary_load_error = ''
+var has_loaded_dictionary = false
+
+const INDEX_LINES_PER_TICK = 1000
+
+def SameDictionaryIndependentSettings(left: Settings, right: Settings): bool
+  const a = left.input
+  const b = right.input
+  return a.sticky_key ==# b.sticky_key
+    && a.keyboard_layout ==# b.keyboard_layout
+    && a.keyboard_layout_overrides == b.keyboard_layout_overrides
+    && a.mappings == b.mappings
+    && a.small_tsu_okuri_as_t == b.small_tsu_okuri_as_t
+    && a.persist_input_mode == b.persist_input_mode
+    && a.register_mode_conversions == b.register_mode_conversions
+    && left.registration_auto == right.registration_auto
+    && left.registration_prefill == right.registration_prefill
+    && left.registration_inline == right.registration_inline
+    && left.state_path ==# right.state_path
+    && left.state_auto == right.state_auto
+    && left.candidate_popup == right.candidate_popup
+    && left.mode_popup == right.mode_popup
+    && left.mode_popup_labels == right.mode_popup_labels
+    && left.mode_popup_markers == right.mode_popup_markers
+    && left.mode_popup_time == right.mode_popup_time
+enddef
+
+def AdvanceDictionaryLoad(timer: number)
+  if timer != dictionary_timer || pending_dictionary_builder is null_object
+    return
+  endif
+  try
+    if pending_dictionary_builder.Step(INDEX_LINES_PER_TICK)
+      shared_dictionary_index.ReplaceWith(pending_dictionary_builder.Result())
+      has_loaded_dictionary = true
+      pending_dictionary_builder = null_object
+      dictionary_timer = -1
+      dictionary_load_state = 'ready'
+      dictionary_load_error = ''
+      return
+    endif
+    dictionary_timer = timer_start(0, AdvanceDictionaryLoad)
+  catch
+    dictionary_load_error = v:exception
+    pending_dictionary_builder = null_object
+    dictionary_timer = -1
+    dictionary_load_state = 'error'
+    echohl ErrorMsg
+    echomsg 'Caskk: dictionary reload failed; keeping the previous dictionary: ' .. dictionary_load_error
+    echohl None
+  endtry
+enddef
+
+export def DictionaryLoadStatus(): dict<string>
+  return {state: dictionary_load_state, error: dictionary_load_error}
+enddef
 
 def Install(highlight: Highlight)
   # Heterogeneous dictionaries are confined to the native hlset() boundary.
@@ -410,7 +473,7 @@ enddef
 export def Configure(options: dict<any>)
   var parsed: Settings
   try
-    parsed = Parse(options)
+    parsed = Parse(options, shared_dictionary_index)
   catch
     const reason = v:exception
     if stridx(reason, 'caskk: invalid configuration:') == 0
@@ -427,7 +490,89 @@ export def Configure(options: dict<any>)
     hlset(previous)
     throw 'caskk: invalid configuration: ' .. reason
   endtry
+  try
+    shared_dictionary_index.ReplaceWith(loader.Open(parsed.dictionary_sources))
+  catch
+    const reason = v:exception
+    hlset([{name: GROUP, cleared: true}])
+    hlset(previous)
+    throw 'caskk: invalid configuration: ' .. reason
+  endtry
+  if dictionary_timer >= 0
+    timer_stop(dictionary_timer)
+    dictionary_timer = -1
+  endif
+  pending_dictionary_builder = null_object
   current = parsed
+  has_loaded_dictionary = true
+  dictionary_load_state = 'ready'
+  dictionary_load_error = ''
+enddef
+
+def NeedsIncrementalLoad(sources: list<loader.Source>): bool
+  var total_size = 0
+  for source in sources
+    const size = getfsize(source.path)
+    if size < 0
+      return false
+    endif
+    total_size += size
+    if total_size >= 131072
+      return true
+    endif
+  endfor
+  return false
+enddef
+
+export def ConfigureIncrementally(options: dict<any>): bool
+  var parsed: Settings
+  try
+    parsed = Parse(options, shared_dictionary_index)
+  catch
+    const reason = v:exception
+    if stridx(reason, 'caskk: invalid configuration:') == 0
+      throw reason
+    endif
+    throw 'caskk: invalid configuration: ' .. reason
+  endtry
+
+  if !NeedsIncrementalLoad(parsed.dictionary_sources)
+    const reset_bindings = !SameDictionaryIndependentSettings(current, parsed)
+    Configure(options)
+    return reset_bindings
+  endif
+
+  const reset_bindings = !SameDictionaryIndependentSettings(current, parsed)
+  const previous = hlget(GROUP)
+  try
+    Install(parsed.highlight)
+  catch
+    const reason = v:exception
+    hlset([{name: GROUP, cleared: true}])
+    hlset(previous)
+    throw 'caskk: invalid configuration: ' .. reason
+  endtry
+
+  if dictionary_timer >= 0
+    timer_stop(dictionary_timer)
+    dictionary_timer = -1
+  endif
+  dictionary_load_error = ''
+  if !has_loaded_dictionary
+    shared_dictionary_index.MarkLoading()
+  endif
+  pending_dictionary_builder = loader.DatabaseBuilder.new(parsed.dictionary_sources)
+  current = parsed
+  dictionary_load_state = 'loading'
+  if pending_dictionary_builder.IsDone()
+    shared_dictionary_index.ReplaceWith(pending_dictionary_builder.Result())
+    pending_dictionary_builder = null_object
+    dictionary_load_state = 'ready'
+    has_loaded_dictionary = true
+  else
+    dictionary_timer = timer_start(0, AdvanceDictionaryLoad)
+  endif
+  return reset_bindings
 enddef
 
 augroup caskk_highlight

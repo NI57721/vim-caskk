@@ -109,8 +109,13 @@ enddef
 
 # The heterogeneous user dictionary is validated at the configuration boundary.
 export def Config(options: dict<any>)
-  configuration.Configure(options)
-  binding.DisableAll()
+  if configuration.ConfigureIncrementally(options)
+    binding.DisableAll()
+  endif
+enddef
+
+export def GetDictionaryLoadStatus(): dict<string>
+  return configuration.DictionaryLoadStatus()
 enddef
 
 def SaveAutomaticState()

@@ -29,11 +29,12 @@ export class Result
   const registration_requested: bool = false
   const pending_display: bool = false
   const preedit_text: string = ''
+  const dictionary_loading: bool = false
 
   def new(this.text, this.unhandled, this.state, this.commit_preedit = v:none,
       this.in_candidate = v:none, this.replace_preedit = v:none,
       this.registration_requested = v:none, this.pending_display = v:none,
-      this.preedit_text = v:none)
+      this.preedit_text = v:none, this.dictionary_loading = v:none)
   enddef
 endclass
 
@@ -79,6 +80,10 @@ export class Session
 
   def _PrepareConversion(entries: dict<dictionary.Entry>, preferences: user_state.State): Result
     this._reading_after_cancel = false
+    if this._dictionary_index isnot null_object && !this._dictionary_index.IsReady()
+      return Result.new('', [], this._state.GetSnapshot(), false, false, false, false, false,
+        this._DisplayPreedit(), true)
+    endif
     this._prepared = conversion.Prepare(entries, preferences, this._state.reading, this._state.okuri,
       this._small_tsu_okuri_as_t, this._dictionary_index)
     this._request_preferences = preferences

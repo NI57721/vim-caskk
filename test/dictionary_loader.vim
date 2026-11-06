@@ -2,6 +2,7 @@ vim9script
 
 import 'caskk/dictionary.vim' as dictionary
 import autoload 'caskk/dictionary/loader.vim' as loader
+import autoload 'caskk/dictionary/lookup.vim' as lookup
 
 final suite = themis#suite('system dictionary loader')
 const assert = themis#helper('assert')
@@ -83,6 +84,38 @@ suite.empty_sources_files_and_comment_only_files_produce_no_entries = (): void =
   assert.equals(loader.Load([]), {})
   assert.equals(loader.Load([loader.Source.new(empty_path)]), {})
   assert.equals(loader.Load([loader.Source.new(comments_path)]), {})
+}
+
+suite.incremental_database_builder_loads_all_sources_in_order = (): void => {
+  const first_path = tempname()
+  const second_path = tempname()
+  defer delete(first_path)
+  defer delete(second_path)
+  writefile([';; okuri-nasi entries.', 'かな /仮名/'], first_path)
+  writefile([';; okuri-nasi entries.', 'かな /佳名/'], second_path)
+  const builder = loader.DatabaseBuilder.new([loader.Source.new(first_path), loader.Source.new(second_path)])
+  var steps = 0
+  while !builder.IsDone()
+    builder.Step(1)
+    steps += 1
+  endwhile
+  assert.equals(steps > 2, true)
+  const candidates = builder.Result().Lookup(lookup.CreateQuery('かな', ''))
+  assert.equals(mapnew(candidates, (_, candidate) => candidate.text), ['仮名', '佳名'])
+}
+
+suite.incremental_reader_preserves_multibyte_text_when_a_chunk_splits_a_line = (): void => {
+  const path = tempname()
+  defer delete(path)
+  writefile(["\ufeff;;" .. repeat('x', 65530) .. "漢字\r", "かな /仮名/"], path, 'b')
+  const builder = loader.DatabaseBuilder.new([loader.Source.new(path)])
+  const synchronous_candidates = loader.Open([loader.Source.new(path)]).Lookup(lookup.CreateQuery('かな', ''))
+  assert.equals(mapnew(synchronous_candidates, (_, candidate) => candidate.text), ['仮名'])
+  while !builder.IsDone()
+    builder.Step(10)
+  endwhile
+  const candidates = builder.Result().Lookup(lookup.CreateQuery('かな', ''))
+  assert.equals(mapnew(candidates, (_, candidate) => candidate.text), ['仮名'])
 }
 
 suite.missing_file_reports_its_path = (): void => {

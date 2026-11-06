@@ -89,7 +89,7 @@ suite.configuration_loads_eagerly_and_does_not_retain_source_containers = (): vo
   assert.equals(getline(1), '前蚊後')
 }
 
-suite.updated_dictionary_is_applied_after_disabling_and_reenabling = (): void => {
+suite.dictionary_only_reload_keeps_binding_and_uses_the_updated_dictionary = (): void => {
   const context = Setup()
   defer Cleanup(context)
   const path = tempname()
@@ -101,8 +101,7 @@ suite.updated_dictionary_is_applied_after_disabling_and_reenabling = (): void =>
   assert.equals(getline(1), '前蚊後')
   writefile(['か /科/'], path)
   Caskk.Config({dictionaries: [path], mappings: {s: 'Convert'}})
-  assert.equals(Caskk.IsEnabled(), false)
-  Caskk.Enable('dictionary-config')
+  assert.equals(Caskk.IsEnabled(), true)
   feedkeys("aKas\<Esc>", 'xt')
   assert.equals(getline(1), '前蚊科後')
 }

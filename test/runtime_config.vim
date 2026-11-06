@@ -4,6 +4,9 @@ import autoload 'caskk.vim' as Caskk
 import autoload 'caskk/config.vim' as configuration
 import autoload 'caskk/user_state.vim' as user_state
 import autoload 'caskk/user_state/runtime.vim' as user_runtime
+import autoload 'caskk/dictionary/lookup.vim' as dictionary_lookup
+import autoload 'caskk/session.vim' as session
+import autoload 'caskk/input/mode.vim' as input_mode
 
 final suite = themis#suite('public input configuration')
 const assert = themis#helper('assert')
@@ -44,6 +47,33 @@ def CaptureCurrentLine()
   g:caskk_captured_lines->add(getline(1))
 enddef
 
+def LargeDictionaryKey(number: number): string
+  var value = number
+  var suffix = ''
+  for _ in range(4)
+    suffix = nr2char(97 + (value % 26)) .. suffix
+    value = value / 26
+  endfor
+  return 'key' .. suffix
+enddef
+
+def WriteLargeDictionary(path: string, candidate: string = '候補'): void
+  final lines = [';; okuri-nasi entries.']
+  for number in range(0, 7999)
+    lines->add(printf('%s /%s%05d/', LargeDictionaryKey(number), candidate, number))
+  endfor
+  lines->add('か /新/')
+  writefile(lines, path)
+enddef
+
+def WaitForDictionaryLoad(): void
+  var waits = 0
+  while Caskk.GetDictionaryLoadStatus().state ==# 'loading' && waits < 100
+    sleep 10m
+    waits += 1
+  endwhile
+enddef
+
 suite.sticky_key_and_function_key_action_are_used_by_public_enable = (): void => {
   const context = Setup()
   defer Cleanup(context)
@@ -81,6 +111,87 @@ suite.ctrl_n_and_ctrl_p_navigate_candidates_through_configured_mappings = (): vo
   Caskk.Enable('configured')
   feedkeys("a;ka\<Space>\<C-N>\<C-P>\<C-M>\<Esc>", 'xt')
   assert.equals(getline(1), '前蚊後')
+}
+
+suite.large_dictionary_config_returns_before_indexing_and_publishes_when_complete = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const path = tempname()
+  defer delete(path)
+  WriteLargeDictionary(path)
+
+  Caskk.Config({dictionaries: [path]})
+  assert.equals(Caskk.GetDictionaryLoadStatus().state, 'loading')
+  # Setup installed a ready empty dictionary; reload leaves that version usable.
+  assert.equals(configuration.GetInput().dictionary_index.IsReady(), true)
+  WaitForDictionaryLoad()
+  assert.equals(Caskk.GetDictionaryLoadStatus().state, 'ready')
+  const candidates = configuration.GetInput().dictionary_index.Lookup(dictionary_lookup.CreateQuery('かな', ''))
+  assert.equals(mapnew(candidates, (_, candidate) => candidate.text), [])
+  assert.equals(configuration.GetInput().dictionary_index.Lookup(dictionary_lookup.CreateQuery(LargeDictionaryKey(1), ''))[0].text,
+    '候補00001')
+}
+
+suite.async_dictionary_reload_keeps_bindings_and_future_sessions_use_the_new_index = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const original = tempname()
+  const replacement = tempname()
+  defer delete(original)
+  defer delete(replacement)
+  writefile(['か /蚊/家/'], original)
+  WriteLargeDictionary(replacement)
+  const mappings = {"\<Space>": 'Convert', "\<C-N>": 'Convert', "\<C-M>": 'Commit'}
+  Caskk.Config({sticky_key: ';', dictionaries: [original], mappings: mappings})
+  Caskk.Enable('configured')
+
+  Caskk.Config({sticky_key: ';', dictionaries: [replacement], mappings: mappings})
+  assert.equals(Caskk.IsEnabled(), true)
+  assert.equals(maparg("\<Space>", 'i', false, true).buffer, 1)
+  WaitForDictionaryLoad()
+  assert.equals(Caskk.GetDictionaryLoadStatus().state, 'ready')
+  const active = session.Session.new(Caskk.GetInputScheme('configured'), '', {}, null_object,
+    '', true, '', {}, input_mode.HIRAGANA, true, configuration.GetInput().dictionary_index)
+  active.Feed('K')
+  active.Feed('a')
+  const result = active.StartConversion({}, user_state.State.new())
+  assert.equals(result[0].in_candidate, true)
+  assert.equals(result[0].text, '新')
+}
+
+suite.latest_large_dictionary_config_request_replaces_an_earlier_pending_request = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const first = tempname()
+  const second = tempname()
+  defer delete(first)
+  defer delete(second)
+  WriteLargeDictionary(first, '旧候補')
+  WriteLargeDictionary(second, '新候補')
+  Caskk.Config({dictionaries: [first]})
+  Caskk.Config({dictionaries: [second]})
+  WaitForDictionaryLoad()
+  assert.equals(Caskk.GetDictionaryLoadStatus().state, 'ready')
+  const candidates = configuration.GetInput().dictionary_index.Lookup(dictionary_lookup.CreateQuery(LargeDictionaryKey(1), ''))
+  assert.equals(candidates[0].text, '新候補00001')
+}
+
+suite.failed_async_dictionary_reload_keeps_the_previous_dictionary = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const previous = tempname()
+  const missing = tempname()
+  defer delete(previous)
+  defer delete(missing)
+  writefile(['かな /仮名/'], previous)
+  Caskk.Config({dictionaries: [previous]})
+  WriteLargeDictionary(missing)
+  Caskk.Config({dictionaries: [missing]})
+  delete(missing)
+  WaitForDictionaryLoad()
+  assert.equals(Caskk.GetDictionaryLoadStatus().state, 'error')
+  const candidates = configuration.GetInput().dictionary_index.Lookup(dictionary_lookup.CreateQuery('かな', ''))
+  assert.equals(mapnew(candidates, (_, candidate) => candidate.text), ['仮名'])
 }
 
 suite.ctrl_n_and_ctrl_p_candidate_mappings_work_with_insert_arrow_mappings = (): void => {
