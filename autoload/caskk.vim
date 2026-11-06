@@ -92,6 +92,10 @@ export def OpenRegistration()
   binding.OpenRegistration(configuration.GetRegistrationPrefill())
 enddef
 
+export def Reconvert(): bool
+  return binding.Reconvert()
+enddef
+
 export def CompleteRegistration(text: string, annotations: list<string> = [])
   binding.CompleteRegistration(text, annotations)
 enddef

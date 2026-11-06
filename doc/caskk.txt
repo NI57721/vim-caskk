@@ -101,6 +101,32 @@ remains disabled so that activation can be retried.
 Enable() uses the current sticky_key, mappings, and loaded dictionaries from
 Config().
 
+RECONVERSION                                             *caskk-reconversion*
+
+Recent dictionary conversions can be selected again from Normal mode. In a
+Vim9 configuration script, import the API and define a Normal-mode mapping: >vim9
+
+    import autoload 'caskk.vim' as Caskk
+    nnoremap <buffer> <Leader>r <ScriptCmd>Caskk.Reconvert()<CR>
+<
+From legacy Vim script, use: >
+
+    nnoremap <buffer> <Leader>r <Cmd>call caskk#Reconvert()<CR>
+<
+Reconvert() searches recent confirmed conversion text beginning at the cursor
+and starts candidate selection for the longest match.  It returns true when a
+match with candidates was found, otherwise false.  While selection is active,
+<C-N> and <C-P> move through candidates, Enter replaces the matched text, and
+Esc cancels.  These temporary buffer-local mappings are restored when selection
+ends or the cursor, buffer, or window changes.  Existing confirmed text remains
+in the buffer until Enter, so cancellation leaves it untouched; the replacement
+is a single undoable edit.
+
+History is kept in memory per enabled buffer, stores up to 32 recent dictionary
+conversions, and is cleared when that buffer is disabled or reconfigured.  The
+match is limited to the text remaining on the current line from the cursor.
+Candidate display follows |caskk-config-candidate-popup|.
+
 Public activations share in-memory user state across buffers.  Committing a
 candidate learns its priority for the same reading and exact okuri, so subsequent
 conversions in other enabled buffers use that history too.  Disable(), buffer

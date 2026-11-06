@@ -16,6 +16,8 @@ import 'caskk/registration.vim' as registration
 import autoload 'caskk/registration/window.vim' as registration_window
 import autoload 'caskk/config.vim' as configuration
 import autoload 'caskk/user_state/runtime.vim' as user_runtime
+import autoload 'caskk/conversion.vim' as conversion
+import 'caskk/reconversion.vim' as reconversion
 
 const NATIVE_KEYS = ['<Left>', '<Right>', '<Up>', '<Down>', '<Home>', '<End>', '<CR>', '<Tab>', '<BS>', '<Del>', '<Nul>']
 const INLINE_GUARD_KEYS = ['<C-A>', '<C-B>', '<C-D>', '<C-E>', '<C-F>', '<C-G>', '<C-H>', '<C-I>',
@@ -30,11 +32,11 @@ class Mapping
   const numbers: dict<number>
   const alternate: dict<string>
 
-  def new(lhs: string)
-    const native = maparg(lhs, 'i', false, true)
+  def new(lhs: string, mode: string = 'i')
+    const native = maparg(lhs, mode, false, true)
     final text: dict<string> = {}
     for name in ['lhs', 'lhsraw', 'rhs', 'mode']
-      text[name] = get(native, name, '')
+      text[name] = get(native, name, name ==# 'mode' ? mode : '')
     endfor
     final numbers: dict<number> = {}
     for name in ['silent', 'noremap', 'script', 'expr', 'buffer', 'sid', 'scriptversion', 'lnum', 'nowait']
@@ -46,7 +48,7 @@ class Mapping
   enddef
 
   def MatchesCurrent(lhs: string): bool
-    const other = Mapping.new(lhs)
+    const other = Mapping.new(lhs, this.text.mode)
     return this.text ==# other.text && this.numbers == other.numbers && this.alternate ==# other.alternate
   enddef
 
@@ -55,7 +57,7 @@ class Mapping
       return
     endif
     # Heterogeneous native mapping data stays at the mapset() boundary.
-    mapset('i', false, extend({
+    mapset(this.text.mode, false, extend({
       lhs: this.text.lhs, lhsraw: this.text.lhsraw, rhs: this.text.rhs,
       silent: this.numbers.silent, noremap: this.numbers.noremap,
       script: this.numbers.script, expr: this.numbers.expr,
@@ -111,6 +113,14 @@ export class Binding
   var _delete_user_entry_pending: bool = false
   var _delete_escape_saved: Mapping = null_object
   var _delete_escape_installed: Mapping = null_object
+  const _reconversion_history: reconversion.History
+  var _reconversion_pending: conversion.Candidates = null_object
+  var _reconversion_record: reconversion.Record = null_object
+  var _reconversion_selection: conversion.Selection = null_object
+  var _reconversion_start: list<number> = []
+  var _reconversion_saved: dict<Mapping> = {}
+  var _reconversion_installed: dict<Mapping> = {}
+  var _reconversion_view: candidate_view.View = null_object
 
   def new(compiled: scheme.CompiledScheme, sticky_key: string = '',
       entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
@@ -134,6 +144,7 @@ export class Binding
     this._register_mode_conversions = register_mode_conversions
     this._mode_view = mode_popup.View.new()
     this._inline_view = registration_inline.View.new()
+    this._reconversion_history = reconversion.History.new()
     final tokens: dict<bool> = {}
     for key in keys(compiled.table.combinations)
       tokens[key] = true
@@ -277,6 +288,7 @@ export class Binding
   enddef
 
   def _DisableCompletely()
+    this._CloseReconversion()
     if this._registration_window isnot null_object
       this.SubmitRegistrationWindow(this._registration_window.buffer, true)
     endif
@@ -304,6 +316,7 @@ export class Binding
   def _Record(results: list<session.Result>)
     this._last = copy(results)
     var requested = false
+    var committed_conversion = false
     for result in results
       if !empty(result.unhandled)
         throw 'caskk: native handling of unhandled input is not connected'
@@ -312,7 +325,19 @@ export class Binding
       if result.dictionary_loading
         echomsg 'Caskk: dictionary is still loading; press Convert again when loading finishes'
       endif
+      if result.commit_preedit && this._reconversion_pending isnot null_object
+        const prepared = this._reconversion_pending
+        this._reconversion_history.Add(result.text, prepared.query.reading, prepared.okuri,
+          prepared.query.exact_okuri)
+        this._reconversion_pending = null_object
+        committed_conversion = true
+      endif
     endfor
+    if this._editor isnot null_object && this._editor.IsInCandidate()
+      this._reconversion_pending = this._editor.GetCandidates()
+    elseif !committed_conversion && !empty(results)
+      this._reconversion_pending = null_object
+    endif
     if this._registration_auto && requested && this._editor isnot null_object
         && !this._editor.IsRegistrationSuspended() && this._editor.GetRegistrationRequest() isnot null_object
       this.OpenRegistrationWindow(configuration.GetRegistrationPrefill())
@@ -994,7 +1019,120 @@ export class Binding
     endif
   enddef
 
+  def _RestoreReconversionMappings()
+    for [key, installed] in items(this._reconversion_installed)
+      const lhs = mapping.Lhs(key)
+      if installed.MatchesCurrent(lhs)
+        execute 'silent! nunmap <buffer> ' .. lhs
+        this._reconversion_saved[key].Restore()
+      endif
+    endfor
+    this._reconversion_installed = {}
+    this._reconversion_saved = {}
+  enddef
+
+  def _CloseReconversion()
+    if this._reconversion_view isnot null_object
+      this._reconversion_view.Close()
+      this._reconversion_view = null_object
+    endif
+    this._RestoreReconversionMappings()
+    execute 'autocmd! caskk_reconversion * <buffer=' .. this._buffer .. '>'
+    this._reconversion_record = null_object
+    this._reconversion_selection = null_object
+    this._reconversion_start = []
+  enddef
+
+  def Reconvert(): bool
+    this._CheckTarget()
+    if !this._enabled || !&l:modifiable || mode(1) !~# '^n'
+        || this._reconversion_selection isnot null_object
+      return false
+    endif
+    const current_line = getline('.')
+    const start_column = col('.')
+    const record = this._reconversion_history.Find(strpart(current_line, start_column - 1))
+    if record is null_object
+      return false
+    endif
+    const prepared = conversion.Prepare(this._entries, this._preferences, record.reading, record.okuri,
+      this._small_tsu_okuri_as_t, this._dictionary_index)
+    if empty(prepared.candidates)
+      return false
+    endif
+    this._reconversion_record = record
+    this._reconversion_selection = conversion.Selection.new(prepared, this._preferences)
+    this._reconversion_start = [line('.'), start_column]
+    this._reconversion_view = candidate_view.View.new()
+    this._reconversion_view.Render(this._reconversion_selection.GetCandidatesInfo())
+    try
+      for key in ['<C-N>', '<C-P>', '<CR>', '<Esc>']
+        const lhs = mapping.Lhs(key)
+        this._reconversion_saved[key] = Mapping.new(lhs, 'n')
+        const argument = substitute(string(key), '<', '<lt>', 'g')
+        execute 'nnoremap <buffer> <silent> ' .. lhs .. ' <ScriptCmd>ReconversionInput('
+          .. this._buffer .. ', ' .. argument .. ')<CR>'
+        this._reconversion_installed[key] = Mapping.new(lhs, 'n')
+      endfor
+      execute 'autocmd caskk_reconversion CursorMoved,InsertEnter,BufLeave,WinLeave <buffer='
+        .. this._buffer .. '> call caskk#binding#CancelReconversion(' .. this._buffer .. ')'
+      execute 'autocmd caskk_reconversion BufWipeout <buffer=' .. this._buffer
+        .. '> call caskk#binding#ForgetReconversion(' .. this._buffer .. ')'
+    catch
+      const reason = v:exception
+      this._CloseReconversion()
+      throw reason
+    endtry
+    return true
+  enddef
+
+  def ReconversionInput(key: string)
+    if this._reconversion_selection is null_object
+      return
+    endif
+    if key ==# '<Esc>'
+      this._CloseReconversion()
+    elseif key ==# '<CR>'
+      const start = this._reconversion_start
+      const record = this._reconversion_record
+      const original = getline(start[0])
+      if !&l:modifiable || strpart(original, start[1] - 1, strlen(record.text)) !=# record.text
+        this._CloseReconversion()
+        return
+      endif
+      const finish = start[1] - 1 + strlen(record.text)
+      const replacement = input_mode.Render(this._reconversion_selection.Commit(), this._input_mode)
+      setline(start[0], strpart(original, 0, start[1] - 1) .. replacement .. strpart(original, finish))
+      cursor(start[0], start[1])
+      this._CloseReconversion()
+    elseif key ==# '<C-N>'
+      if this._reconversion_selection.Next()
+        this._reconversion_view.Render(this._reconversion_selection.GetCandidatesInfo())
+      endif
+    elseif key ==# '<C-P>'
+      if this._reconversion_selection.Previous()
+        this._reconversion_view.Render(this._reconversion_selection.GetCandidatesInfo())
+      endif
+    endif
+  enddef
+
+  def CancelReconversion()
+    if this._reconversion_selection isnot null_object
+      this._CloseReconversion()
+    endif
+  enddef
+
+  def ForgetReconversion()
+    if this._reconversion_view isnot null_object
+      this._reconversion_view.Close()
+      this._reconversion_view = null_object
+    endif
+    this._reconversion_selection = null_object
+    this._reconversion_record = null_object
+  enddef
+
   def Forget()
+    this._CloseReconversion()
     if this._registration_window isnot null_object
       this.SubmitRegistrationWindow(this._registration_window.buffer, true)
     endif
@@ -1267,6 +1405,10 @@ export def OpenRegistration(prefill: bool = true)
   RequireCurrentBinding().OpenRegistrationWindow(prefill)
 enddef
 
+export def Reconvert(): bool
+  return RequireCurrentBinding().Reconvert()
+enddef
+
 export def SubmitRegistrationWindow(parent: number, child: number, cancel: bool)
   if has_key(registration_owners, string(parent))
     registration_owners[string(parent)].SubmitRegistrationWindow(child, cancel)
@@ -1389,6 +1531,24 @@ def Forget(number: number)
   endif
 enddef
 
+export def ReconversionInput(number: number, key: string)
+  if has_key(bindings, string(number))
+    bindings[string(number)].ReconversionInput(key)
+  endif
+enddef
+
+export def CancelReconversion(number: number)
+  if has_key(bindings, string(number))
+    bindings[string(number)].CancelReconversion()
+  endif
+enddef
+
+export def ForgetReconversion(number: number)
+  if has_key(bindings, string(number))
+    bindings[string(number)].ForgetReconversion()
+  endif
+enddef
+
 def Dispatch(number: number, key: string)
   if has_key(bindings, string(number))
     bindings[string(number)].Dispatch(key)
@@ -1446,4 +1606,7 @@ export def ReinstallActionMapping(number: number, key: string)
 enddef
 
 augroup caskk_input
+augroup END
+
+augroup caskk_reconversion
 augroup END

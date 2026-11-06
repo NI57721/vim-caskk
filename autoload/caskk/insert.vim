@@ -213,6 +213,11 @@ export class Editor
     return this._session.GetCandidates()
   enddef
 
+  def GetCandidates(): conversion.Candidates
+    this._CheckTarget()
+    return this._session.GetCandidates()
+  enddef
+
   def Register(candidate: dictionary.Candidate): session.Result
     this._CheckInput()
     return this._Apply([this._session.Register(candidate)])[0]
