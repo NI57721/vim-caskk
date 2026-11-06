@@ -29,6 +29,8 @@ def Run(directory: string, commands: list<string>): Result
     'vim9script',
     'execute "set runtimepath^=" .. fnameescape(' .. string(getcwd()) .. ')',
     "import autoload 'caskk.vim' as Caskk",
+    "import autoload 'caskk/user_state/runtime.vim' as UserRuntime",
+    "import autoload 'caskk/dictionary/lookup.vim' as Lookup",
     'set nomore',
     "Caskk.RegisterInputScheme({name: 'automatic', consonants: {k: 'k'}, combinations: {a: 'a'}})",
     'enew',
@@ -126,13 +128,18 @@ suite.unused_automatic_configuration_does_not_create_a_state_file = (): void => 
   assert.equals(readdir(directory), ['child.vim', 'system'])
 }
 
-suite.omitted_automatic_setting_disables_exit_saving_after_reconfiguration = (): void => {
+suite.omitted_automatic_setting_disables_later_exit_saving = (): void => {
   const directory = Directory()
   defer delete(directory, 'rf')
+  const path = directory .. '/state.jsonl'
   const result = Run(directory, [Configure(directory), "Caskk.Enable('automatic')", Input('aKasn'),
-    'Caskk.Config({state_path: ' .. string(directory .. '/state.jsonl') .. '})'])
+    'Caskk.Config({state_path: ' .. string(path) .. '})',
+    "UserRuntime.Get().Learn(Lookup.CreateQuery('き', ''), '木')"])
   assert.equals(result.status, 0, result.output)
-  assert.equals(readdir(directory), ['child.vim', 'system'])
+  const persisted = store.Load(path).mru
+  assert.equals(persisted[json_encode(['か', ''])], ['科'])
+  assert.equals(has_key(persisted, json_encode(['き', ''])), false)
+  assert.equals(readdir(directory), ['child.vim', 'state.jsonl', 'system'])
 }
 
 suite.exit_save_creates_missing_parent_directories = (): void => {

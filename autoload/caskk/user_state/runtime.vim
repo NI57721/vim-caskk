@@ -6,6 +6,7 @@ import autoload 'caskk/user_state/store.vim' as store
 # Public activations share user choices independently of input configuration.
 const current = user_state.State.new()
 var initialized_path: string = ''
+var last_automatic_attempt_revision: number = -1
 
 export def Get(): user_state.State
   return current
@@ -25,12 +26,14 @@ export def Load(path: string)
   const snapshot = store.Load(path)
   current.Restore(snapshot)
   initialized_path = path
+  last_automatic_attempt_revision = current.Revision()
 enddef
 
 export def Save(path: string)
   CheckPath(path)
   store.Save(path, current.GetSnapshot())
   initialized_path = path
+  last_automatic_attempt_revision = current.Revision()
 enddef
 
 export def InitializeAutomatic(path: string)
@@ -43,6 +46,7 @@ export def InitializeAutomatic(path: string)
   else
     # A first run keeps the current in-memory state until the initial save.
     initialized_path = path
+    last_automatic_attempt_revision = current.Revision()
   endif
 enddef
 
@@ -50,4 +54,21 @@ export def SaveAutomatic(path: string)
   if path != '' && initialized_path ==# path
     Save(path)
   endif
+enddef
+
+export def SaveAutomaticIfChanged(path: string): string
+  if path == '' || initialized_path !=# path
+    return ''
+  endif
+  const revision = current.Revision()
+  if revision == last_automatic_attempt_revision
+    return ''
+  endif
+  last_automatic_attempt_revision = revision
+  try
+    Save(path)
+    return ''
+  catch
+    return v:exception
+  endtry
 enddef

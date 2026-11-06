@@ -309,7 +309,8 @@ AUTOMATIC USER STATE                                    *caskk-state-auto*
 
 state_auto                                           *caskk-config-state-auto*
 
-Set state_auto to true to opt into initialization and exit saving: >vim9
+Set state_auto to true to opt into initialization, saving after user-state
+changes, and exit saving: >vim9
 
     Caskk.Config({
       state_path: '/path/to/existing-directory/caskk-state.jsonl',
@@ -334,6 +335,13 @@ explicit reload.  Selecting a different state_path and activating it initializes
 that path instead; loading it replaces the single shared state for all buffers.
 There is no separate in-memory profile for each path.
 
+After an operation changes the shared user state, Caskk saves it immediately
+when state_auto is enabled for an initialized path.  This includes candidate
+learning, registration, candidate preferences, and user-entry deletion.  An
+operation that leaves the state unchanged does not write the file.  A failed
+automatic save leaves the conversion and in-memory state intact, reports the
+error, and can be retried by a later state change or at exit.
+
 At VimLeavePre, the current shared state is saved only if state_auto is still
 true and state_path matches a successfully initialized path.  Successful manual
 LoadState() and SaveState() also initialize that path.  Merely configuring an
@@ -342,10 +350,10 @@ call resets it to false and disables automatic exit saving.
 
 A failed explicit reload disables automatic saving for that path until it is
 successfully loaded, saved, or initialized again.  This prevents exit saving
-from overwriting a file that failed validation.  Exit save errors are reported
-with the path; temporary files are cleaned up and missing parent directories
-are not created.  Forced termination and concurrent writers are not handled by
-this lifecycle integration.
+from overwriting a file that failed validation.  The parent directory is created
+when needed.  Exit save errors are reported with the path; temporary files are
+cleaned up.  Forced termination and concurrent writers are not handled by this
+lifecycle integration.
 
 CONFIGURATION                                           *caskk-config*
 

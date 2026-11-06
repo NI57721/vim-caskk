@@ -45,12 +45,17 @@ export class State
   var _mru: dict<list<string>> = {}
   var _pinned: dict<string> = {}
   var _demoted: dict<list<string>> = {}
+  var _revision: number = 0
 
   def new()
   enddef
 
   def GetSnapshot(): Snapshot
     return Snapshot.new(SCHEMA_VERSION, this._entries, this._mru, this._pinned, this._demoted)
+  enddef
+
+  def Revision(): number
+    return this._revision
   enddef
 
   def Restore(snapshot: Snapshot)
@@ -66,6 +71,26 @@ export class State
     this._mru = mru
     this._pinned = pinned
     this._demoted = demoted
+    this._revision += 1
+  enddef
+
+  def _Changed()
+    this._revision += 1
+  enddef
+
+  def _SameCandidates(left: list<dictionary.Candidate>, right: list<dictionary.Candidate>): bool
+    if len(left) != len(right)
+      return false
+    endif
+    if empty(left)
+      return true
+    endif
+    for index in range(len(left))
+      if left[index].text !=# right[index].text || left[index].annotations !=# right[index].annotations
+        return false
+      endif
+    endfor
+    return true
   enddef
 
   def AddEntry(query: dictionary.Query, candidate: dictionary.Candidate)
@@ -74,7 +99,11 @@ export class State
       [dictionary.Entry.new(query.lookup_key, get(this._entries, key, []))],
       [dictionary.Entry.new(query.lookup_key, [candidate])],
     ])
-    this._entries[key] = merged[query.lookup_key].candidates
+    const candidates = merged[query.lookup_key].candidates
+    if !this._SameCandidates(get(this._entries, key, []), candidates)
+      this._entries[key] = candidates
+      this._Changed()
+    endif
   enddef
 
   # Remove only the registered source; ranking preferences remain independent.
@@ -89,11 +118,15 @@ export class State
         remaining->add(candidate)
       endif
     endfor
+    if len(remaining) == len(this._entries[key])
+      return
+    endif
     if empty(remaining)
       remove(this._entries, key)
     else
       this._entries[key] = remaining
     endif
+    this._Changed()
   enddef
 
   def HasEntryForLookup(query: dictionary.Query, text: string): bool
@@ -132,11 +165,18 @@ export class State
         history->add(previous)
       endif
     endfor
+    if get(this._mru, key, []) ==# history
+      return
+    endif
     this._mru[key] = history
+    this._Changed()
   enddef
 
   def Pin(query: dictionary.Query, text: string)
     const key = Identity(query)
+    if get(this._pinned, key, '') ==# text && index(get(this._demoted, key, []), text) < 0
+      return
+    endif
     this._pinned[key] = text
     if has_key(this._demoted, key)
       const position = index(this._demoted[key], text)
@@ -147,10 +187,14 @@ export class State
         remove(this._demoted, key)
       endif
     endif
+    this._Changed()
   enddef
 
   def Demote(query: dictionary.Query, text: string)
     const key = Identity(query)
+    if index(get(this._demoted, key, []), text) >= 0 && get(this._pinned, key, '') !=# text
+      return
+    endif
     if get(this._pinned, key, '') ==# text
       remove(this._pinned, key)
     endif
@@ -160,22 +204,29 @@ export class State
     if index(this._demoted[key], text) == -1
       this._demoted[key]->add(text)
     endif
+    this._Changed()
   enddef
 
   # Clear explicit tier overrides for one candidate; retain automatic MRU history.
   def Reset(query: dictionary.Query, text: string)
     const key = Identity(query)
+    var changed = false
     if has_key(this._pinned, key) && this._pinned[key] ==# text
       remove(this._pinned, key)
+      changed = true
     endif
     if has_key(this._demoted, key)
       const position = index(this._demoted[key], text)
       if position >= 0
         remove(this._demoted[key], position)
+        changed = true
       endif
       if empty(this._demoted[key])
         remove(this._demoted, key)
       endif
+    endif
+    if changed
+      this._Changed()
     endif
   enddef
 

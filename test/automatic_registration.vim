@@ -67,7 +67,7 @@ class Fixture
   enddef
 endclass
 
-def Setup(lines: list<string> = [], registration_prefill: bool = true): Fixture
+def Setup(lines: list<string> = [], registration_prefill: bool = true, state_auto: bool = false): Fixture
   const previous = bufnr('%')
   const existing_buffers = mapnew(getbufinfo(), (_, info) => info.bufnr)
   const number = bufadd('')
@@ -87,7 +87,7 @@ def Setup(lines: list<string> = [], registration_prefill: bool = true): Fixture
   observations = []
   Caskk.RegisterInputScheme({name: 'automatic-registration', consonants: {k: 'k'},
     combinations: {a: 'a'}, specials: {d: '漢字', zx: 'い*くらい'}})
-  Caskk.Config({registration_prefill: registration_prefill,
+  Caskk.Config({registration_prefill: registration_prefill, state_auto: state_auto,
     state_path: directory .. '/state.jsonl', dictionaries: [directory .. '/system'],
     mappings: {s: 'Convert', n: 'NextCandidate', "\<F6>": 'OpenRegistration'}})
   Caskk.Enable('automatic-registration')
@@ -130,6 +130,16 @@ suite.missing_candidates_open_registration_without_an_extra_action = (): void =>
     normal! u
     assert.equals(getline(1), expected)
   endfor
+}
+
+suite.automatic_registration_is_saved_before_vim_exit = (): void => {
+  const fixture = Setup([], true, true)
+  defer Cleanup(fixture)
+  feedkeys('aKas' .. CAPTURE .. "\<BS>d\<CR>ka\<Esc>", 'xt')
+  const stored = store.Load(fixture.directory .. '/state.jsonl')
+  const identity = json_encode(['か', ''])
+  assert.equals(stored.entries[identity][0].text, '漢字')
+  assert.equals(stored.mru[identity], ['漢字'])
 }
 
 suite.missing_okuri_candidate_opens_registration_as_soon_as_okuri_is_complete = (): void => {

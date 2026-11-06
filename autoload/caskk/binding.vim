@@ -15,6 +15,7 @@ import autoload 'caskk/dictionary/index.vim' as dict_index
 import 'caskk/registration.vim' as registration
 import autoload 'caskk/registration/window.vim' as registration_window
 import autoload 'caskk/config.vim' as configuration
+import autoload 'caskk/user_state/runtime.vim' as user_runtime
 
 const NATIVE_KEYS = ['<Left>', '<Right>', '<Up>', '<Down>', '<Home>', '<End>', '<CR>', '<Tab>', '<BS>', '<Del>']
 const INLINE_GUARD_KEYS = ['<C-A>', '<C-B>', '<C-D>', '<C-E>', '<C-F>', '<C-G>', '<C-H>', '<C-I>',
@@ -313,6 +314,19 @@ export class Binding
       this.OpenRegistrationWindow(configuration.GetRegistrationPrefill())
     endif
     this._SyncInputMode()
+  enddef
+
+  def _SaveChangedUserState(previous_revision: number)
+    if this._preferences isnot user_runtime.Get() || !configuration.GetStateAuto()
+        || this._preferences.Revision() == previous_revision
+      return
+    endif
+    const error = user_runtime.SaveAutomaticIfChanged(configuration.GetStatePath())
+    if error !=# ''
+      echohl ErrorMsg
+      echomsg error
+      echohl None
+    endif
   enddef
 
   def _SyncInputMode()
@@ -803,6 +817,15 @@ export class Binding
   enddef
 
   def Leave(force: bool = false)
+    const previous_revision = this._preferences.Revision()
+    try
+      this._LeaveInternal(force)
+    finally
+      this._SaveChangedUserState(previous_revision)
+    endtry
+  enddef
+
+  def _LeaveInternal(force: bool)
     this._delete_user_entry_pending = false
     this._RestoreDeleteEscape()
     if this._editor is null_object
@@ -825,6 +848,15 @@ export class Binding
   enddef
 
   def Dispatch(key: string)
+    const previous_revision = this._preferences.Revision()
+    try
+      this._DispatchInput(key)
+    finally
+      this._SaveChangedUserState(previous_revision)
+    endtry
+  enddef
+
+  def _DispatchInput(key: string)
     this._CheckTarget()
     if this._ResolveDeleteUserEntryConfirmation(key)
       return
@@ -1053,6 +1085,15 @@ export class Binding
   enddef
 
   def CompleteRegistration(text: string, annotations: list<string> = [])
+    const previous_revision = this._preferences.Revision()
+    try
+      this._CompleteRegistrationInternal(text, annotations)
+    finally
+      this._SaveChangedUserState(previous_revision)
+    endtry
+  enddef
+
+  def _CompleteRegistrationInternal(text: string, annotations: list<string>)
     this._CheckTarget()
     if this._editor is null_object
       throw 'caskk: no current dictionary registration request'

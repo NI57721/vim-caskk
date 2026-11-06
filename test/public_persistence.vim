@@ -95,6 +95,97 @@ suite.loaded_learning_is_used_by_an_already_enabled_buffer = (): void => {
   assert.equals(getline(1), '前科科後')
 }
 
+suite.automatic_learning_is_saved_when_a_conversion_is_committed = (): void => {
+  const fixture = Setup()
+  defer Cleanup(fixture)
+  const path = fixture.directory .. '/state.jsonl'
+  Caskk.Config({state_path: path, state_auto: true,
+    dictionaries: [fixture.directory .. '/system'], mappings: {s: 'Convert', n: 'NextCandidate'}})
+  Caskk.Enable('persistence')
+  feedkeys("aKasn\<Esc>", 'xt')
+  assert.equals(store.Load(path).mru[json_encode(['か', ''])], ['科'])
+}
+
+suite.automatic_candidate_preference_changes_are_saved_without_waiting_for_exit = (): void => {
+  const fixture = Setup()
+  defer Cleanup(fixture)
+  const path = fixture.directory .. '/state.jsonl'
+  Caskk.Config({state_path: path, state_auto: true,
+    dictionaries: [fixture.directory .. '/system'], mappings: {s: 'Convert', v: 'TogglePin'}})
+  Caskk.Enable('persistence')
+  feedkeys("aKasv\<Esc>", 'xt')
+  assert.equals(store.Load(path).pinned[json_encode(['か', ''])], '蚊')
+}
+
+suite.automatic_candidate_demotion_is_saved_without_waiting_for_exit = (): void => {
+  const fixture = Setup()
+  defer Cleanup(fixture)
+  const path = fixture.directory .. '/state.jsonl'
+  Caskk.Config({state_path: path, state_auto: true,
+    dictionaries: [fixture.directory .. '/system'], mappings: {s: 'Convert', b: 'ToggleDemote'}})
+  Caskk.Enable('persistence')
+  feedkeys("aKasb\<Esc>", 'xt')
+  assert.equals(store.Load(path).demoted[json_encode(['か', ''])], ['蚊'])
+}
+
+suite.automatic_saving_disabled_keeps_learning_in_memory_only = (): void => {
+  const fixture = Setup()
+  defer Cleanup(fixture)
+  const path = fixture.directory .. '/state.jsonl'
+  Caskk.Config({state_path: path, dictionaries: [fixture.directory .. '/system'],
+    mappings: {s: 'Convert', n: 'NextCandidate'}})
+  Caskk.Enable('persistence')
+  feedkeys("aKasn\<Esc>", 'xt')
+  assert.equals(filereadable(path), 0)
+  assert.equals(user_runtime.Get().GetSnapshot().mru[json_encode(['か', ''])], ['科'])
+}
+
+suite.automatic_saving_does_not_write_for_preedit_without_user_state_changes = (): void => {
+  const fixture = Setup()
+  defer Cleanup(fixture)
+  const path = fixture.directory .. '/state.jsonl'
+  Caskk.Config({state_path: path, state_auto: true,
+    dictionaries: [fixture.directory .. '/system'], mappings: {s: 'Convert'}})
+  Caskk.Enable('persistence')
+  feedkeys("aKa\<Esc>", 'xt')
+  assert.equals(filereadable(path), 0)
+}
+
+suite.automatic_user_entry_deletion_is_saved_at_confirmation = (): void => {
+  const fixture = Setup()
+  defer Cleanup(fixture)
+  const path = fixture.directory .. '/state.jsonl'
+  Caskk.Disable()
+  Caskk.Config({state_path: path, state_auto: true,
+    dictionaries: [fixture.directory .. '/system'],
+    mappings: {s: 'Convert', n: 'NextCandidate', x: 'DeleteUserEntry'}})
+  user_runtime.Get().AddEntry(lookup.CreateQuery('か', ''), dictionary.Candidate.new('登録のみ', []))
+  Caskk.Enable('persistence')
+  feedkeys('aKasnnxy', 'xt')
+  const stored = store.Load(path)
+  assert.equals(stored.entries, {})
+  assert.equals(stored.mru[json_encode(['か', ''])], ['科'])
+  feedkeys("c\<Esc>", 'xt')
+}
+
+suite.failed_automatic_save_keeps_the_conversion_and_can_be_retried = (): void => {
+  const fixture = Setup()
+  defer Cleanup(fixture)
+  const path = fixture.directory .. '/state.jsonl'
+  Caskk.Config({state_path: path, state_auto: true,
+    dictionaries: [fixture.directory .. '/system'], mappings: {s: 'Convert', n: 'NextCandidate'}})
+  Caskk.Enable('persistence')
+  mkdir(path)
+  writefile(['keep'], path .. '/sentinel')
+  feedkeys("aKasn\<Esc>", 'xt')
+  assert.equals(getline(1), '前科後')
+  assert.equals(user_runtime.Get().GetSnapshot().mru[json_encode(['か', ''])], ['科'])
+  assert.equals(stridx(execute('messages'), 'caskk: cannot save user state: ' .. path .. ':') >= 0, true)
+  delete(path, 'rf')
+  user_runtime.SaveAutomatic(path)
+  assert.equals(store.Load(path).mru[json_encode(['か', ''])], ['科'])
+}
+
 suite.failed_loads_preserve_current_shared_state = (): void => {
   const fixture = Setup()
   defer Cleanup(fixture)
