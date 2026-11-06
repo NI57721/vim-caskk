@@ -646,6 +646,26 @@ suite.literal_fallback_handles_uppercase_and_sticky_input_without_errors = (): v
   endfor
 }
 
+suite.ctrl_two_nul_does_not_escape_the_managed_undo_unit = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}))
+  feedkeys("afoo\<Esc>", 'xt')
+  cursor(1, 1)
+  keys.Enable()
+  var caught = ''
+  try
+    feedkeys("aKa\<Nul>", 'xt')
+  catch
+    caught = v:exception
+  endtry
+  assert.equals(caught, '')
+  assert.equals(getline(1), '前かfoofoo後')
+  assert.equals(mode(1) =~# '^i', false)
+  assert.equals(keys.GetEditor() is null_object, true)
+  keys.Disable()
+}
+
 suite.literal_punctuation_is_included_in_the_reading_and_its_undo_checkpoint = (): void => {
   const context = Setup()
   defer Cleanup(context)

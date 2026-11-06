@@ -17,7 +17,7 @@ import autoload 'caskk/registration/window.vim' as registration_window
 import autoload 'caskk/config.vim' as configuration
 import autoload 'caskk/user_state/runtime.vim' as user_runtime
 
-const NATIVE_KEYS = ['<Left>', '<Right>', '<Up>', '<Down>', '<Home>', '<End>', '<CR>', '<Tab>', '<BS>', '<Del>']
+const NATIVE_KEYS = ['<Left>', '<Right>', '<Up>', '<Down>', '<Home>', '<End>', '<CR>', '<Tab>', '<BS>', '<Del>', '<Nul>']
 const INLINE_GUARD_KEYS = ['<C-A>', '<C-B>', '<C-D>', '<C-E>', '<C-F>', '<C-G>', '<C-H>', '<C-I>',
   '<C-J>', '<C-K>', '<C-L>', '<C-M>', '<C-N>', '<C-O>', '<C-P>', '<C-Q>', '<C-R>', '<C-S>',
   '<C-T>', '<C-U>', '<C-V>', '<C-W>', '<C-X>', '<C-Y>', '<C-Z>', '<S-Tab>', '<PageUp>',
