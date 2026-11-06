@@ -135,15 +135,17 @@ suite.omitted_automatic_setting_disables_exit_saving_after_reconfiguration = ():
   assert.equals(readdir(directory), ['child.vim', 'system'])
 }
 
-suite.exit_save_failure_is_reported_without_creating_parent_directories = (): void => {
+suite.exit_save_creates_missing_parent_directories = (): void => {
   const directory = Directory()
   defer delete(directory, 'rf')
   const path = directory .. '/missing/state.jsonl'
   const result = Run(directory, [Configure(directory, path), "Caskk.Enable('automatic')", Input('aKasn'),
     'writefile([getline(1)], ' .. string(directory .. '/text') .. ')'])
-  assert.equals(stridx(result.output, 'caskk: cannot save user state: ' .. path .. ':') >= 0, true, result.output)
+  assert.equals(result.status, 0, result.output)
   assert.equals(readfile(directory .. '/text'), ['前科後'])
-  assert.equals(readdir(directory), ['child.vim', 'system', 'text'])
+  assert.equals(isdirectory(directory .. '/missing'), 1)
+  assert.equals(store.Load(path).mru[json_encode(['か', ''])], ['科'])
+  assert.equals(readdir(directory), ['child.vim', 'missing', 'system', 'text'])
 }
 
 suite.unknown_scheme_does_not_initialize_or_save_state = (): void => {
