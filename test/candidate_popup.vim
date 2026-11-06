@@ -19,9 +19,10 @@ class Observation
   const height: number
   const buffer: number
   const window: number
+  const position: dict<number>
   const cursor: list<number>
 
-  def new(this.popups, this.buffers, this.lines, this.firstline, this.height, this.buffer, this.window, this.cursor)
+  def new(this.popups, this.buffers, this.lines, this.firstline, this.height, this.buffer, this.window, this.cursor, this.position)
   enddef
 endclass
 
@@ -37,7 +38,7 @@ def g:CaskkTestCandidatePopupCapture()
   const lines = len(buffers) == 1 ? getbufline(buffers[0], 1, '$') : []
   const position = len(popups) == 1 ? popup_getpos(popups[0]) : {}
   observations->add(Observation.new(popups, buffers, lines, get(position, 'firstline', 0),
-    get(position, 'height', 0), bufnr('%'), win_getid(), [line('.'), col('.')]))
+    get(position, 'height', 0), bufnr('%'), win_getid(), [line('.'), col('.')], position))
 enddef
 
 def g:CaskkTestCandidatePopupWipe()
@@ -274,4 +275,15 @@ suite.disabling_popup_and_rejecting_invalid_setting_does_not_disable_conversion 
   assert.equals(observations[0].popups, [])
   assert.equals(observations[1].popups, [])
   assert.equals(getline(1), '前科後')
+}
+
+suite.candidate_popup_keeps_its_position_and_height_near_the_end = (): void => {
+  const fixture = Setup(true, {}, 40)
+  defer Cleanup(fixture)
+  feedkeys('aKas' .. CAPTURE .. repeat('n', 36) .. CAPTURE .. 'nn' .. CAPTURE .. "c\<Esc>", 'xt')
+  const initial = observations[0].position
+  for observed in observations[1 : ]
+    assert.equals([observed.position.line, observed.position.col, observed.height],
+      [initial.line, initial.col, observations[0].height])
+  endfor
 }

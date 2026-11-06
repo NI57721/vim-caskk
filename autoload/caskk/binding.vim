@@ -491,7 +491,7 @@ export class Binding
     const snapshot = this._inline_input.GetSnapshot()
     const marker = this._inline_input.InCandidate() ? 'candidate' : snapshot.in_preedit ? 'modified' : ''
     const mode = this._inline_input.GetInputMode()
-    this._mode_view.Show(mode, marker)
+    this._mode_view.Show(mode, marker, false, this._inline_view.ModeAnchor())
     this._inline_mode_view_active = true
     this._input_mode = mode
     this._mode_marker = marker
@@ -574,6 +574,11 @@ export class Binding
   enddef
 
   def _InstallInlineGuards()
+    const paste_lhs = '<PasteStart>'
+    this._inline_guard_saved[paste_lhs] = Mapping.new(paste_lhs)
+    execute 'inoremap <buffer> <silent> ' .. paste_lhs
+      .. ' <Cmd>call caskk#binding#PasteInline(' .. this._buffer .. ')<CR>'
+    this._inline_guard_installed[paste_lhs] = Mapping.new(paste_lhs)
     final seen: dict<bool> = {}
     for key in INLINE_GUARD_KEYS
       const lhs = mapping.Lhs(key)
@@ -653,6 +658,32 @@ export class Binding
     this._editor.ResumeRegistration()
     this._Record([this._editor.Register(candidate)])
     this._FinishDeferredDisable()
+  enddef
+
+  def PasteInline()
+    this._CheckTarget()
+    var text = ''
+    while true
+      const key = getcharstr()
+      if key ==# "\<PasteEnd>"
+        break
+      endif
+      text ..= key
+    endwhile
+    if text ==# '' || this._AbandonExternallyChangedEditor() || this._inline_input is null_object
+      return
+    endif
+    const previous_revision = this._preferences.Revision()
+    try
+      this._CommitInlineComposition()
+      const prefix = strcharpart(this._inline_text, 0, this._inline_cursor)
+      const suffix = strcharpart(this._inline_text, this._inline_cursor)
+      this._inline_text = prefix .. text .. suffix
+      this._inline_cursor += strchars(text)
+      this._RefreshInlinePopup()
+    finally
+      this._SaveChangedUserState(previous_revision)
+    endtry
   enddef
 
   def _FeedInline(key: string)
@@ -1692,6 +1723,12 @@ def Dispatch(number: number, key: string)
   endif
   if has_key(bindings, string(number))
     bindings[string(number)].Dispatch(key)
+  endif
+enddef
+
+export def PasteInline(number: number)
+  if has_key(bindings, string(number))
+    bindings[string(number)].PasteInline()
   endif
 enddef
 

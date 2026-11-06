@@ -37,13 +37,29 @@ export class View
   enddef
 
   def Render(info: conversion.CandidateListInfo, message: string = '', commandline: bool = false)
-    this.Close()
     if info is null_object || empty(info.candidates) || !configuration.GetCandidatePopup()
+      this.Close()
       return
     endif
     var lines = Format(info)
     if message !=# ''
       lines->add(message)
+    endif
+    const previous = this._window == 0 ? {} : popup_getpos(this._window)
+    if !empty(previous)
+      # Preserve the initial screen rectangle as selection scrolls toward the end.
+      popup_settext(this._window, lines)
+      popup_setoptions(this._window, {
+        line: previous.line, col: previous.col, pos: 'topleft', posinvert: false,
+        minheight: previous.core_height, maxheight: previous.core_height,
+        minwidth: previous.core_width, maxwidth: previous.core_width,
+        firstline: info.selected_index + 1,
+      })
+      if !commandline
+        # Candidate replacement may move the buffer cursor; track its new position.
+        popup_setoptions(this._window, {moved: 'any'})
+      endif
+      return
     endif
     final position: dict<any> = {
       line: 'cursor+1', col: 'cursor', pos: 'topleft', posinvert: true,

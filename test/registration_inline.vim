@@ -16,6 +16,9 @@ var popup_buffer: number = -1
 var popup_options: dict<any> = {}
 var registration_highlights: list<dict<any>> = []
 var visible_mode_labels: list<string> = []
+var mode_screen_line: number = 0
+var mode_screen_col: number = 0
+var registration_position: dict<number> = {}
 var captured_enabled: bool = true
 var dictionary_directory: string = ''
 
@@ -33,6 +36,7 @@ def g:CaskkTestInlineCapture()
     if !empty(lines) && lines[0] =~# '^辞書登録'
       popup_lines = lines
       const position = popup_getpos(window)
+      registration_position = position
       popup_screen_line = position.line
       popup_buffer = winbufnr(window)
       popup_options = popup_getoptions(window)
@@ -41,6 +45,8 @@ def g:CaskkTestInlineCapture()
       endif
     else
       visible_mode_labels += lines
+      mode_screen_line = popup_getpos(window).line
+      mode_screen_col = popup_getpos(window).col
     endif
   endfor
   popup_observations->add(copy(popup_lines))
@@ -342,4 +348,86 @@ suite.closing_the_source_window_closes_inline_registration_and_keeps_the_reading
   assert.equals(popup_list(), [])
   assert.equals(bufnr('%'), context[1])
   assert.equals(getline(1), '前か後')
+}
+
+suite.inline_mode_popup_is_below_the_registration_popup = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  append(0, repeat([''], 10))
+  cursor(11, 1)
+  feedkeys("aKas\<F6>z\<Cmd>call CaskkTestInlineCapture()\<CR>\<Esc>\<Esc>", 'xt')
+  assert.equals(visible_mode_labels, ['あ'])
+  assert.equals(mode_screen_line, registration_position.line + registration_position.height)
+  assert.equals(mode_screen_col, registration_position.col)
+}
+
+suite.terminal_paste_goes_to_the_registration_draft_without_editing_the_source = (): void => {
+  const script = tempname() .. '.vim'
+  const report = tempname()
+  defer delete(script)
+  defer delete(report)
+  writefile([
+    'vim9script',
+    'set rtp^=' .. escape(getcwd(), ' ,'),
+    "import autoload 'caskk.vim' as C",
+    "C.RegisterInputScheme({name: 'paste', consonants: {k: 'k'}, combinations: {a: 'a'}, specials: {z: '漢字'}})",
+    'C.Config({registration_inline: true, registration_auto: false, registration_prefill: false, mode_popup: false,',
+    '  mappings: {s: "Convert", "\<F6>": "OpenRegistration"}})',
+    "setline(1, '前後')",
+    'cursor(1, 1)',
+    "C.Enable('paste')",
+    'def Capture(timer: number)',
+    "  const popups = mapnew(popup_list(), (_, id) => getbufline(winbufnr(id), 1, '$'))",
+    '  writefile([json_encode({text: getline(1), tick: b:changedtick, undo: undotree().seq_cur, popups: popups})], ' .. string(report) .. ', "a")',
+    'enddef',
+    'timer_start(10, Capture, {repeat: -1})',
+    'writefile(["ready"], ' .. string(report) .. ')',
+  ], script)
+  const terminal = term_start([v:progpath, '-Nu', 'NONE', '-i', 'NONE', '-n', '-N', '-S', script],
+    {hidden: true, term_rows: 16, term_cols: 70})
+  try
+    for _ in range(100)
+      term_wait(terminal, 10)
+      if filereadable(report)
+        break
+      endif
+    endfor
+    term_sendkeys(terminal, "aKas\<F6>")
+    term_wait(terminal, 150)
+    const before = json_decode(readfile(report)[-1])
+    term_sendkeys(terminal, "\e[200~漢字Ka;sn\e[201~")
+    term_wait(terminal, 150)
+    const pasted = json_decode(readfile(report)[-1])
+    assert.equals(pasted.text, before.text)
+    assert.equals([pasted.tick, pasted.undo], [before.tick, before.undo])
+    assert.equals(pasted.popups, [['辞書登録: か  [Enter:登録 Esc:取消]', '登録語: 漢字Ka;sn│']])
+    term_sendkeys(terminal, "\<CR>")
+    term_wait(terminal, 150)
+    assert.equals(json_decode(readfile(report)[-1]).text, '前漢字Ka;sn後')
+    term_sendkeys(terminal, "\e[200~外\e[201~")
+    term_wait(terminal, 150)
+    assert.equals(json_decode(readfile(report)[-1]).text, '前漢字Ka;sn外後')
+  finally
+    job_stop(term_getjob(terminal), 'kill')
+    execute 'silent! bwipeout! ' .. terminal
+  endtry
+}
+
+suite.paste_inserts_literal_text_at_the_registration_caret = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  feedkeys("aKas\<F6>z\<Left>\<PasteStart>Ka;sn\<PasteEnd>\<Cmd>call CaskkTestInlineCapture()\<CR>\<CR>\<Esc>", 'xt')
+  assert.equals(popup_lines, ['辞書登録: か  [Enter:登録 Esc:取消]', '登録語: 漢Ka;sn│字'])
+  assert.equals(getline(1), '前漢Ka;sn字後')
+}
+
+suite.paste_preserves_prefill_and_can_be_cancelled_after_disabling_ime = (): void => {
+  const context = Setup(true)
+  defer Cleanup(context)
+  inoremap <buffer> <PasteStart> 元のペースト
+  const old_paste_mapping = maparg('<PasteStart>', 'i', false, true)
+  feedkeys("aKas\<F6>\<Cmd>call CaskkTestInlineDisable()\<CR>\<PasteStart>貼付Ka\<PasteEnd>\<Cmd>call CaskkTestInlineCapture()\<CR>\<Esc>\<Esc>", 'xt')
+  assert.equals(popup_lines, ['辞書登録: か  [Enter:登録 Esc:取消]', '登録語: か貼付Ka│'])
+  assert.equals(getline(1), '前か後')
+  assert.equals(maparg('<PasteStart>', 'i', false, true), old_paste_mapping)
 }

@@ -30,7 +30,7 @@ export class View
     this.Show(mode, state, true)
   enddef
 
-  def Show(mode: string, state: string = '', commandline: bool = false)
+  def Show(mode: string, state: string = '', commandline: bool = false, screen_anchor: list<number> = [])
     this.Close()
     if !configuration.GetModePopup()
       return
@@ -47,6 +47,10 @@ export class View
       pos: 'topleft', posinvert: true,
       padding: [0, 1, 0, 1], highlight: 'Pmenu', moved: [0, 0, 0],
     }
+    if !empty(screen_anchor)
+      position.line = screen_anchor[0]
+      position.col = screen_anchor[1]
+    endif
     if commandline
       remove(position, 'moved')
     endif

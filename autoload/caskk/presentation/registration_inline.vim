@@ -44,6 +44,11 @@ export class View
     endif
   enddef
 
+  def ModeAnchor(): list<number>
+    const position = popup_getpos(this._window)
+    return [position.line + position.height, position.col]
+  enddef
+
   def Close()
     if this._window != 0 && !empty(popup_getpos(this._window))
       popup_close(this._window)

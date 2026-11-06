@@ -317,11 +317,16 @@ and surrounding text stay in the source buffer while registration is open; the
 draft does not change that buffer or its undo history.
 
 The popup shows the whole registration word and a vertical bar (│) for its
-logical editing position.  The usual input scheme and conversion actions work
-there.  Left and Right commit the current preedit or selected candidate into
+logical editing position.  The mode popup is anchored below the registration
+popup, aligned with its left edge.  The usual input scheme and conversion
+actions work there.  Left and Right commit the current preedit or selected candidate into
 the draft, then move by one character.  Backspace removes pending input first,
 then the previous preedit character, then the draft character before the bar.
 Delete commits active input and removes the draft character after the bar.
+Terminal bracketed paste inserts literal text at the registration caret after
+committing active input into the draft. It does not modify the source buffer
+until registration is accepted, and still works when the registration IME is
+disabled.
 While candidates are being selected, the selected candidate is previewed in
 the draft and the candidate list appears below it in the same popup.  Enter
 accepts the current candidate/preedit and registers the resulting draft.  If
@@ -713,6 +718,8 @@ defaults to true.  The popup lists all ranked candidates with their position,
 display text, and annotations without taking focus.  '▶' marks the current
 selection, '★' marks a pinned candidate, and '↓' marks a demoted candidate.
 Existing candidate-navigation mappings move the selection through the list.
+The popup keeps its initial screen position and size while candidates are
+selected, scrolling its contents to show the current candidate.
 It closes when candidate selection ends or the input session is cleaned up.
 Changes take effect on the next presentation update.  The popup uses Vim's
 Pmenu highlight group and wraps long lines.
