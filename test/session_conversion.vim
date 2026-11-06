@@ -127,6 +127,24 @@ suite.abbreviation_mode_returns_to_the_mode_it_came_from_after_candidate_commit 
   assert.equals(ime.GetInputMode(), input_mode.KATAKANA)
 }
 
+suite.abbreviation_candidate_commit_processes_following_input_in_restored_mode = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('apple /アップル/')]])
+  const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries,
+    user_state.State.new())
+  ime.SetInputMode(input_mode.ABBREVIATION)
+  for key in split('apple', '\zs')
+    ime.Feed(key)
+  endfor
+  ime.StartConversion(entries, user_state.State.new())
+  const committed = ime.Feed('k')
+  assert.equals(committed[0].text, 'アップル')
+  assert.equals(committed[-1].state.in_preedit, false)
+  assert.equals(ime.GetInputMode(), input_mode.HIRAGANA)
+  const following = ime.Feed('a')
+  assert.equals(following[-1].text, 'か')
+  assert.equals(following[-1].state.in_preedit, false)
+}
+
 suite.input_mode_cannot_change_during_preedit_or_candidate_selection = (): void => {
   const entries = merger.Merge([[parser.ParseLine('か /蚊/')]])
   const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries)

@@ -184,6 +184,20 @@ suite.abbreviation_commit_restores_the_mode_active_before_abbreviation = (): voi
   assert.equals(getline(1), '前アップルカ後')
 }
 
+suite.abbreviation_candidate_commit_by_following_input_does_not_leave_modified_preedit = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const dictionary = tempname()
+  defer delete(dictionary)
+  writefile(['apple /アップル/'], dictionary)
+  Caskk.Config({dictionaries: [dictionary], mappings: {
+    "\<F2>": 'AbbreviationMode', "\<Space>": 'Convert'}})
+  Caskk.Enable('configured')
+  feedkeys("a\<F2>apple\<Space>ka\<Esc>", 'xt')
+  assert.equals(getline(1), '前アップルか後')
+  assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
+}
+
 suite.katakana_modes_render_full_okuri_when_input_continues_after_automatic_conversion = (): void => {
   const context = Setup()
   defer Cleanup(context)

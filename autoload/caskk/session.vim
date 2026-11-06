@@ -183,6 +183,10 @@ export class Session
     if this._input_mode == input_mode.ABBREVIATION
       if this.InCandidate()
         results->extend(this.Commit())
+        if this._input_mode != input_mode.ABBREVIATION
+          results->extend(this.Feed(key))
+          return results
+        endif
       endif
       this._prepared = null_object
       results->add(this._FeedAbbreviation(key))
