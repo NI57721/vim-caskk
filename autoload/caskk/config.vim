@@ -2,8 +2,8 @@ vim9script
 
 import autoload 'caskk/input/mapping.vim' as mapping
 import autoload 'caskk/input/mode.vim' as input_mode
-import 'caskk/dictionary.vim' as dictionary
 import autoload 'caskk/dictionary/loader.vim' as loader
+import autoload 'caskk/dictionary/index.vim' as dict_index
 
 const GROUP = 'CaskkPreedit'
 const ATTRIBUTES = [
@@ -28,17 +28,17 @@ export class Input
   const keyboard_layout: string
   const keyboard_layout_overrides: dict<string>
   const mappings: dict<string>
-  const entries: dict<dictionary.Entry>
+  const dictionary_index: dict_index.Database
   const small_tsu_okuri_as_t: bool
   const persist_input_mode: bool
   const register_mode_conversions: bool
 
   def new(this.sticky_key, this.keyboard_layout, keyboard_layout_overrides: dict<string>,
-      mappings: dict<string>, entries: dict<dictionary.Entry>,
+      mappings: dict<string>, dictionary_index: dict_index.Database,
       this.small_tsu_okuri_as_t, this.persist_input_mode, this.register_mode_conversions)
     this.keyboard_layout_overrides = copy(keyboard_layout_overrides)
     this.mappings = copy(mappings)
-    this.entries = copy(entries)
+    this.dictionary_index = dictionary_index
   enddef
 endclass
 
@@ -329,10 +329,10 @@ def Parse(options: dict<any>): Settings
   endif
   const small_tsu_okuri_as_t: bool = get(options, 'small_tsu_okuri_as_t', true)
   const sources = ReadDictionaries(get(options, 'dictionaries', []))
-  const entries = loader.Load(sources)
+  const dictionary_index = loader.Open(sources)
   const destination = state_path == '' ? '' : fnamemodify(state_path, ':p')
   return Settings.new(highlight, Input.new(sticky_key, keyboard_layout, keyboard_layout_overrides,
-    actions, entries, small_tsu_okuri_as_t, persist_input_mode, register_mode_conversions), destination, state_auto,
+    actions, dictionary_index, small_tsu_okuri_as_t, persist_input_mode, register_mode_conversions), destination, state_auto,
     registration_prefill, registration_auto, registration_inline, candidate_popup, mode_popup, mode_popup_labels,
     mode_popup_markers, mode_popup_time)
 enddef
@@ -362,7 +362,7 @@ enddef
 
 export def GetInput(): Input
   return Input.new(current.input.sticky_key, current.input.keyboard_layout,
-    current.input.keyboard_layout_overrides, current.input.mappings, current.input.entries,
+    current.input.keyboard_layout_overrides, current.input.mappings, current.input.dictionary_index,
     current.input.small_tsu_okuri_as_t, current.input.persist_input_mode,
     current.input.register_mode_conversions)
 enddef

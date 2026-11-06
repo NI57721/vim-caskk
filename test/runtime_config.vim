@@ -373,7 +373,8 @@ suite.small_tsu_dictionary_prefix_is_enabled_by_default_and_can_be_disabled = ()
   defer Cleanup(context)
   const path = tempname()
   defer delete(path)
-  writefile(['けt /蹴/', 'けx /標準/'], path)
+  writefile([';; okuri-ari entries.', 'こt /濃/', 'けx /標準/', 'けt /蹴/', 'あt /明/',
+    ';; okuri-nasi entries.', 'あ /亜/', 'け /毛/', 'こ /個/'], path)
   Caskk.RegisterInputScheme({name: 'small-tsu-prefix', consonants: {k: 'k'}, combinations: {q: 'e*Tte'}})
 
   for [options, expected] in [

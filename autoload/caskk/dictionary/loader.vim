@@ -3,6 +3,7 @@ vim9script
 import 'caskk/dictionary.vim' as dictionary
 import autoload 'caskk/dictionary/parser.vim' as parser
 import autoload 'caskk/dictionary/merge.vim' as merger
+import autoload 'caskk/dictionary/index.vim' as index
 
 export class Source
   const path: string
@@ -12,7 +13,7 @@ export class Source
   enddef
 endclass
 
-def ReadSource(source: Source): list<dictionary.Entry>
+def ReadLines(source: Source): list<string>
   var bytes: blob
   try
     bytes = readblob(source.path)
@@ -30,12 +31,20 @@ def ReadSource(source: Source): list<dictionary.Entry>
     lines[0] = strpart(lines[0], strlen("\ufeff"))
   endif
 
-  final entries: list<dictionary.Entry> = []
-  for index in range(len(lines))
-    var line = lines[index]
+  final normalized: list<string> = []
+  for line_number in range(len(lines))
+    var line = lines[line_number]
     if line =~ '\r$'
       line = strpart(line, 0, strlen(line) - 1)
     endif
+    normalized->add(line)
+  endfor
+  return normalized
+enddef
+
+def ReadSource(source: Source): list<dictionary.Entry>
+  final entries: list<dictionary.Entry> = []
+  for line in ReadLines(source)
     var entry: dictionary.Entry
     try
       entry = parser.ParseLine(line)
@@ -49,6 +58,14 @@ def ReadSource(source: Source): list<dictionary.Entry>
     endif
   endfor
   return entries
+enddef
+
+export def Open(sources: list<Source>): index.Database
+  final indexed_sources: list<index.SourceData> = []
+  for source in sources
+    indexed_sources->add(index.SourceFromLines(ReadLines(source)))
+  endfor
+  return index.Database.new(indexed_sources)
 enddef
 
 # Eagerly read all configured sources in order. Returned data needs no file I/O.

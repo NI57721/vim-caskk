@@ -11,6 +11,7 @@ import autoload 'caskk/presentation/mode_popup.vim' as mode_popup
 import autoload 'caskk/presentation/candidate.vim' as candidate_view
 import autoload 'caskk/presentation/registration_inline.vim' as registration_inline
 import 'caskk/dictionary.vim' as dictionary
+import autoload 'caskk/dictionary/index.vim' as dict_index
 import 'caskk/registration.vim' as registration
 import autoload 'caskk/registration/window.vim' as registration_window
 import autoload 'caskk/config.vim' as configuration
@@ -69,6 +70,7 @@ export class Binding
   const _compiled: scheme.CompiledScheme
   const _sticky: string
   const _entries: dict<dictionary.Entry>
+  const _dictionary_index: dict_index.Database
   const _preferences: user_state.State
   const _actions: dict<string>
   const _keys: dict<string>
@@ -114,11 +116,12 @@ export class Binding
       actions: dict<string> = {}, initial_reading: string = '', registration_auto: bool = false,
       small_tsu_okuri_as_t: bool = true, keyboard_layout: string = '',
       keyboard_layout_overrides: dict<string> = {}, persist_input_mode: bool = false,
-      register_mode_conversions: bool = true)
+      register_mode_conversions: bool = true, dictionary_index: dict_index.Database = null_object)
     this._buffer = bufnr('%')
     this._compiled = compiled
     this._sticky = sticky_key
     this._entries = copy(entries)
+    this._dictionary_index = dictionary_index
     this._preferences = preferences is null_object ? user_state.State.new() : preferences
     this._actions = copy(actions)
     this._initial_reading = initial_reading
@@ -504,7 +507,7 @@ export class Binding
       this._inline_input = session.Session.new(this._compiled, this._sticky, this._entries,
         this._preferences, prefill ? request.reading : '', this._small_tsu_okuri_as_t,
         this._keyboard_layout, this._keyboard_layout_overrides, this._input_mode,
-        this._register_mode_conversions)
+        this._register_mode_conversions, this._dictionary_index)
       this._InstallInlineEscape()
       const interrupt_lhs = mapping.Lhs('<C-C>')
       this._inline_interrupt_saved = Mapping.new(interrupt_lhs)
@@ -792,7 +795,8 @@ export class Binding
     endif
     this._editor = insert.Editor.new(this._compiled, this._sticky, this._entries, this._preferences,
       this._initial_reading, this._small_tsu_okuri_as_t, this._keyboard_layout,
-      this._keyboard_layout_overrides, this._input_mode, this._register_mode_conversions)
+      this._keyboard_layout_overrides, this._input_mode, this._register_mode_conversions,
+      this._dictionary_index)
     this._initial_reading = ''
     this._mode_marker = ''
     this._mode_view.Show(this._input_mode, this._mode_marker)
@@ -951,7 +955,7 @@ export class Binding
       const child = Binding.new(this._compiled, this._sticky, this._entries,
         this._preferences, this._actions, prefill ? request.reading : '', this._registration_auto,
         this._small_tsu_okuri_as_t, this._keyboard_layout, this._keyboard_layout_overrides,
-        false, this._register_mode_conversions)
+        false, this._register_mode_conversions, this._dictionary_index)
       child.Enable()
       const arguments = this._buffer .. ', ' .. window.buffer
       for command in ['inoremap', 'nnoremap']
@@ -1204,13 +1208,13 @@ export def Enable(compiled: scheme.CompiledScheme, sticky_key: string = '', acti
     entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
     registration_auto: bool = false, small_tsu_okuri_as_t: bool = true, keyboard_layout: string = '',
     keyboard_layout_overrides: dict<string> = {}, persist_input_mode: bool = false,
-    register_mode_conversions: bool = true)
+    register_mode_conversions: bool = true, dictionary_index: dict_index.Database = null_object)
   if has_key(bindings, string(bufnr('%')))
     bindings[string(bufnr('%'))].Enable()
   else
     const current = Binding.new(compiled, sticky_key, entries, preferences, actions, '', registration_auto,
       small_tsu_okuri_as_t, keyboard_layout, keyboard_layout_overrides, persist_input_mode,
-      register_mode_conversions)
+      register_mode_conversions, dictionary_index)
     current.Enable()
   endif
 enddef

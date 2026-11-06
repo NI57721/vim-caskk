@@ -52,9 +52,10 @@ export def Enable(name: string)
     return
   endif
   const input = configuration.GetInput()
-  binding.Enable(compiled, input.sticky_key, input.mappings, input.entries, user_runtime.Get(),
+  binding.Enable(compiled, input.sticky_key, input.mappings, {}, user_runtime.Get(),
     configuration.GetRegistrationAuto(), input.small_tsu_okuri_as_t, input.keyboard_layout,
-    input.keyboard_layout_overrides, input.persist_input_mode, input.register_mode_conversions)
+    input.keyboard_layout_overrides, input.persist_input_mode, input.register_mode_conversions,
+    input.dictionary_index)
   try
     if configuration.GetStateAuto()
       user_runtime.InitializeAutomatic(configuration.GetStatePath())

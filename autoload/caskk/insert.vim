@@ -2,6 +2,7 @@ vim9script
 
 import 'caskk/input.vim' as input
 import 'caskk/dictionary.vim' as dictionary
+import autoload 'caskk/dictionary/index.vim' as dict_index
 import autoload 'caskk/scheme.vim' as scheme
 import autoload 'caskk/session.vim' as session
 import autoload 'caskk/state.vim' as state_types
@@ -20,6 +21,7 @@ export class Editor
   const _window: number
   const _session: session.Session
   const _entries: dict<dictionary.Entry>
+  const _dictionary_index: dict_index.Database
   const _preferences: user_state.State
   const _writer: buffer.Writer
   const _undo: undo.Manager
@@ -33,17 +35,18 @@ export class Editor
       entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
       initial_reading: string = '', small_tsu_okuri_as_t: bool = true, keyboard_layout: string = '',
       keyboard_layout_overrides: dict<string> = {}, input_mode_name: string = input_mode.HIRAGANA,
-      register_mode_conversions: bool = true)
+      register_mode_conversions: bool = true, dictionary_index: dict_index.Database = null_object)
     if mode(1) !~# '^i'
       throw 'caskk: editor must be started in Insert mode'
     endif
     this._buffer = bufnr('%')
     this._window = win_getid()
     this._entries = copy(entries)
+    this._dictionary_index = dictionary_index
     this._preferences = preferences is null_object ? user_state.State.new() : preferences
     this._session = session.Session.new(compiled, sticky_key, this._entries, this._preferences,
       initial_reading, small_tsu_okuri_as_t, keyboard_layout, keyboard_layout_overrides, input_mode_name,
-      register_mode_conversions)
+      register_mode_conversions, dictionary_index)
     this._writer = buffer.Writer.new(this._buffer, line('.'), col('.'))
     this._undo = undo.Manager.new(this._writer)
     this._view = presentation.Highlighter.new(this._writer)

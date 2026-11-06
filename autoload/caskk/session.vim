@@ -5,6 +5,7 @@ import 'caskk/dictionary.vim' as dictionary
 import 'caskk/composition.vim' as composition
 import autoload 'caskk/conversion.vim' as conversion
 import autoload 'caskk/dictionary/lookup.vim' as lookup
+import autoload 'caskk/dictionary/index.vim' as dict_index
 import autoload 'caskk/user_state.vim' as user_state
 import autoload 'caskk/input/normalize.vim' as normalize
 import autoload 'caskk/composer.vim' as composer
@@ -42,6 +43,7 @@ export class Session
   const _composer: composer.Composer
   const _state: state_types.State
   const _entries: dict<dictionary.Entry>
+  const _dictionary_index: dict_index.Database
   const _preferences: user_state.State
   const _small_tsu_okuri_as_t: bool
   const _register_mode_conversions: bool
@@ -57,11 +59,12 @@ export class Session
       entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
       initial_reading: string = '', small_tsu_okuri_as_t: bool = true, keyboard_layout: string = '',
       keyboard_layout_overrides: dict<string> = {}, input_mode_name: string = input_mode.HIRAGANA,
-      register_mode_conversions: bool = true)
+      register_mode_conversions: bool = true, dictionary_index: dict_index.Database = null_object)
     this._normalizer = normalize.Normalizer.new(sticky_key, keyboard_layout, keyboard_layout_overrides)
     this._composer = composer.Composer.new(compiled)
     this._state = state_types.State.new()
     this._entries = copy(entries)
+    this._dictionary_index = dictionary_index
     this._preferences = preferences is null_object ? user_state.State.new() : preferences
     this._small_tsu_okuri_as_t = small_tsu_okuri_as_t
     this._register_mode_conversions = register_mode_conversions
@@ -77,7 +80,7 @@ export class Session
   def _PrepareConversion(entries: dict<dictionary.Entry>, preferences: user_state.State): Result
     this._reading_after_cancel = false
     this._prepared = conversion.Prepare(entries, preferences, this._state.reading, this._state.okuri,
-      this._small_tsu_okuri_as_t)
+      this._small_tsu_okuri_as_t, this._dictionary_index)
     this._request_preferences = preferences
     if empty(this._prepared.candidates)
       return Result.new('', [], this._state.GetSnapshot(), false, false, false, true, false,
@@ -300,7 +303,8 @@ export class Session
     const info = this._selection.GetInfo()
     this._preferences.DeleteEntryForLookup(this._prepared.query, info.text)
     const prepared = conversion.Prepare(this._entries, this._preferences,
-      this._prepared.query.reading, this._prepared.okuri, this._small_tsu_okuri_as_t)
+      this._prepared.query.reading, this._prepared.okuri, this._small_tsu_okuri_as_t,
+      this._dictionary_index)
     this._prepared = prepared
     if empty(prepared.candidates)
       this._selection = null_object

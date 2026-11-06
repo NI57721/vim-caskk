@@ -3,6 +3,7 @@ vim9script
 import 'caskk/dictionary.vim' as dictionary
 import autoload 'caskk/dictionary/lookup.vim' as lookup
 import autoload 'caskk/dictionary/numeric.vim' as numeric
+import autoload 'caskk/dictionary/index.vim' as dict_index
 import autoload 'caskk/user_state.vim' as user_state
 
 # Candidate text stays separate from the full okuri used for presentation.
@@ -152,9 +153,10 @@ endclass
 
 # Prepare one conversion request without committing, learning, or buffer I/O.
 export def Prepare(entries: dict<dictionary.Entry>, preferences: user_state.State, reading: string,
-    okuri: string = '', small_tsu_okuri_as_t: bool = true): Candidates
+    okuri: string = '', small_tsu_okuri_as_t: bool = true,
+    database: dict_index.Database = null_object): Candidates
   const query = lookup.CreateQuery(reading, okuri, small_tsu_okuri_as_t)
-  const system_candidates = lookup.Lookup(entries, query)
+  const system_candidates = lookup.Lookup(entries, query, database)
   const ranked = preferences.Rank(query, system_candidates)
   return Candidates.new(query, okuri, ranked)
 enddef

@@ -2,6 +2,7 @@ vim9script
 
 import 'caskk/dictionary.vim' as dictionary
 import autoload 'caskk/dictionary/numeric.vim' as numeric
+import autoload 'caskk/dictionary/index.vim' as index
 
 # DDSKK standard skk-kana-rom-vector; independent of the input scheme.
 const OKURI_PREFIXES: dict<string> = {
@@ -31,7 +32,11 @@ export def CreateQuery(reading: string, okuri: string, small_tsu_okuri_as_t: boo
 enddef
 
 # Search already loaded entries without I/O or inferred morphological filtering.
-export def Lookup(entries: dict<dictionary.Entry>, query: dictionary.Query): list<dictionary.Candidate>
+export def Lookup(entries: dict<dictionary.Entry>, query: dictionary.Query,
+    database: index.Database = null_object): list<dictionary.Candidate>
+  if database isnot null_object
+    return database.Lookup(query)
+  endif
   if !has_key(entries, query.lookup_key)
     return []
   endif
