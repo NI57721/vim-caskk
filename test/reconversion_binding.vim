@@ -37,9 +37,11 @@ def Setup(): Fixture
   Caskk.Config({dictionaries: [directory .. '/system'], candidate_popup: true, mode_popup: false,
     mappings: {s: 'Convert', c: 'Commit'}})
   g:caskk_reconversion_probe = []
-  inoremap <buffer> <silent> <F11> <ScriptCmd>g:caskk_reconversion_probe = [mode(1), len(popup_list()), maparg('<C-N>', 'i')]<CR>
+  inoremap <buffer> <silent> <F11> <ScriptCmd>add(g:caskk_reconversion_probe, [mode(1), len(popup_list()), maparg('<C-N>', 'i')])<CR>
   nnoremap <buffer> <silent> <F12> <ScriptCmd>Caskk.Reconvert()<CR>
   Caskk.Enable('reconversion')
+  inoremap <buffer> <silent> <F10> <ScriptCmd>Caskk.Disable()<CR>
+  inoremap <buffer> <silent> <F9> <ScriptCmd>Caskk.Enable('reconversion')<CR>
   return Fixture.new(previous, number, directory, popup_list(), snapshot)
 enddef
 
@@ -70,12 +72,13 @@ suite.normal_mode_reconversion_selects_and_commits_a_different_candidate = (): v
   defer Cleanup(fixture)
   ConvertAndCommit()
   cursor(1, 4)
-  feedkeys("\<F12>\<F11>\<C-N>\<CR>", 'xt')
-  assert.equals(g:caskk_reconversion_probe[0], 'i')
-  assert.equals(g:caskk_reconversion_probe[1], len(fixture.existing_popups) + 1)
-  assert.match(g:caskk_reconversion_probe[2], 'ReconversionInput')
+  feedkeys("\<F12>\<F11>\<C-N>\<CR>\<F11>", 'xt')
+  assert.equals(g:caskk_reconversion_probe[0][0], 'i')
+  assert.equals(g:caskk_reconversion_probe[0][1], len(fixture.existing_popups) + 1)
+  assert.match(g:caskk_reconversion_probe[0][2], 'ReconversionInput')
   assert.equals(getline(1), '前科後')
-  assert.equals(mode(1) =~# '^n', true)
+  assert.equals(g:caskk_reconversion_probe[1][0], 'i')
+  assert.equals(g:caskk_reconversion_probe[1][1], len(fixture.existing_popups))
   assert.equals(maparg('<C-N>', 'n', false, true).rhs, '2j')
   undo
   assert.equals(getline(1), '前蚊後')
@@ -122,4 +125,48 @@ suite.okuri_history_reconverts_using_its_exact_okuri_lookup = (): void => {
   cursor(1, 4)
   feedkeys("\<F12>\<CR>", 'xt')
   assert.equals(getline(1), '前書く後')
+}
+
+suite.confirmation_leaves_insert_mode_active_for_following_user_input = (): void => {
+  const fixture = Setup()
+  defer Cleanup(fixture)
+  ConvertAndCommit()
+  cursor(1, 4)
+  feedkeys("\<F12>\<C-N>\<CR>a\<F11>", 'xt')
+  assert.equals(getline(1), '前科あ後')
+  assert.equals(g:caskk_reconversion_probe[0][0], 'i')
+}
+
+suite.disabling_caskk_during_reconversion_does_not_cancel_candidate_selection = (): void => {
+  const fixture = Setup()
+  defer Cleanup(fixture)
+  ConvertAndCommit()
+  cursor(1, 4)
+  feedkeys("\<F12>\<F10>\<C-N>\<CR>x\<F11>", 'xt')
+  assert.equals(Caskk.IsEnabled(), false)
+  assert.equals(getline(1), '前科x後')
+  assert.equals(g:caskk_reconversion_probe[0][0], 'i')
+}
+
+suite.reconversion_remains_available_after_caskk_is_disabled = (): void => {
+  const fixture = Setup()
+  defer Cleanup(fixture)
+  ConvertAndCommit()
+  Caskk.Disable()
+  cursor(1, 4)
+  feedkeys("\<F12>\<C-N>\<CR>x\<F11>", 'xt')
+  assert.equals(Caskk.IsEnabled(), false)
+  assert.equals(getline(1), '前科x後')
+  assert.equals(g:caskk_reconversion_probe[0][0], 'i')
+}
+
+suite.reenabling_caskk_during_reconversion_preserves_selection_and_resumes_ime_afterward = (): void => {
+  const fixture = Setup()
+  defer Cleanup(fixture)
+  ConvertAndCommit()
+  cursor(1, 4)
+  feedkeys("\<F12>\<F10>\<F9>\<C-N>\<CR>a\<F11>", 'xt')
+  assert.equals(Caskk.IsEnabled(), true)
+  assert.equals(getline(1), '前科あ後')
+  assert.equals(g:caskk_reconversion_probe[0][0], 'i')
 }
