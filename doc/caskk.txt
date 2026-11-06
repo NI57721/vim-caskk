@@ -311,7 +311,8 @@ registration_inline is a boolean that defaults to false.  When true, the
 registration input is shown in a popup above the current insertion point.  If
 there is not enough room above, Vim places it below.  The popup is display-only:
 keys are handled by Caskk in the original Insert-mode buffer and sent to a
-separate registration input state.  That state supports the usual input scheme,
+separate registration editing model held in memory.  It owns the draft, its
+character position, and a dedicated input session supporting the usual scheme,
 including okuri composition and dictionary conversion.  The original reading
 and surrounding text stay in the source buffer while registration is open; the
 draft does not change that buffer or its undo history.

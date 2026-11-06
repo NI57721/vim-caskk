@@ -9,12 +9,12 @@ import autoload 'caskk/input/mapping.vim' as mapping
 import autoload 'caskk/input/mapping_state.vim' as mapping_state
 import autoload 'caskk/input/mode.vim' as input_mode
 import autoload 'caskk/presentation/mode_popup.vim' as mode_popup
-import autoload 'caskk/presentation/candidate.vim' as candidate_view
 import autoload 'caskk/presentation/registration_inline.vim' as registration_inline
 import 'caskk/dictionary.vim' as dictionary
 import autoload 'caskk/dictionary/index.vim' as dict_index
 import 'caskk/registration.vim' as registration
 import autoload 'caskk/registration/window.vim' as registration_window
+import autoload 'caskk/registration/editor.vim' as registration_editor
 import autoload 'caskk/config.vim' as configuration
 import autoload 'caskk/user_state/runtime.vim' as user_runtime
 import autoload 'caskk/conversion.vim' as conversion
@@ -51,7 +51,6 @@ export class Binding
   const _delete_mappings = mapping_state.State.new()
   const _reconversion_mappings = mapping_state.State.new()
   var _editor: insert.Editor = null_object
-  var _last: list<session.Result> = []
   var _enabled: bool = false
   var _registration_reply: dictionary.Candidate = null_object
   var _registration_ticket: number = 0
@@ -61,9 +60,7 @@ export class Binding
   var _window_closing: bool = false
   var _input_mode: string = input_mode.HIRAGANA
   var _mode_marker: string = ''
-  var _inline_input: session.Session = null_object
-  var _inline_text: string = ''
-  var _inline_cursor: number = 0
+  var _inline_editor: registration_editor.Editor = null_object
   var _disabled_during_inline_registration: bool = false
   var _delete_user_entry_pending: bool = false
   var _reconversion_pending: conversion.Candidates = null_object
@@ -220,7 +217,7 @@ export class Binding
       return
     endif
     this._CheckTarget()
-    if !force && this._inline_input isnot null_object
+    if !force && this._inline_editor isnot null_object
       this._CommitInlineComposition()
       this._enabled = false
       this._disabled_during_inline_registration = true
@@ -290,7 +287,6 @@ export class Binding
   enddef
 
   def _Record(results: list<session.Result>)
-    this._last = copy(results)
     var requested = false
     var committed_conversion = false
     for result in results
@@ -357,7 +353,7 @@ export class Binding
     endif
     # Keep external edits intact; the old editor's tracked range and undo tick
     # can no longer safely be applied to the changed buffer.
-    if this._inline_input isnot null_object
+    if this._inline_editor isnot null_object
       this._CloseInlineInput()
     endif
     this._editor.Abandon()
@@ -367,101 +363,26 @@ export class Binding
     return true
   enddef
 
-  def _InlineHeader(): string
-    const request = this.GetRegistrationRequest()
-    if request is null_object
-      return '辞書登録'
-    endif
-    return '辞書登録: ' .. request.reading .. (request.okuri == '' ? '' : '*' .. request.okuri)
-  enddef
-
   def _RefreshInlinePopup(message: string = '')
-    if this._inline_input is null_object
+    if this._inline_editor is null_object
       return
     endif
-    final lines = [this._InlineHeader() .. '  [Enter:登録 Esc:取消]']
-    var prefix = strcharpart(this._inline_text, 0, this._inline_cursor)
-    var suffix = strcharpart(this._inline_text, this._inline_cursor)
-    var insertion = ''
-    var highlighted = false
-    if this._inline_input.InCandidate()
-      const info = this._inline_input.GetCandidatesInfo()
-      if !empty(info.candidates)
-        insertion = info.candidates[info.selected_index].text
-        highlighted = true
-      endif
-    else
-      const snapshot = this._inline_input.GetSnapshot()
-      if snapshot.in_preedit
-        insertion = input_mode.Render(snapshot.reading .. snapshot.okuri,
-          this._inline_input.GetInputMode())
-        highlighted = true
-      endif
-      for event in this._inline_input.Pending()
-        insertion ..= event.key
-      endfor
-    endif
-    lines->add('登録語: ' .. prefix .. insertion .. '│' .. suffix)
-    if message !=# ''
-      lines->add(message)
-    elseif this._inline_input.InCandidate()
-      const info = this._inline_input.GetCandidatesInfo()
-      const candidates = candidate_view.Format(info)
-      const visible = 6
-      if len(candidates) <= visible
-        lines->extend(candidates)
-      else
-        const start = max([0, min([info.selected_index - 2, len(candidates) - visible])])
-        if start > 0
-          lines->add('…')
-        endif
-        lines->extend(candidates[start : start + visible - 1])
-        if start + visible < len(candidates)
-          lines->add('…')
-        endif
-      endif
-    endif
-    const highlight_start = highlighted && insertion !=# ''
-      ? strlen('登録語: ' .. prefix) + 1 : 0
-    this._inline_view.Show(lines, highlight_start, strlen(insertion))
-    const snapshot = this._inline_input.GetSnapshot()
-    const marker = this._inline_input.InCandidate() ? 'candidate' : snapshot.in_preedit ? 'modified' : ''
-    const mode = this._inline_input.GetInputMode()
+    this._inline_view.ShowEditor(this.GetRegistrationRequest(), this._inline_editor, message)
+    const marker = this._inline_editor.Marker()
+    const mode = this._inline_editor.input.GetInputMode()
     this._mode_view.Show(mode, marker, false, this._inline_view.ModeAnchor())
     this._input_mode = mode
     this._mode_marker = marker
   enddef
 
   def _AppendInlineResults(results: list<session.Result>)
-    for result in results
-      if result.commit_preedit || (!result.in_candidate && !result.state.in_preedit && result.text !=# '')
-        const prefix = strcharpart(this._inline_text, 0, this._inline_cursor)
-        const suffix = strcharpart(this._inline_text, this._inline_cursor)
-        this._inline_text = prefix .. result.text .. suffix
-        this._inline_cursor += strchars(result.text)
-      endif
-    endfor
+    this._inline_editor.Append(results)
     this._RefreshInlinePopup()
   enddef
 
   def _CommitInlineComposition()
-    if this._inline_input.InCandidate() || this._inline_input.GetSnapshot().in_preedit
-        || !empty(this._inline_input.Pending())
-      this._AppendInlineResults(this._inline_input.Commit())
-    endif
-  enddef
-
-  def _DeleteInlineCharacter(before: bool)
-    const count = strchars(this._inline_text)
-    const index = before ? this._inline_cursor - 1 : this._inline_cursor
-    if index < 0 || index >= count
-      return
-    endif
-    this._inline_text = strcharpart(this._inline_text, 0, index)
-      .. strcharpart(this._inline_text, index + 1)
-    if before
-      this._inline_cursor -= 1
-    endif
+    this._inline_editor.Commit()
+    this._RefreshInlinePopup()
   enddef
 
   def _CloseInlineInput(restore_escape: bool = true)
@@ -469,9 +390,7 @@ export class Binding
     this._inline_view.Close()
     this._mode_view.Close()
     this._mode_marker = ''
-    this._inline_input = null_object
-    this._inline_text = ''
-    this._inline_cursor = 0
+    this._inline_editor = null_object
     if restore_escape
       this.RestoreInlineEscape()
     endif
@@ -507,19 +426,17 @@ export class Binding
   enddef
 
   def _OpenInlineRegistration(prefill: bool)
-    if this._inline_input isnot null_object
+    if this._inline_editor isnot null_object
       throw 'caskk: inline registration is already open'
     endif
     this.SuspendRegistration()
     const request = this.GetRegistrationRequest()
     try
       this._mode_view.Close()
-      this._inline_text = ''
-      this._inline_cursor = 0
-      this._inline_input = session.Session.new(this._compiled, this._sticky, this._entries,
+      this._inline_editor = registration_editor.Editor.new(session.Session.new(this._compiled, this._sticky, this._entries,
         this._preferences, prefill ? request.reading : '', this._small_tsu_okuri_as_t,
         this._keyboard_layout, this._keyboard_layout_overrides, this._input_mode,
-        this._register_mode_conversions, this._dictionary_index)
+        this._register_mode_conversions, this._dictionary_index))
       this._InstallInlineEscape()
       const interrupt_lhs = mapping.Lhs('<C-C>')
       var interrupt_argument = substitute(string('<C-C>'), '<', '<lt>', 'g')
@@ -546,14 +463,14 @@ export class Binding
   enddef
 
   def _AcceptInlineRegistration()
-    if this._inline_input.InCandidate() || this._inline_input.GetSnapshot().in_preedit
-      this._AppendInlineResults(this._inline_input.Commit())
+    if this._inline_editor.input.InCandidate() || this._inline_editor.input.GetSnapshot().in_preedit
+      this._AppendInlineResults(this._inline_editor.input.Commit())
     endif
-    if this._inline_text ==# ''
+    if this._inline_editor.GetText() ==# ''
       this._RefreshInlinePopup('登録語を入力してください')
       return
     endif
-    const candidate = dictionary.Candidate.new(this._inline_text, [])
+    const candidate = dictionary.Candidate.new(this._inline_editor.GetText(), [])
     this._CloseInlineInput()
     this._editor.ResumeRegistration()
     this._Record([this._editor.Register(candidate)])
@@ -570,16 +487,12 @@ export class Binding
       endif
       text ..= key
     endwhile
-    if text ==# '' || this._AbandonExternallyChangedEditor() || this._inline_input is null_object
+    if text ==# '' || this._AbandonExternallyChangedEditor() || this._inline_editor is null_object
       return
     endif
     const previous_revision = this._preferences.Revision()
     try
-      this._CommitInlineComposition()
-      const prefix = strcharpart(this._inline_text, 0, this._inline_cursor)
-      const suffix = strcharpart(this._inline_text, this._inline_cursor)
-      this._inline_text = prefix .. text .. suffix
-      this._inline_cursor += strchars(text)
+      this._inline_editor.Paste(text)
       this._RefreshInlinePopup()
     finally
       this._SaveChangedUserState(previous_revision)
@@ -587,7 +500,7 @@ export class Binding
   enddef
 
   def _FeedInline(key: string)
-    this._AppendInlineResults(this._inline_input.Feed(key ==# '<Space>' ? ' ' : key))
+    this._AppendInlineResults(this._inline_editor.input.Feed(key ==# '<Space>' ? ' ' : key))
   enddef
 
   def _DispatchInline(key: string)
@@ -595,8 +508,8 @@ export class Binding
       return
     endif
     if key ==# '<Esc>'
-      if this._inline_input.InCandidate()
-        this._AppendInlineResults(this._inline_input.Commit())
+      if this._inline_editor.input.InCandidate()
+        this._AppendInlineResults(this._inline_editor.input.Commit())
       else
         this._CancelInlineRegistration()
       endif
@@ -614,28 +527,26 @@ export class Binding
       feedkeys(keycode.Encode(key), 'in')
       return
     elseif key ==# '<BS>'
-      if this._inline_input.BackspacePending()
+      if this._inline_editor.input.BackspacePending()
         this._RefreshInlinePopup()
       else
-        const result = this._inline_input.BackspacePreedit()
+        const result = this._inline_editor.input.BackspacePreedit()
         if result isnot null_object
           this._RefreshInlinePopup()
         else
           this._CommitInlineComposition()
-          this._DeleteInlineCharacter(true)
+          this._inline_editor.Delete(true)
           this._RefreshInlinePopup()
         endif
       endif
       return
     elseif key ==# '<Left>' || key ==# '<Right>'
-      this._CommitInlineComposition()
-      this._inline_cursor = max([0, min([strchars(this._inline_text),
-        this._inline_cursor + (key ==# '<Left>' ? -1 : 1)])])
+      this._inline_editor.Move(key ==# '<Left>' ? -1 : 1)
       this._RefreshInlinePopup()
       return
     elseif key ==# '<Del>'
       this._CommitInlineComposition()
-      this._DeleteInlineCharacter(false)
+      this._inline_editor.Delete(false)
       this._RefreshInlinePopup()
       return
     elseif has_key(this._native, key)
@@ -648,60 +559,57 @@ export class Binding
       const literal = key ==# '<Space>' ? ' '
         : strchars(key) == 1 && char2nr(key) >= 0x20 && char2nr(key) != 0x7f ? key : ''
       if literal !=# ''
-        const prefix = strcharpart(this._inline_text, 0, this._inline_cursor)
-        const suffix = strcharpart(this._inline_text, this._inline_cursor)
-        this._inline_text = prefix .. literal .. suffix
-        this._inline_cursor += strchars(literal)
+        this._inline_editor.InsertLiteral(literal)
         this._RefreshInlinePopup()
       endif
       return
     endif
 
     const action = get(this._actions, key, '')
-    if action !=# '' && this._inline_input.IsSpecialContinuation(key)
-      this._AppendInlineResults(this._inline_input.Feed(key))
+    if action !=# '' && this._inline_editor.input.IsSpecialContinuation(key)
+      this._AppendInlineResults(this._inline_editor.input.Feed(key))
       return
     endif
     if action ==# 'ShowCompletion' || action ==# 'CancelCompletion'
       return
     elseif action ==# 'Convert'
-      if this._inline_input.InCandidate()
-        this._AppendInlineResults([this._inline_input.NextCandidate()])
+      if this._inline_editor.input.InCandidate()
+        this._AppendInlineResults([this._inline_editor.input.NextCandidate()])
       else
-        const results = this._inline_input.StartConversion(this._entries, this._preferences)
+        const results = this._inline_editor.input.StartConversion(this._entries, this._preferences)
         if empty(results)
           this._FeedInline(key)
         else
           this._AppendInlineResults(results)
         endif
       endif
-    elseif action ==# 'NextCandidate' && this._inline_input.InCandidate()
-      this._AppendInlineResults([this._inline_input.NextCandidate()])
-    elseif action ==# 'PreviousCandidate' && this._inline_input.InCandidate()
-      this._AppendInlineResults([this._inline_input.PreviousCandidate()])
-    elseif action ==# 'TogglePin' && this._inline_input.InCandidate()
-      this._inline_input.TogglePin()
+    elseif action ==# 'NextCandidate' && this._inline_editor.input.InCandidate()
+      this._AppendInlineResults([this._inline_editor.input.NextCandidate()])
+    elseif action ==# 'PreviousCandidate' && this._inline_editor.input.InCandidate()
+      this._AppendInlineResults([this._inline_editor.input.PreviousCandidate()])
+    elseif action ==# 'TogglePin' && this._inline_editor.input.InCandidate()
+      this._inline_editor.input.TogglePin()
       this._RefreshInlinePopup()
-    elseif action ==# 'ToggleDemote' && this._inline_input.InCandidate()
-      this._inline_input.ToggleDemote()
+    elseif action ==# 'ToggleDemote' && this._inline_editor.input.InCandidate()
+      this._inline_editor.input.ToggleDemote()
       this._RefreshInlinePopup()
-    elseif action ==# 'DeleteUserEntry' && this._inline_input.CanDeleteUserEntry()
+    elseif action ==# 'DeleteUserEntry' && this._inline_editor.input.CanDeleteUserEntry()
       this._RequestDeleteUserEntryConfirmation()
     elseif action ==# 'Commit'
-      this._AppendInlineResults(this._inline_input.Commit())
+      this._AppendInlineResults(this._inline_editor.input.Commit())
     elseif action ==# 'OpenRegistration'
       return
     elseif mapping.ModeForAction(action) ==# input_mode.ABBREVIATION
-        && this._inline_input.InCandidate()
-      this._AppendInlineResults(this._inline_input.Commit())
-      this._inline_input.SetInputMode(input_mode.ABBREVIATION)
+        && this._inline_editor.input.InCandidate()
+      this._AppendInlineResults(this._inline_editor.input.Commit())
+      this._inline_editor.input.SetInputMode(input_mode.ABBREVIATION)
       this._RefreshInlinePopup()
-    elseif mapping.ModeForAction(action) !=# '' && this._inline_input.CanChangeInputMode()
-      this._inline_input.SetInputMode(mapping.ModeForAction(action))
+    elseif mapping.ModeForAction(action) !=# '' && this._inline_editor.input.CanChangeInputMode()
+      this._inline_editor.input.SetInputMode(mapping.ModeForAction(action))
       this._RefreshInlinePopup()
     elseif mapping.ModeForAction(action) !=# ''
-        && this._inline_input.CanCommitPreeditAsMode(mapping.ModeForAction(action))
-      this._AppendInlineResults(this._inline_input.CommitPreeditAsMode(mapping.ModeForAction(action)))
+        && this._inline_editor.input.CanCommitPreeditAsMode(mapping.ModeForAction(action))
+      this._AppendInlineResults(this._inline_editor.input.CommitPreeditAsMode(mapping.ModeForAction(action)))
     else
       this._FeedInline(key)
     endif
@@ -710,7 +618,7 @@ export class Binding
   def _RequestDeleteUserEntryConfirmation()
     this._delete_user_entry_pending = true
     const message = 'ユーザー辞書から削除しますか？ y:削除 n/Esc:取消'
-    if this._inline_input isnot null_object
+    if this._inline_editor isnot null_object
       this._RefreshInlinePopup(message)
     elseif this._editor isnot null_object
       this._InstallDeleteEscape()
@@ -741,14 +649,14 @@ export class Binding
     this._delete_user_entry_pending = false
     this._RestoreDeleteEscape()
     if key ==# 'y' || key ==# 'Y'
-      if this._inline_input isnot null_object && this._inline_input.CanDeleteUserEntry()
-        this._AppendInlineResults([this._inline_input.DeleteUserEntry()])
+      if this._inline_editor isnot null_object && this._inline_editor.input.CanDeleteUserEntry()
+        this._AppendInlineResults([this._inline_editor.input.DeleteUserEntry()])
       elseif this._editor isnot null_object && this._editor.CanDeleteUserEntry()
         this._Record([this._editor.DeleteUserEntry()])
       endif
       return true
     endif
-    if this._inline_input isnot null_object
+    if this._inline_editor isnot null_object
       this._RefreshInlinePopup()
     elseif this._editor isnot null_object
       this._editor.ShowDeleteUserEntryConfirmation('')
@@ -876,7 +784,7 @@ export class Binding
     if this._editor is null_object
       return
     endif
-    if !force && this._editor.IsRegistrationSuspended() && this._inline_input is null_object
+    if !force && this._editor.IsRegistrationSuspended() && this._inline_editor is null_object
       return
     endif
     if this._AbandonExternallyChangedEditor()
@@ -916,7 +824,7 @@ export class Binding
     if this._ResolveDeleteUserEntryConfirmation(key)
       return
     endif
-    if this._inline_input isnot null_object
+    if this._inline_editor isnot null_object
       this._DispatchInline(key)
       return
     endif
@@ -955,7 +863,6 @@ export class Binding
     endif
     if has_key(this._native, key)
       if key ==# '<BS>' && this._editor isnot null_object && this._editor.Backspace()
-        this._last = []
         this._SyncInputMode()
         return
       endif
@@ -1163,10 +1070,6 @@ export class Binding
 
   def GetEditor(): insert.Editor
     return this._editor
-  enddef
-
-  def GetLastResults(): list<session.Result>
-    return copy(this._last)
   enddef
 
   def GetRegistrationRequest(): registration.Request

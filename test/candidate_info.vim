@@ -1,6 +1,7 @@
 vim9script
 
 import autoload 'caskk/session.vim' as session
+import autoload 'caskk/input/mode.vim' as input_mode
 import autoload 'caskk/scheme.vim' as scheme
 import autoload 'caskk/dictionary/parser.vim' as parser
 import autoload 'caskk/dictionary/merge.vim' as merger
@@ -65,4 +66,21 @@ suite.information_is_absent_outside_active_candidate_selection = (): void => {
   ime.StartConversion(entries, preferences)
   ime.PreviousCandidate()
   assert.equals(ime.GetCandidatesInfo() is null_object, true)
+}
+
+suite.list_information_renders_all_candidates_in_the_input_mode = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('か /かな;注釈/かに/')]])
+  const preferences = user_state.State.new()
+  const ime = session.Session.new(scheme.Compile({}, {}), '', entries, preferences,
+    'か', true, '', {}, input_mode.KATAKANA)
+  ime.StartConversion(entries, preferences)
+  const first = ime.GetCandidatesInfo()
+  assert.equals(first.selected_index, 0)
+  assert.equals(mapnew(first.candidates, (_, item) => item.text), ['カナ', 'カニ'])
+  assert.equals(first.candidates[0].annotations, ['注釈'])
+  ime.NextCandidate()
+  const second = ime.GetCandidatesInfo()
+  assert.equals(second.selected_index, 1)
+  assert.equals(first.selected_index, 0)
+  assert.equals(entries['か'].candidates[0].text, 'かな')
 }

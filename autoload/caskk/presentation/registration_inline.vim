@@ -1,6 +1,9 @@
 vim9script
 
 import autoload 'caskk/config.vim' as configuration
+import autoload 'caskk/registration/editor.vim' as registration_editor
+import autoload 'caskk/presentation/candidate.vim' as candidate_view
+import 'caskk/registration.vim' as registration
 
 const PROPERTY_TYPE = 'caskk_preedit'
 
@@ -10,6 +13,37 @@ export class View
   var _col: number = 0
 
   def new()
+  enddef
+
+  def ShowEditor(request: registration.Request, editor: registration_editor.Editor, message: string = '')
+    const header = request is null_object ? '辞書登録'
+      : '辞書登録: ' .. request.reading .. (request.okuri == '' ? '' : '*' .. request.okuri)
+    final lines = [header .. '  [Enter:登録 Esc:取消]']
+    const prefix = editor.Prefix()
+    const insertion = editor.Insertion()
+    lines->add('登録語: ' .. prefix .. insertion .. '│' .. editor.Suffix())
+    if message !=# ''
+      lines->add(message)
+    elseif editor.input.InCandidate()
+      const info = editor.Candidates()
+      const candidates = candidate_view.Format(info)
+      const visible = 6
+      if len(candidates) <= visible
+        lines->extend(candidates)
+      else
+        const start = max([0, min([info.selected_index - 2, len(candidates) - visible])])
+        if start > 0
+          lines->add('…')
+        endif
+        lines->extend(candidates[start : start + visible - 1])
+        if start + visible < len(candidates)
+          lines->add('…')
+        endif
+      endif
+    endif
+    const highlight_start = editor.Highlighted() && insertion !=# ''
+      ? strlen('登録語: ' .. prefix) + 1 : 0
+    this.Show(lines, highlight_start, strlen(insertion))
   enddef
 
   def Show(lines: list<string>, highlight_start: number = 0, highlight_length: number = 0)
