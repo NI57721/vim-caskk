@@ -17,6 +17,10 @@ export def Save(path: string, snapshot: user_state.Snapshot)
   try
     # Validate and encode before touching the destination directory.
     const bytes = str2blob(codec.Encode(snapshot), {encoding: 'utf-8'})
+    const parent = fnamemodify(path, ':h')
+    if !mkdir(parent, 'p', 0o700)
+      throw 'cannot create parent directory'
+    endif
     # An exclusively created directory avoids reusing another writer's file.
     # Keep it beside the destination so the final rename stays on one filesystem.
     const temporary = path .. '.tmp-' .. getpid() .. '-' .. fnamemodify(tempname(), ':t')

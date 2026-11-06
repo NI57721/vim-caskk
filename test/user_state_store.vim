@@ -111,17 +111,12 @@ suite.rename_failure_preserves_destination_and_cleans_written_temporary_file = (
   assert.equals(readdir(directory), ['state.jsonl'])
 }
 
-suite.missing_parent_fails_without_creating_directories = (): void => {
+suite.missing_parent_directories_are_created_before_saving = (): void => {
   const directory = tempname()
   defer delete(directory, 'rf')
-  mkdir(directory)
-  const path = directory .. '/missing/state.jsonl'
-  var caught = ''
-  try
-    store.Save(path, user_state.State.new().GetSnapshot())
-  catch
-    caught = v:exception
-  endtry
-  assert.equals(stridx(caught, 'caskk: cannot save user state: ' .. path .. ':'), 0)
-  assert.equals(readdir(directory), [])
+  const path = directory .. '/missing/nested/state.jsonl'
+  const snapshot = user_state.State.new().GetSnapshot()
+  store.Save(path, snapshot)
+  assert.equals(isdirectory(directory .. '/missing/nested'), 1)
+  assert.equals(codec.Encode(store.Load(path)), codec.Encode(snapshot))
 }
