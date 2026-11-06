@@ -201,6 +201,12 @@ export class Session
       results->extend(this.Commit())
     endif
     this._prepared = null_object
+    if !this._state.in_preedit && empty(this._composer.Pending())
+        && !this._normalizer.HasPendingModifier() && !this._composer.IsSpecialStart(key)
+        && this._normalizer.IsShiftedSymbol(key)
+      results->add(this._ApplyOutput(composition.Result.new(false, key, '', false), false))
+      return results
+    endif
     const input_events = this._composer.IsSpecialStart(key)
       ? this._normalizer.FeedSpecial(key) : this._normalizer.Feed(key)
     for event in input_events

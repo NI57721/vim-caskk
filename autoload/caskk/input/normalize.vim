@@ -56,6 +56,13 @@ export class Normalizer
     return this._modified
   enddef
 
+  # Shifted punctuation is ordinary Direct input until a composition context
+  # gives its normalized key a Japanese-input meaning.
+  def IsShiftedSymbol(key: string): bool
+    return key !=# this._sticky_key && key !~# '^[A-Z]$' && layout.Normalize(this._keyboard_layout, key,
+      this._keyboard_layout_overrides).modified
+  enddef
+
   # Clear unfinished sticky input when the input session ends or is cancelled.
   def Reset()
     this._modified = false
