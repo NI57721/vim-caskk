@@ -521,6 +521,10 @@ export class Session
     return this._input_mode
   enddef
 
+  def HasPendingModifier(): bool
+    return this._normalizer.HasPendingModifier()
+  enddef
+
   def RenderText(text: string): string
     return this._Render(text)
   enddef

@@ -338,7 +338,8 @@ export class Binding
     endif
     const mode = this._editor.GetInputMode()
     const snapshot = this._editor.GetSnapshot()
-    const marker = this._editor.IsInCandidate() ? 'candidate' : snapshot.in_preedit ? 'modified' : ''
+    const marker = this._editor.IsInCandidate() ? 'candidate'
+      : snapshot.in_preedit || this._editor.HasPendingModifier() ? 'modified' : ''
     this._input_mode = mode
     this._mode_marker = marker
     this._mode_view.Show(mode, marker)

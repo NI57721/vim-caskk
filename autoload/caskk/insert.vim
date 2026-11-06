@@ -344,6 +344,10 @@ export class Editor
     return this._session.InCandidate()
   enddef
 
+  def HasPendingModifier(): bool
+    return this._session.HasPendingModifier()
+  enddef
+
   def CanChangeInputMode(): bool
     return this._session.CanChangeInputMode()
   enddef

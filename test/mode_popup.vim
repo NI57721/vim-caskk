@@ -100,6 +100,14 @@ suite.mode_popup_is_visible_immediately_after_native_newline = (): void => {
   assert.equals(getline(1, '$'), ['前', '後'])
 }
 
+suite.default_hiragana_popup_is_visible_after_native_newline = (): void => {
+  Setup({mode_popup_time: 0})
+  defer Cleanup()
+  feedkeys("a\<CR>\<F12>\<Esc>", 'xt')
+  assert.equals(captures, [[['あ']]])
+  assert.equals(getline(1, '$'), ['前', '後'])
+}
+
 suite.abbreviation_commit_updates_the_popup_to_the_restored_mode = (): void => {
   const dictionary = tempname()
   defer delete(dictionary)
@@ -125,6 +133,13 @@ suite.modified_preedit_prefixes_the_mode_label_with_start_marker = (): void => {
   Setup({mode_popup_time: 10000})
   defer Cleanup()
   feedkeys("aKa\<F12>\<Esc>", 'xt')
+  assert.equals(captures, [[['▽あ']]])
+}
+
+suite.sticky_key_alone_shows_the_modified_mode_marker = (): void => {
+  Setup({sticky_key: ';', mode_popup_time: 0})
+  defer Cleanup()
+  feedkeys("a;\<F12>\<Esc>", 'xt')
   assert.equals(captures, [[['▽あ']]])
 }
 
