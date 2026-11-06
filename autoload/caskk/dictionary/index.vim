@@ -41,52 +41,120 @@ def CompareKeys(left: string, right: string, encoding: string): number
   return len(left_codes) < len(right_codes) ? -1 : 1
 enddef
 
+# Discover actual headers, using entry kinds only to choose probe directions.
+# A failed binary search returns to a scan, so unusual rows cannot fabricate a
+# section boundary. Each Step inspects at most max_lines physical rows.
+class SectionSearch
+  const _lines: list<string>
+  var okuri_header: number = -1
+  var plain_header: number = -1
+  var _phase: string = 'scan'
+  var _position: number = 0
+  var _attempted: bool = false
+  var _low: number = 0
+  var _high: number = -1
+  var _middle: number = 0
+
+  def new(this._lines)
+  enddef
+
+  def _PrepareProbe()
+    if this._low > this._high
+      this._phase = 'scan'
+      this._position = this.okuri_header + 1
+    else
+      this._middle = (this._low + this._high) / 2
+      this._position = this._middle
+    endif
+  enddef
+
+  def Step(max_lines: number): bool
+    var inspected = 0
+    while inspected < max_lines && this._phase !=# 'done'
+      if this._phase ==# 'scan'
+        if this._position >= len(this._lines)
+          this._phase = 'done'
+          break
+        endif
+        const line = this._lines[this._position]
+        if stridx(line, OKURI_HEADER) == 0
+          this.okuri_header = this._position
+          if !this._attempted && this.plain_header < 0
+            this._attempted = true
+            this._phase = 'binary'
+            this._low = this._position + 1
+            this._high = len(this._lines) - 1
+            this._PrepareProbe()
+          else
+            this._position += 1
+          endif
+        else
+          if stridx(line, PLAIN_HEADER) == 0
+            this.plain_header = this._position
+          endif
+          this._position += 1
+        endif
+      else
+        if this._position > this._high
+          this._high = this._middle - 1
+          this._PrepareProbe()
+          continue
+        endif
+        const line = this._lines[this._position]
+        if stridx(line, PLAIN_HEADER) == 0
+          this.plain_header = this._position
+          this._phase = 'done'
+        else
+          const key = EntryKey(line)
+          if key ==# ''
+            this._position += 1
+          else
+            # ASCII abbreviations ending in a letter are plain entries.
+            if key =~# '[^ -~][a-z]$'
+              this._low = this._position + 1
+            else
+              this._high = this._middle - 1
+            endif
+            this._PrepareProbe()
+          endif
+        endif
+      endif
+      inspected += 1
+    endwhile
+    return this._phase ==# 'done'
+  enddef
+endclass
+
 export class SourceData
   const _lines: list<string>
-  const _okuri_lines: list<number>
-  const _plain_lines: list<number>
+  # The plain header closes okuri; the retained line count closes plain.
+  const _okuri_start: number
+  const _plain_start: number
   const _sectioned: bool
   const _fallback: dict<dictionary.Entry>
   const _encoding: string
 
-  def new(lines: list<string>, okuri_lines: list<number> = [], plain_lines: list<number> = [],
+  def new(lines: list<string>, okuri_start: number = 0, plain_start: number = 0,
       sectioned: bool = false, fallback: dict<dictionary.Entry> = {}, prepared: bool = false,
       encoding: string = 'utf-8')
     this._encoding = encoding
     if prepared
       this._lines = lines
       this._sectioned = sectioned
-      this._okuri_lines = okuri_lines
-      this._plain_lines = plain_lines
+      this._okuri_start = okuri_start
+      this._plain_start = plain_start
       this._fallback = fallback
       return
     endif
     this._lines = copy(lines)
-    var okuri_header = -1
-    var plain_header = -1
-    for index in range(len(lines))
-      if lines[index] =~# '^;; okuri-ari entries\.'
-        okuri_header = index
-      elseif lines[index] =~# '^;; okuri-nasi entries\.'
-        plain_header = index
-      endif
-    endfor
+    const sections = SectionSearch.new(lines)
+    while !sections.Step(max([1, len(lines)]))
+    endwhile
+    const okuri_header = sections.okuri_header
+    const plain_header = sections.plain_header
     this._sectioned = okuri_header >= 0 && plain_header > okuri_header
-    final indexed_okuri_lines: list<number> = []
-    final indexed_plain_lines: list<number> = []
     final fallback_entries: dict<dictionary.Entry> = {}
-    if this._sectioned
-      for index in range(okuri_header + 1, plain_header - 1)
-        if EntryKey(lines[index]) !=# ''
-          indexed_okuri_lines->add(index)
-        endif
-      endfor
-      for index in range(plain_header + 1, len(lines) - 1)
-        if EntryKey(lines[index]) !=# ''
-          indexed_plain_lines->add(index)
-        endif
-      endfor
-    else
+    if !this._sectioned
       for line in lines
         try
           const entry = parser.ParseLine(line)
@@ -102,19 +170,30 @@ export class SourceData
         endtry
       endfor
     endif
-    this._okuri_lines = indexed_okuri_lines
-    this._plain_lines = indexed_plain_lines
+    this._okuri_start = okuri_header + 1
+    this._plain_start = plain_header + 1
     this._fallback = fallback_entries
   enddef
 
-  def _ParseMatches(lines: list<number>, key: string, low: number, high: number): list<dictionary.Entry>
+  # Empty keys are rows excluded from the sorted sequence. Walk across them
+  # when finding a midpoint or collecting adjacent duplicate keys.
+  def _NextEntry(position: number, limit: number, direction: number): number
+    var current = position
+    while (direction > 0 ? current <= limit : current >= limit)
+        && EntryKey(this._lines[current]) ==# ''
+      current += direction
+    endwhile
+    return current
+  enddef
+
+  def _ParseMatches(key: string, low: number, high: number): list<dictionary.Entry>
     final entries: list<dictionary.Entry> = []
-    if low < 0 || high >= len(lines) || low > high
-      return entries
-    endif
     for position in range(low, high)
+      if EntryKey(this._lines[position]) !=# key
+        continue
+      endif
       try
-        const entry = parser.ParseLine(this._lines[lines[position]])
+        const entry = parser.ParseLine(this._lines[position])
         if entry isnot null_object
           entries->add(entry)
         endif
@@ -129,28 +208,39 @@ export class SourceData
     if !this._sectioned
       return has_key(this._fallback, key) ? [this._fallback[key]] : []
     endif
-    const lines = has_okuri ? this._okuri_lines : this._plain_lines
+    const start = has_okuri ? this._okuri_start : this._plain_start
+    const end = has_okuri ? this._plain_start - 2 : len(this._lines) - 1
     const descending = has_okuri
-    var low = 0
-    var high = len(lines) - 1
+    var low = start
+    var high = end
     while low <= high
-      const middle = (low + high) / 2
-      const middle_key = EntryKey(this._lines[lines[middle]])
+      const midpoint = (low + high) / 2
+      const middle = this._NextEntry(midpoint, high, 1)
+      if middle > high
+        high = midpoint - 1
+        continue
+      endif
+      const middle_key = EntryKey(this._lines[middle])
       const comparison = CompareKeys(middle_key, key, this._encoding)
       if comparison == 0
         var first = middle
         var last = middle
-        while first > 0 && EntryKey(this._lines[lines[first - 1]]) ==# key
-          first -= 1
+        var previous = this._NextEntry(first - 1, start, -1)
+        while previous >= start && EntryKey(this._lines[previous]) ==# key
+          first = previous
+          previous = this._NextEntry(first - 1, start, -1)
         endwhile
-        while last + 1 < len(lines) && EntryKey(this._lines[lines[last + 1]]) ==# key
-          last += 1
+        var following = this._NextEntry(last + 1, end, 1)
+        while following <= end && EntryKey(this._lines[following]) ==# key
+          last = following
+          following = this._NextEntry(last + 1, end, 1)
         endwhile
-        return this._ParseMatches(lines, key, first, last)
+        return this._ParseMatches(key, first, last)
       elseif (descending && comparison > 0) || (!descending && comparison < 0)
         low = middle + 1
       else
-        high = middle - 1
+        # Rows between midpoint and middle have no key.
+        high = midpoint - 1
       endif
     endwhile
     return []
@@ -163,17 +253,17 @@ export class Builder
   const _lines: list<string>
   const _encoding: string
   var _position: number = 0
+  const _sections: SectionSearch
   var _phase: string = 'scan'
   var _okuri_header: number = -1
   var _plain_header: number = -1
-  var _okuri_lines: list<number> = []
-  var _plain_lines: list<number> = []
   var _fallback: dict<dictionary.Entry> = {}
   var _result: SourceData = null_object
 
   def new(lines: list<string>, encoding: string = 'utf-8')
     this._lines = lines
     this._encoding = encoding
+    this._sections = SectionSearch.new(lines)
   enddef
 
   def IsDone(): bool
@@ -189,7 +279,7 @@ export class Builder
 
   def _FinishScan()
     if this._okuri_header >= 0 && this._plain_header > this._okuri_header
-      this._phase = 'sections'
+      this._Finish()
     else
       this._position = 0
       this._phase = 'fallback'
@@ -212,8 +302,8 @@ export class Builder
   enddef
 
   def _Finish()
-    const sectioned = this._phase ==# 'sections'
-    this._result = SourceData.new(this._lines, this._okuri_lines, this._plain_lines,
+    const sectioned = this._okuri_header >= 0 && this._plain_header > this._okuri_header
+    this._result = SourceData.new(this._lines, this._okuri_header + 1, this._plain_header + 1,
       sectioned, this._fallback, true, this._encoding)
     this._phase = 'done'
   enddef
@@ -225,40 +315,17 @@ export class Builder
     if this.IsDone()
       return true
     endif
+    if this._phase ==# 'scan'
+      if this._sections.Step(max_lines)
+        this._okuri_header = this._sections.okuri_header
+        this._plain_header = this._sections.plain_header
+        this._FinishScan()
+      endif
+      return this.IsDone()
+    endif
     var processed = 0
     while processed < max_lines
-      if this._phase ==# 'scan'
-        if this._position >= len(this._lines)
-          this._FinishScan()
-          if this._phase ==# 'sections'
-            this._position = 0
-          endif
-          continue
-        endif
-        const line = this._lines[this._position]
-        if line =~# '^;; okuri-ari entries\.'
-          this._okuri_header = this._position
-        elseif line =~# '^;; okuri-nasi entries\.'
-          this._plain_header = this._position
-        endif
-        this._position += 1
-      elseif this._phase ==# 'sections'
-        if this._position >= len(this._lines)
-          this._Finish()
-          break
-        endif
-        const position = this._position
-        if position > this._okuri_header && position < this._plain_header
-          if EntryKey(this._lines[position]) !=# ''
-            this._okuri_lines->add(position)
-          endif
-        elseif position > this._plain_header
-          if EntryKey(this._lines[position]) !=# ''
-            this._plain_lines->add(position)
-          endif
-        endif
-        this._position += 1
-      elseif this._phase ==# 'fallback'
+      if this._phase ==# 'fallback'
         if this._position >= len(this._lines)
           this._Finish()
           break
