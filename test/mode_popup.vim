@@ -129,6 +129,16 @@ suite.mode_popup_returns_after_native_cursor_motion = (): void => {
   assert.equals(captures, [[['あ']]])
 }
 
+suite.mode_popup_returns_after_action_mapped_native_keys = (): void => {
+  Setup({mode_popup_time: 0, mappings: {
+    "\<Up>": 'PreviousCandidate', "\<Down>": 'Convert',
+    "\<BS>": 'DeleteUserEntry', "\<CR>": 'Commit'}})
+  defer Cleanup()
+  setline(1, ['前後', '別行'])
+  feedkeys("a\<Up>\<F12>\<Down>\<F12>\<BS>\<F12>\<CR>\<F12>\<Esc>", 'xt')
+  assert.equals(captures, [[['あ']], [['あ']], [['あ']], [['あ']]])
+}
+
 suite.abbreviation_commit_updates_the_popup_to_the_restored_mode = (): void => {
   const dictionary = tempname()
   defer delete(dictionary)

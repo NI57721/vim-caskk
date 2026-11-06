@@ -801,7 +801,8 @@ export class Binding
     execute 'silent! iunmap <buffer> ' .. this._keys[key]
     this._saved[key].Restore()
     feedkeys(keycode.Encode(key) .. "\<Cmd>call caskk#binding#ReinstallActionMapping("
-      .. this._buffer .. ', ' .. string(key) .. ")\<CR>", 'im')
+      .. this._buffer .. ', ' .. string(key) .. ")\<CR>\<Cmd>call caskk#binding#ResumeAfterNativeInput("
+      .. this._buffer .. ")\<CR>", 'im')
   enddef
 
   def ReinstallActionMapping(key: string)
