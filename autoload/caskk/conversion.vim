@@ -6,14 +6,22 @@ import autoload 'caskk/dictionary/numeric.vim' as numeric
 import autoload 'caskk/dictionary/index.vim' as dict_index
 import autoload 'caskk/user_state.vim' as user_state
 
+import autoload 'caskk/dictionary/adjective.vim' as adjective
+
 # Candidate text stays separate from the full okuri used for presentation.
 export class Candidates
   const query: dictionary.Query
   const okuri: string
+  const experimental_count: number
   const candidates: list<dictionary.Candidate>
 
-  def new(this.query, this.okuri, candidates: list<dictionary.Candidate>)
+  def new(this.query, this.okuri, candidates: list<dictionary.Candidate>, experimental_count: number = 0)
+    this.experimental_count = experimental_count
     this.candidates = copy(candidates)
+  enddef
+
+  def DisplayAt(index: number): string
+    return this.TextAt(index) .. (index < this.experimental_count ? "［adj］" : "")
   enddef
 
   def TextAt(index: number): string
@@ -75,15 +83,15 @@ export class Selection
 
   def CurrentText(): string
     this._CheckActive()
-    return this._prepared.TextAt(this._index)
+    return this._prepared.DisplayAt(this._index)
   enddef
 
   def GetInfo(): CandidateInfo
     this._CheckActive()
     const candidate = this._prepared.candidates[this._index]
     return CandidateInfo.new(this._index, len(this._prepared.candidates),
-      this._prepared.TextAt(this._index), candidate.annotations,
-      this._preferences.GetCandidateTier(this._prepared.query, candidate.text))
+      this._prepared.DisplayAt(this._index), candidate.annotations,
+      this.IsExperimental() ? "normal" : this._preferences.GetCandidateTier(this._prepared.query, candidate.text))
   enddef
 
   def CurrentCandidateText(): string
@@ -97,27 +105,37 @@ export class Selection
     const count = len(this._prepared.candidates)
     for index in range(0, count - 1)
       const candidate = this._prepared.candidates[index]
-      candidates->add(CandidateInfo.new(index, count, this._prepared.TextAt(index), candidate.annotations,
-        this._preferences.GetCandidateTier(this._prepared.query, candidate.text)))
+      candidates->add(CandidateInfo.new(index, count, this._prepared.DisplayAt(index), candidate.annotations,
+        index < this._prepared.experimental_count ? "normal" : this._preferences.GetCandidateTier(this._prepared.query, candidate.text)))
     endfor
     return CandidateListInfo.new(this._index, candidates)
   enddef
 
+  def IsExperimental(): bool
+    return this._index < this._prepared.experimental_count
+  enddef
+
   def TogglePin(): string
     this._CheckActive()
+    if this.IsExperimental()
+      return "normal"
+    endif
     const text = this._prepared.candidates[this._index].text
     return this._preferences.TogglePin(this._prepared.query, text)
   enddef
 
   def ToggleDemote(): string
     this._CheckActive()
+    if this.IsExperimental()
+      return "normal"
+    endif
     const text = this._prepared.candidates[this._index].text
     return this._preferences.ToggleDemote(this._prepared.query, text)
   enddef
 
   def Select(index: number): string
     this._CheckActive()
-    const text = this._prepared.TextAt(index)
+    const text = this._prepared.DisplayAt(index)
     this._index = index
     return text
   enddef
@@ -143,8 +161,11 @@ export class Selection
   enddef
 
   def Commit(): string
-    const text = this.CurrentText()
-    this._preferences.Learn(this._prepared.query, this._prepared.candidates[this._index].text)
+    this._CheckActive()
+    const text = this._prepared.TextAt(this._index)
+    if !this.IsExperimental()
+      this._preferences.Learn(this._prepared.query, this._prepared.candidates[this._index].text)
+    endif
     this._active = false
     return text
   enddef
@@ -168,5 +189,6 @@ export def Prepare(entries: dict<dictionary.Entry>, preferences: user_state.Stat
     system_candidates->add(dictionary.Candidate.new('#6', []))
   endif
   const ranked = preferences.Rank(query, system_candidates)
-  return Candidates.new(query, okuri, ranked)
+  const experimental = adjective.Lookup(entries, preferences, reading, okuri, database)
+  return Candidates.new(query, okuri, experimental + ranked, len(experimental))
 enddef

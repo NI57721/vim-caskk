@@ -418,7 +418,7 @@ export class Session
   enddef
 
   def CanDeleteUserEntry(): bool
-    return this.InCandidate() && this._preferences.HasEntryForLookup(
+    return this.InCandidate() && !this._selection.IsExperimental() && this._preferences.HasEntryForLookup(
       this._prepared.query, this._selection.CurrentCandidateText())
   enddef
 
