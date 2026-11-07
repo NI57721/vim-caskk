@@ -174,7 +174,7 @@ export class Editor
 
   def _PreviewCompletion()
     const info = this._session.GetCompletionInfo()
-    if info is null_object
+    if info is null_object || info.selected_index < 0
       return
     endif
     const selected = info.candidates[info.selected_index - info.candidates[0].index]
@@ -184,11 +184,15 @@ export class Editor
       false, false, reading)])
   enddef
 
-  def ApplyCompletion(search: completion.Search): bool
+  def ApplyCompletion(search: completion.Search, select: bool = true): bool
     this._CheckInput()
-    const shown = this._session.ApplyCompletion(search)
+    const shown = this._session.ApplyCompletion(search, select)
     if shown
-      this._PreviewCompletion()
+      if select
+        this._PreviewCompletion()
+      else
+        this._candidate_view.Render(this.GetDisplayCandidatesInfo())
+      endif
     endif
     return shown
   enddef

@@ -259,7 +259,7 @@ export class Session
 
   def Commit(): list<Result>
     this.CancelCompletionSearch()
-    if this.InCompletion()
+    if this.InCompletion() && this._completion_index >= 0
       const chosen = this._completions[this._completion_index]
       const text = this._Render(chosen.text)
       if chosen.learnable
@@ -274,6 +274,7 @@ export class Session
       this._RestoreAbbreviationMode()
       return [Result.new(text, [], this._state.GetSnapshot(), true, false, true)]
     endif
+    this.CancelCompletion()
     this._reading_after_cancel = false
     if this.InCandidate()
       const text = this._Render(this._selection.Commit())
@@ -325,13 +326,13 @@ export class Session
     return this._completion_request
   enddef
 
-  def ApplyCompletion(search: completion.Search): bool
+  def ApplyCompletion(search: completion.Search, select: bool = true): bool
     if search isnot this._completion_request || !search.IsCurrent()
       return false
     endif
     this.CancelCompletionSearch()
     this._completions = search.Result()
-    this._completion_index = 0
+    this._completion_index = select ? 0 : -1
     return this.InCompletion()
   enddef
 
@@ -340,7 +341,8 @@ export class Session
       throw 'caskk: no active completion'
     endif
     const count = len(this._completions)
-    this._completion_index = ((this._completion_index + delta) % count + count) % count
+    this._completion_index = this._completion_index < 0 ? (delta < 0 ? count - 1 : 0)
+      : ((this._completion_index + delta) % count + count) % count
   enddef
 
   def CancelCompletionSearch()

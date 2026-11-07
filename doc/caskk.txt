@@ -406,10 +406,13 @@ source readings.  It renders at most 20 candidates around the selected item;
 all matches remain selectable, and displayed positions use the full count.
 Headwords are ordered by reading; candidates within each known reading/okuri
 use the usual pin, MRU, and demotion preferences.
-Automatic display and focus movement preview the selected word in the buffer
-without learning it.  The original reading is retained for further editing.  ShowCompletion, NextCandidate, or an otherwise
+Automatic display leaves every candidate unselected and preserves the reading
+in the buffer.  ShowCompletion selects the first candidate; subsequent presses
+move to the next candidate.  Focus movement previews the selected word without
+learning it.  The original reading is retained for further editing.  ShowCompletion, NextCandidate, or an otherwise
 unmapped Down moves focus forward; PreviousCandidate or an otherwise unmapped
 Up moves backward.  Moving past an end wraps within the completion list.
+With no selection, Enter and Commit retain their usual reading behavior.
 Enter (except in abbreviation input) or Commit accepts the focused word
 directly, closes preedit, and shares normal learning using the completed word's
 reading.  A second conversion step is not required.  Undo
@@ -844,7 +847,8 @@ in |caskk-commandline|.
 ShowCompletion                                  *caskk-action-show-completion*
 Opens reading completion during Insert preedit.  The list also opens
 automatically once the reading meets completion_min_length.  With a completion
-list open, moves focus to the next item and previews it in the buffer.
+list open but unselected, selects the first item.  Otherwise moves focus to the
+next item.  Selection previews the word in the buffer.
 See |caskk-completion|.
 
 CancelCompletion                              *caskk-action-cancel-completion*

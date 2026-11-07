@@ -52,6 +52,7 @@ export class Binding
   const _delete_mappings = mapping_state.State.new()
   const _reconversion_mappings = mapping_state.State.new()
   var _completion_timer: number = -1
+  var _completion_select: bool = false
   var _completion_search: completion.Search = null_object
   var _completion_editor: insert.Editor = null_object
   var _editor: insert.Editor = null_object
@@ -720,12 +721,13 @@ export class Binding
     this._completion_editor = null_object
   enddef
 
-  def _StartCompletionSearch()
+  def _StartCompletionSearch(select: bool = false)
     this._StopCompletionSearch()
     const search = this._editor.CreateCompletionSearch(configuration.GetInput().completion_min_length)
     if search is null_object
       return
     endif
+    this._completion_select = select
     this._completion_search = search
     this._completion_editor = this._editor
     this._completion_timer = timer_start(1, this._AdvanceCompletion, {repeat: -1})
@@ -742,7 +744,7 @@ export class Binding
     endif
     try
       if this._completion_search.Step(64)
-        const shown = this._editor.ApplyCompletion(this._completion_search)
+        const shown = this._editor.ApplyCompletion(this._completion_search, this._completion_select)
         this._StopCompletionSearch()
         if shown
           this._SyncInputMode()
@@ -918,6 +920,10 @@ export class Binding
       this._Record(this._editor.Commit())
       return
     endif
+    if key ==# '<CR>' && this._editor isnot null_object && this._editor.IsInCompletion()
+        && this._editor.GetDisplayCandidatesInfo().selected_index < 0
+      this._editor.CancelCompletion()
+    endif
     if this._editor isnot null_object && this._editor.IsInCompletion()
       const completion_action = get(this._actions, key, '')
       if key ==# '<CR>' || completion_action ==# 'Commit'
@@ -988,7 +994,7 @@ export class Binding
     if action !=# '' && !this._CanRunAction(action)
       this._FallbackActionKey(key)
     elseif action ==# 'ShowCompletion'
-      this._StartCompletionSearch()
+      this._StartCompletionSearch(true)
       this._SyncInputMode()
     elseif action ==# 'Convert'
       if this._editor.IsInCandidate()

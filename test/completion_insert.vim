@@ -72,14 +72,41 @@ def Cleanup()
   delete(dictionary_path)
 enddef
 
+suite.automatic_menu_is_unselected_until_show_completion = (): void => {
+  Setup()
+  defer Cleanup()
+  feedkeys("aKana\<F12>\<Tab>\<F12>\<Tab>\<F12>\<CR>\<Esc>", 'xt')
+  assert.equals(captures, ['前かな後', '前仮名後', '前彼方後'])
+  assert.equals(selected_rows, [0, 1, 2])
+  assert.equals(getline(1), '前彼方後')
+}
+
+suite.enter_with_unselected_menu_commits_reading_without_learning = (): void => {
+  Setup()
+  defer Cleanup()
+  feedkeys("aKana\<F12>\<CR>\<Esc>", 'xt')
+  assert.equals(getline(1), '前かな')
+  assert.equals(getline(2), '後')
+  assert.equals(user_runtime.Get().GetSnapshot().mru, {})
+}
+
+suite.commit_with_unselected_menu_keeps_reading_without_learning = (): void => {
+  Setup({mappings: {"\<F10>": 'Commit'}})
+  defer Cleanup()
+  feedkeys("aKana\<F12>\<F10>\<Esc>", 'xt')
+  assert.equals(getline(1), '前かな後')
+  assert.equals(line('$'), 1)
+  assert.equals(user_runtime.Get().GetSnapshot().mru, {})
+}
+
 suite.menu_previews_selection_and_enter_commits_the_selected_word = (): void => {
   Setup()
   defer Cleanup()
   feedkeys("aKana\<F12>\<Tab>\<F12>\<CR>\<F12>\<Esc>", 'xt')
-  assert.equals(captures, ['前仮名後', '前彼方後', '前彼方後'])
-  assert.equals(selected_rows, [1, 2, 0])
+  assert.equals(captures, ['前かな後', '前仮名後', '前仮名後'])
+  assert.equals(selected_rows, [0, 1, 0])
   assert.equals(index(popup_lines[0], '1/3 仮名 — 文字 / 読み: かな') >= 0, true)
-  assert.equals(index(popup_lines[1], '2/3 彼方 — 読み: かなた') >= 0, true)
+  assert.equals(index(popup_lines[1], '1/3 仮名 — 文字 / 読み: かな') >= 0, true)
   assert.equals(len(popup_lines[2]), 1)
   assert.equals(popup_list(), [])
   normal! u
@@ -101,7 +128,7 @@ suite.arrow_navigation_accepts_directly_without_inserting_a_newline = (): void =
   Setup()
   defer Cleanup()
   feedkeys("aKana" .. WAIT .. "\<Down>\<Down>\<Up>\<CR>\<Esc>", 'xt')
-  assert.equals(getline(1), '前彼方後')
+  assert.equals(getline(1), '前仮名後')
 }
 
 suite.no_match_short_reading_and_unfinished_keys_do_not_start_conversion = (): void => {
@@ -117,7 +144,7 @@ suite.no_match_short_reading_and_unfinished_keys_do_not_start_conversion = (): v
 suite.accepted_completion_is_one_commit_with_undo_reading_disabled = (): void => {
   Setup({undo_revert_to_reading: false})
   defer Cleanup()
-  feedkeys("aKana" .. WAIT .. "\<CR>\<Esc>", 'xt')
+  feedkeys("aKana" .. WAIT .. "\<Tab>\<CR>\<Esc>", 'xt')
   assert.equals(getline(1), '前仮名後')
   normal! u
   assert.equals(getline(1), '前後')
@@ -170,12 +197,12 @@ suite.completion_is_visible_in_a_real_terminal = (): void => {
     endfor
     term_sendkeys(terminal, "iKana")
     term_wait(terminal, 100)
-    assert.equals(trim(term_getline(terminal, 1)), '仮名')
+    assert.equals(trim(term_getline(terminal, 1)), 'かな')
     const screen = join(mapnew(range(2, 11), (_, row) => term_getline(terminal, row)), "\n")
     assert.equals(stridx(screen, '1/3 仮名') >= 0, true)
     term_sendkeys(terminal, "\<Tab>\<CR>")
     term_wait(terminal, 100)
-    assert.equals(trim(term_getline(terminal, 1)), '彼方')
+    assert.equals(trim(term_getline(terminal, 1)), '仮名')
   finally
     job_stop(term_getjob(terminal), 'kill')
     execute 'silent! bwipeout! ' .. terminal
@@ -185,8 +212,8 @@ suite.completion_is_visible_in_a_real_terminal = (): void => {
 suite.automatic_completion_requires_no_show_completion_mapping = (): void => {
   Setup({mappings: {"\<Space>": 'Convert'}})
   defer Cleanup()
-  feedkeys("aKa\<F12>na\<F12>\<CR>\<Esc>", 'xt')
-  assert.equals(captures, ['前か後', '前仮名後'])
+  feedkeys("aKa\<F12>na\<F12>\<Down>\<CR>\<Esc>", 'xt')
+  assert.equals(captures, ['前か後', '前かな後'])
   assert.equals(len(popup_lines[0]), 1)
   assert.equals(index(popup_lines[1], '1/3 仮名 — 文字 / 読み: かな') >= 0, true)
   assert.equals(getline(1), '前仮名後')
@@ -198,7 +225,7 @@ suite.automatic_completion_refreshes_after_typing_and_hides_for_pending_input = 
   Setup({sticky_key: ';'})
   defer Cleanup()
   feedkeys("aKana\<F12>t\<F12>a\<F12>;\<F12>\<Esc>", 'xt')
-  assert.equals(captures, ['前仮名後', '前かなt後', '前彼方後', '前かなた後'])
+  assert.equals(captures, ['前かな後', '前かなt後', '前かなた後', '前かなた後'])
   assert.equals(index(popup_lines[0], '1/3 仮名 — 文字 / 読み: かな') >= 0, true)
   assert.equals(len(popup_lines[1]), 1)
   assert.equals(index(popup_lines[2], '1/1 彼方 — 読み: かなた') >= 0, true)
@@ -210,7 +237,7 @@ suite.automatic_completion_uses_the_configured_minimum_and_returns_after_editing
   Setup({completion_min_length: 3, mappings: {c: 'CancelCompletion', "\<Space>": 'Convert'}})
   defer Cleanup()
   feedkeys("aKana\<F12>ta\<F12>c\<BS>\<F12>ta\<F12>\<Esc>", 'xt')
-  assert.equals(captures, ['前かな後', '前彼方後', '前かな後', '前彼方後'])
+  assert.equals(captures, ['前かな後', '前かなた後', '前かな後', '前かなた後'])
   assert.equals(len(popup_lines[0]), 1)
   assert.equals(index(popup_lines[1], '1/1 彼方 — 読み: かなた') >= 0, true)
   assert.equals(len(popup_lines[2]), 1)
@@ -231,7 +258,7 @@ suite.backspace_deletes_reading_and_refreshes_automatic_completion = (): void =>
   Setup()
   defer Cleanup()
   feedkeys("aKanata\<F12>\<BS>\<F12>\<BS>\<F12>\<Esc>", 'xt')
-  assert.equals(captures, ['前彼方後', '前仮名後', '前か後'])
+  assert.equals(captures, ['前かなた後', '前かな後', '前か後'])
   assert.equals(index(popup_lines[0], '1/1 彼方 — 読み: かなた') >= 0, true)
   assert.equals(index(popup_lines[1], '1/3 仮名 — 文字 / 読み: かな') >= 0, true)
   assert.equals(len(popup_lines[2]), 1)
@@ -315,14 +342,14 @@ suite.broad_prefix_search_keeps_terminal_input_responsive_and_discards_old_resul
     for _ in range(100)
       term_wait(terminal, 10)
       state = json_decode(readfile(report)[0])
-      if state.text ==# '更新された候補' && stridx(string(state.popups), '更新された候補') >= 0
+      if state.text ==# 'おおか' && stridx(string(state.popups), '更新された候補') >= 0
         break
       endif
     endfor
-    assert.equals(state.text, '更新された候補')
+    assert.equals(state.text, 'おおか')
     assert.equals(stridx(string(state.popups), '更新された候補') >= 0, true)
     assert.equals(stridx(string(state.popups), '候補0') < 0, true)
-    term_sendkeys(terminal, "\<CR>")
+    term_sendkeys(terminal, "\<Down>\<CR>")
     term_wait(terminal, 100)
     state = json_decode(readfile(report)[0])
     assert.equals(state.text, '更新された候補')
@@ -338,7 +365,7 @@ suite.abbreviation_enter_keeps_literal_ascii_when_completions_are_visible = (): 
   defer Cleanup()
   feedkeys("aqapple\<F12>\<CR>\<F12>\<Esc>", 'xt')
   assert.equals(stridx(string(popup_lines[0]), '林檎') >= 0, true)
-  assert.equals(captures, ['前林檎後', '前apple後'])
+  assert.equals(captures, ['前apple後', '前apple後'])
   assert.equals(line('$'), 1)
   assert.equals(user_runtime.Get().GetSnapshot().mru, {})
 }
@@ -359,7 +386,7 @@ suite.abbreviation_explicit_conversion_and_commit_still_accept_candidates = (): 
   assert.equals(captures[0], '前林檎後')
   setline(1, '前後')
   cursor(1, 1)
-  feedkeys("aqapple" .. WAIT .. "\<F10>\<F12>\<Esc>", 'xt')
+  feedkeys("aqapple" .. WAIT .. "\<Down>\<F10>\<F12>\<Esc>", 'xt')
   assert.equals(captures[1], '前林檎後')
   assert.equals(user_runtime.Get().GetSnapshot().mru[json_encode(['apple', ''])], ['林檎'])
 }
@@ -368,7 +395,7 @@ suite.preview_cancellation_and_typing_restore_the_original_reading = (): void =>
   Setup()
   defer Cleanup()
   feedkeys("aKana\<F12>\<Tab>\<F12>\<F5>\<F12>ki\<F12>\<Esc>", 'xt')
-  assert.equals(captures, ['前仮名後', '前彼方後', '前かな後', '前かなき後'])
+  assert.equals(captures, ['前かな後', '前仮名後', '前かな後', '前かなき後'])
   assert.equals(user_runtime.Get().GetSnapshot().mru, {})
   normal! u
   assert.equals(getline(1), '前後')
@@ -390,7 +417,7 @@ suite.multiline_preview_cancellation_restores_surrounding_buffer_text = (): void
   const query = dictionary_lookup.CreateQuery('かな', '')
   user_runtime.Get().AddEntry(query, dictionary_types.Candidate.new("複\n数行", []))
   user_runtime.Get().Pin(query, "複\n数行")
-  feedkeys("aKana\<F12>\<F5>\<F12>\<Esc>", 'xt')
+  feedkeys("aKana" .. WAIT .. "\<Tab>\<F12>\<F5>\<F12>\<Esc>", 'xt')
   assert.equals(buffer_captures, [['前複', '数行後'], ['前かな後']])
   assert.equals(user_runtime.Get().GetSnapshot().mru, {})
 }
