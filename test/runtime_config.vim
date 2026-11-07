@@ -687,3 +687,21 @@ suite.keyboard_layout_override_replaces_one_shifted_symbol_through_public_config
   feedkeys("ak?\<Esc>", 'xt')
   assert.equals(getline(1), '前蹴って後')
 }
+
+suite.numeric_conversion_offers_roman_numerals_with_the_standard_dictionary_templates = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const snapshot = user_runtime.Get().GetSnapshot()
+  defer RestoreRuntimeState(snapshot)
+  user_runtime.Get().Restore(user_state.State.new().GetSnapshot())
+  const path = tempname()
+  defer delete(path)
+  const source = ['# /#1/#3/#2/＃;number/#0/#8/#4/#5/']
+  writefile(source, path)
+  Caskk.Config({dictionaries: [path], registration_auto: false, mode_popup: false,
+    mappings: {q: 'AbbreviationMode', "\<Space>": 'Convert', "\<CR>": 'Commit'}})
+  Caskk.Enable('configured')
+  feedkeys('aq12' .. repeat("\<Space>", 9) .. "\<CR>\<Esc>", 'xt')
+  assert.equals(getline(1), '前XII後')
+  assert.equals(readfile(path), source)
+}

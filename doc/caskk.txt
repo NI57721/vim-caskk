@@ -953,9 +953,16 @@ candidate placeholders are:
     #8  comma-grouped digits, e.g. 1,234,567
 
 For example, a dictionary entry '# /#3/#5/#6/' converts abbreviation input
-'2026' into '二千二十六', '弐阡弐拾六', and 'MMXXVI'.  Roman numerals use
-standard subtractive notation through 3999 and combining overlines for larger
-values (for example, 4000 is 'I̅V̅').  This handles digit runs without converting
+'2026' into '二千二十六', '弐阡弐拾六', and 'MMXXVI'.  For an ASCII-digit-only
+reading without okuri, Caskk supplies a Roman-numeral candidate even when the
+dictionary has no '#6' entry.  It follows dictionary candidates before user
+ranking; an existing '#6' keeps its dictionary position and annotations.
+For example, in abbreviation mode, type '12', invoke Convert, and navigate to
+'XII'.  Enter alone keeps '12' as described in |caskk-abbreviation-mode|.
+
+Roman numerals use standard subtractive notation through 3999 and combining
+overlines for larger values (for example, 4000 is 'I̅V̅').  Zero is represented
+by 'N'; leading zeroes are ignored.  This handles digit runs without converting
 the entire value to Vim's fixed-width integer type.
 When positional kanji exceeds the available large-number units, it falls back
 to digit-by-digit kanji.  Numeric relookup (#4) and shogi notation (#9) are not

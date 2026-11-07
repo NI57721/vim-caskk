@@ -99,3 +99,31 @@ suite.missing_candidates_and_out_of_range_indices_do_not_select_a_candidate = ()
     endfor
   endfor
 }
+
+suite.numeric_readings_offer_roman_numerals_without_a_dictionary_template = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('# /#1/#3/#2/＃;number/#0/#8/#4/#5/')]])
+  for [reading, roman, fullwidth] in [['0', 'N', '０'], ['1', 'I', '１'],
+      ['4', 'IV', '４'], ['007', 'VII', '００７'], ['12', 'XII', '１２'], ['2026', 'MMXXVI', '２０２６']]
+    const prepared = conversion.Prepare(entries, user_state.State.new(), reading)
+    const texts = mapnew(range(len(prepared.candidates)), (_, i) => prepared.TextAt(i))
+    assert.equals(texts[-1], roman)
+    assert.equals(prepared.candidates[-1].text, '#6')
+    assert.equals(prepared.TextAt(0), fullwidth)
+  endfor
+  assert.equals(mapnew(entries['#'].candidates, (_, c) => c.text),
+    ['#1', '#3', '#2', '＃', '#0', '#8', '#4', '#5'])
+}
+
+suite.roman_numeric_candidate_is_unique_and_respects_user_ranking = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('# /#0/#6;ローマ数字/')]])
+  const preferences = user_state.State.new()
+  const explicit = conversion.Prepare(entries, preferences, '12')
+  assert.equals(mapnew(explicit.candidates, (_, c) => c.text), ['#0', '#6'])
+  assert.equals(explicit.candidates[1].annotations, ['ローマ数字'])
+  const ordinary = merger.Merge([[parser.ParseLine('# /#0/')]])
+  preferences.Pin(lookup.CreateQuery('12', ''), '#6')
+  assert.equals(conversion.Prepare(ordinary, preferences, '12').TextAt(0), 'XII')
+  assert.equals(conversion.Prepare({}, user_state.State.new(), '12').TextAt(0), 'XII')
+  assert.equals(conversion.Prepare({}, user_state.State.new(), '12じ').candidates, [])
+  assert.equals(conversion.Prepare({}, user_state.State.new(), '12', 'こ').candidates, [])
+}

@@ -161,7 +161,12 @@ export def Prepare(entries: dict<dictionary.Entry>, preferences: user_state.Stat
     okuri: string = '', small_tsu_okuri_as_t: bool = true,
     database: dict_index.Database = null_object): Candidates
   const query = lookup.CreateQuery(reading, okuri, small_tsu_okuri_as_t)
-  const system_candidates = lookup.Lookup(entries, query, database)
+  final system_candidates = copy(lookup.Lookup(entries, query, database))
+  # Standard dictionaries may omit #6 even when other numeric styles exist.
+  if okuri == '' && reading =~# '^[0-9]\+$'
+      && index(mapnew(system_candidates, (_, candidate) => candidate.text), '#6') < 0
+    system_candidates->add(dictionary.Candidate.new('#6', []))
+  endif
   const ranked = preferences.Rank(query, system_candidates)
   return Candidates.new(query, okuri, ranked)
 enddef
