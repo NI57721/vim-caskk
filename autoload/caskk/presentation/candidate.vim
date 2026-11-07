@@ -10,9 +10,8 @@ export def Format(info: conversion.CandidateListInfo): list<string>
   endif
   final lines: list<string> = []
   for candidate in info.candidates
-    const selected = candidate.index == info.selected_index ? '▶ ' : '  '
     const tier = candidate.tier ==# 'pinned' ? '★ ' : candidate.tier ==# 'demoted' ? '↓ ' : ''
-    var line = selected .. (candidate.index + 1) .. '/' .. candidate.count .. ' ' .. tier .. candidate.text
+    var line = (candidate.index + 1) .. '/' .. candidate.count .. ' ' .. tier .. candidate.text
     if !empty(candidate.annotations)
       const annotation = substitute(join(candidate.annotations, ' / '), "\n", ' ', 'g')
       line ..= ' — ' .. annotation
@@ -20,6 +19,20 @@ export def Format(info: conversion.CandidateListInfo): list<string>
     lines->add(line)
   endfor
   return lines
+enddef
+
+# Highlight the selected buffer line without moving either window's cursor.
+export def HighlightSelection(window: number, line: number)
+  const buffer = winbufnr(window)
+  const type = 'caskk_candidate_selected'
+  if empty(prop_type_get(type, {bufnr: buffer}))
+    prop_type_add(type, {bufnr: buffer, highlight: 'PmenuSel', combine: false})
+  else
+    prop_remove({bufnr: buffer, type: type, all: true}, 1, len(getbufline(buffer, 1, '$')))
+  endif
+  if line > 0
+    prop_add(line, 1, {bufnr: buffer, type: type, length: strlen(getbufline(buffer, line)[0])})
+  endif
 enddef
 
 # A read-only information popup. Input and selection stay in the source window.
@@ -71,6 +84,7 @@ export class View
         # Candidate replacement may move the buffer cursor; track its new position.
         popup_setoptions(this._window, {moved: 'any'})
       endif
+      HighlightSelection(this._window, info.selected_index - info.candidates[0].index + 1)
       return
     endif
     final position: dict<any> = {
@@ -88,5 +102,6 @@ export class View
       remove(position, 'moved')
     endif
     this._window = popup_create(lines, position)
+    HighlightSelection(this._window, info.selected_index - info.candidates[0].index + 1)
   enddef
 endclass

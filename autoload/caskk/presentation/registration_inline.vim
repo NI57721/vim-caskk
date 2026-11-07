@@ -19,6 +19,7 @@ export class View
     const header = request is null_object ? '辞書登録'
       : '辞書登録: ' .. request.reading .. (request.okuri == '' ? '' : '*' .. request.okuri)
     final lines = [header .. '  [Enter:登録 Esc:取消]']
+    var selected_line = 0
     const prefix = editor.Prefix()
     const insertion = editor.Insertion()
     lines->add('登録語: ' .. prefix .. insertion .. '│' .. editor.Suffix())
@@ -29,12 +30,14 @@ export class View
       const candidates = candidate_view.Format(info)
       const visible = 6
       if len(candidates) <= visible
+        selected_line = len(lines) + info.selected_index + 1
         lines->extend(candidates)
       else
         const start = max([0, min([info.selected_index - 2, len(candidates) - visible])])
         if start > 0
           lines->add('…')
         endif
+        selected_line = len(lines) + info.selected_index - start + 1
         lines->extend(candidates[start : start + visible - 1])
         if start + visible < len(candidates)
           lines->add('…')
@@ -43,10 +46,10 @@ export class View
     endif
     const highlight_start = editor.Highlighted() && insertion !=# ''
       ? strlen('登録語: ' .. prefix) + 1 : 0
-    this.Show(lines, highlight_start, strlen(insertion))
+    this.Show(lines, highlight_start, strlen(insertion), selected_line)
   enddef
 
-  def Show(lines: list<string>, highlight_start: number = 0, highlight_length: number = 0)
+  def Show(lines: list<string>, highlight_start: number = 0, highlight_length: number = 0, selected_line: number = 0)
     if this._window != 0 && !empty(popup_getpos(this._window))
       # Keep later text growth and candidate-list changes at the initial screen
       # coordinates instead of resolving the cursor-relative anchor again.
@@ -64,6 +67,7 @@ export class View
       this._line = position.line
       this._col = position.col
     endif
+    candidate_view.HighlightSelection(this._window, selected_line)
     const buffer = winbufnr(this._window)
     if !empty(prop_type_get(PROPERTY_TYPE, {bufnr: buffer}))
       prop_remove({bufnr: buffer, type: PROPERTY_TYPE, all: true}, 1, len(getbufline(buffer, 1, '$')))

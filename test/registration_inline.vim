@@ -21,12 +21,14 @@ var visible_mode_labels: list<string> = []
 var mode_screen_line: number = 0
 var mode_screen_col: number = 0
 var registration_position: dict<number> = {}
+var selected_candidate_rows: list<number> = []
 var captured_enabled: bool = true
 var dictionary_directory: string = ''
 
 def g:CaskkTestInlineCapture()
   const windows = popup_list()
   popup_lines = []
+  selected_candidate_rows = []
   registration_highlights = []
   visible_mode_labels = []
   popup_screen_line = 0
@@ -42,6 +44,11 @@ def g:CaskkTestInlineCapture()
       popup_screen_line = position.line
       popup_buffer = winbufnr(window)
       popup_options = popup_getoptions(window)
+      for row in range(1, len(lines))
+        if !empty(prop_list(row, {bufnr: popup_buffer, types: ['caskk_candidate_selected']}))
+          selected_candidate_rows->add(row)
+        endif
+      endfor
       if !empty(prop_type_get('caskk_preedit', {bufnr: popup_buffer}))
         registration_highlights = prop_list(2, {bufnr: popup_buffer, types: ['caskk_preedit']})
       endif
@@ -240,7 +247,8 @@ suite.inline_candidate_selection_keeps_the_registration_draft_visible = (): void
   defer Cleanup(context)
   feedkeys("aKasnn\<F6>sn\<Cmd>call CaskkTestInlineCapture()\<CR>\<CR>\<Esc>", 'xt')
   assert.equals(popup_lines, ['辞書登録: か  [Enter:登録 Esc:取消]', '登録語: 科│',
-    '  1/2 蚊', '▶ 2/2 科'])
+    '1/2 蚊', '2/2 科'])
+  assert.equals(selected_candidate_rows, [4])
   assert.equals(index(visible_mode_labels, '▼あ') >= 0, true)
   assert.equals(getline(1), '前科後')
   assert.equals(popup_list() == [], true)
@@ -259,7 +267,7 @@ suite.registration_popup_keeps_its_screen_position_when_candidate_list_expands =
   const initial = popup_getpos(popup)
   var candidates = ['辞書登録: く', '登録語: か│']
   for index in range(1, 35)
-    candidates->add((index == 1 ? '▶ ' : '  ') .. index .. '/35 候補' .. index)
+    candidates->add(index .. '/35 候補' .. index)
   endfor
   inline_popup.Show(candidates)
   const updated = popup_getpos(popup)
@@ -286,7 +294,7 @@ suite.inline_registration_converts_a_reading_with_okuri = (): void => {
   feedkeys("aKasnn\<F6>KaKu\<Cmd>call CaskkTestInlineCapture()\<CR>\<Esc>\<Esc>", 'xt')
   assert.equals(popup_lines[0 : 1], ['辞書登録: か  [Enter:登録 Esc:取消]', '登録語: 行く│'])
   assert.equals(len(popup_lines) > 2, true)
-  assert.equals(popup_lines[2], '▶ 1/1 行く')
+  assert.equals(popup_lines[2], '1/1 行く')
 }
 
 suite.disabling_caskk_keeps_inline_registration_open_for_direct_text_entry = (): void => {

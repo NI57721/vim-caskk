@@ -323,7 +323,7 @@ suite.popup_candidate_marker_and_mode_follow_the_session = (): void => {
   cnoremap <F6> <ScriptCmd>CapturePopup()<CR>
   try
     feedkeys(":\<F2>Ka \<F6>\<C-C>", 'xt')
-    assert.equals(popup_text, ['▼あ', '▶ 1/2 蚊', '  2/2 家'])
+    assert.equals(popup_text, ['▼あ', '1/2 蚊', '2/2 家'])
     feedkeys(":\<F2>\<F4>ka\<F6>\<C-C>", 'xt')
     assert.equals(popup_text, ['ア'])
   finally
@@ -386,7 +386,7 @@ suite.typed_text_remains_visible_on_the_terminal = (): void => {
     term_wait(terminal, 100)
     assert.equals(trim(term_getline(terminal, 12)), ':蚊')
     const screen = join(mapnew(range(1, 11), (_, row) => term_getline(terminal, row)), "\n")
-    assert.equals(stridx(screen, '▶ 1/2 蚊') >= 0, true)
+    assert.equals(stridx(screen, '1/2 蚊') >= 0, true)
     assert.equals(stridx(screen, '2/2 家') >= 0, true)
     for kind in ['/', '?']
       term_sendkeys(terminal, "\<C-C>" .. kind .. "\<F2>ka")
@@ -419,10 +419,10 @@ suite.candidate_list_is_visible_and_follows_selection = (): void => {
   cnoremap <F6> <ScriptCmd>CapturePopup()<CR>
   try
     feedkeys(":\<F2>Ka \<F6>\<C-C>", 'xt')
-    assert.equals(index(popup_text, '▶ 1/2 蚊') >= 0, true)
-    assert.equals(index(popup_text, '  2/2 家') >= 0, true)
+    assert.equals(index(popup_text, '1/2 蚊') >= 0, true)
+    assert.equals(index(popup_text, '2/2 家') >= 0, true)
     feedkeys(":\<F2>Ka  \<F6>\<C-C>", 'xt')
-    assert.equals(index(popup_text, '▶ 2/2 家') >= 0, true)
+    assert.equals(index(popup_text, '2/2 家') >= 0, true)
     assert.equals(popup_list(), [])
     Caskk.Config({candidate_popup: false, dictionaries: [path], mappings: {"\<Space>": 'Convert'}})
     feedkeys(":\<F2>Ka \<F6>\<C-C>", 'xt')

@@ -406,8 +406,8 @@ source readings.  It renders at most 20 candidates around the selected item;
 all matches remain selectable, and displayed positions use the full count.
 Headwords are ordered by reading; candidates within each known reading/okuri
 use the usual pin, MRU, and demotion preferences.
-Automatic display and focus movement keep the original reading in the buffer
-and do not learn a candidate.  ShowCompletion, NextCandidate, or an otherwise
+Automatic display and focus movement preview the selected word in the buffer
+without learning it.  The original reading is retained for further editing.  ShowCompletion, NextCandidate, or an otherwise
 unmapped Down moves focus forward; PreviousCandidate or an otherwise unmapped
 Up moves backward.  Moving past an end wraps within the completion list.
 Enter (except in abbreviation input) or Commit accepts the focused word
@@ -415,7 +415,7 @@ directly, closes preedit, and shares normal learning using the completed word's
 reading.  A second conversion step is not required.  Undo
 follows undo_revert_to_reading, as for other committed conversions.
 
-CancelCompletion closes the list while keeping the reading and does not
+CancelCompletion closes the list and restores the original reading and does not
 immediately reopen it.  Backspace deletes a reading character and refreshes
 the matching completions; it does not accept the focused word.  Ordinary input
 continues editing and refreshes the list, hiding it during unfinished input or
@@ -844,7 +844,7 @@ in |caskk-commandline|.
 ShowCompletion                                  *caskk-action-show-completion*
 Opens reading completion during Insert preedit.  The list also opens
 automatically once the reading meets completion_min_length.  With a completion
-list open, moves focus to the next item without changing buffer text.
+list open, moves focus to the next item and previews it in the buffer.
 See |caskk-completion|.
 
 CancelCompletion                              *caskk-action-cancel-completion*
@@ -1018,8 +1018,9 @@ candidate_popup                                  *caskk-config-candidate-popup*
 
 candidate_popup is a boolean that controls the candidate list popup.  It
 defaults to true.  The popup lists all ranked candidates with their position,
-display text, and annotations without taking focus.  '▶' marks the current
-selection, '★' marks a pinned candidate, and '↓' marks a demoted candidate.
+display text, and annotations without taking focus.  PmenuSel highlights the
+selected row in conversion and completion lists, including inline registration.
+'★' marks a pinned candidate, and '↓' marks a demoted candidate.
 Existing candidate-navigation mappings move the selection through the list.
 The popup keeps its initial screen position and size while candidates are
 selected, scrolling its contents to show the current candidate.

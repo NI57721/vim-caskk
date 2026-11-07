@@ -112,6 +112,9 @@ export class Editor
 
   def Feed(key: string): list<session.Result>
     this._CheckInput()
+    if this.IsInCompletion()
+      this.CancelCompletion()
+    endif
     const results = this._session.Feed(key)
     const applied = this._Apply(results)
     if !empty(results)
@@ -169,26 +172,50 @@ export class Editor
     return line('.') == position.line && col('.') == position.column
   enddef
 
+  def _PreviewCompletion()
+    const info = this._session.GetCompletionInfo()
+    if info is null_object
+      return
+    endif
+    const selected = info.candidates[info.selected_index - info.candidates[0].index]
+    const snapshot = this._session.GetSnapshot()
+    const reading = this._session.RenderText(snapshot.reading .. snapshot.okuri)
+    this._Apply([session.Result.new(selected.text, [], snapshot, false, true, true,
+      false, false, reading)])
+  enddef
+
   def ApplyCompletion(search: completion.Search): bool
     this._CheckInput()
     const shown = this._session.ApplyCompletion(search)
-    this._candidate_view.Render(this.GetDisplayCandidatesInfo())
+    if shown
+      this._PreviewCompletion()
+    endif
     return shown
   enddef
 
   def MoveCompletion(delta: number)
     this._CheckInput()
     this._session.MoveCompletion(delta)
-    this._candidate_view.Render(this.GetDisplayCandidatesInfo())
+    this._PreviewCompletion()
   enddef
 
   def CancelCompletion()
+    const preview = this.IsInCompletion()
     this._session.CancelCompletion()
+    if preview
+      const snapshot = this._session.GetSnapshot()
+      const reading = this._session.RenderText(snapshot.reading .. snapshot.okuri)
+      this._Apply([session.Result.new(reading, [], snapshot, false, false, true,
+        false, false, reading)])
+    endif
     this._candidate_view.Close()
   enddef
 
   def StartConversion(): list<session.Result>
     this._CheckInput()
+    if this.IsInCompletion()
+      this.CancelCompletion()
+    endif
     const results = this._Apply(this._session.StartConversion(this._entries, this._preferences))
     this._pending_visible = false
     return results
@@ -376,7 +403,7 @@ export class Editor
     endif
     this._CheckTarget()
     this._undo.Check()
-    this._session.CancelCompletion()
+    this.CancelCompletion()
     const results = this._Apply(this._session.Commit())
     this._view.Clear()
     this._undo.Close()
