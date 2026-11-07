@@ -7,9 +7,9 @@ import autoload 'caskk/dictionary/lookup.vim' as lookup
 final suite = themis#suite('system dictionary loader')
 const assert = themis#helper('assert')
 
-def CandidateTexts(entry: dictionary.Entry): list<string>
+def CandidateTexts(candidates: list<dictionary.Candidate>): list<string>
   final texts: list<string> = []
-  for candidate in entry.candidates
+  for candidate in candidates
     texts->add(candidate.text)
   endfor
   return texts
@@ -20,11 +20,11 @@ suite.utf8_file_preserves_keys_candidates_and_annotations = (): void => {
   defer delete(path)
   writefile([';; okuri-ari entries.', 'いk /行/往/', ';; okuri-nasi entries.',
     'かんじ /漢字;文字/感じ/', ''], path)
-  const entries = loader.Load([loader.Source.new(path)])
-  assert.equals(len(entries), 2)
-  assert.equals(CandidateTexts(entries['いk']), ['行', '往'])
-  assert.equals(CandidateTexts(entries['かんじ']), ['漢字', '感じ'])
-  assert.equals(entries['かんじ'].candidates[0].annotations, ['文字'])
+  const database = loader.Open([loader.Source.new(path)])
+  assert.equals(len(database.Prefix('い')) + len(database.Prefix('かんじ')), 2)
+  assert.equals(CandidateTexts(database.Lookup(lookup.CreateQuery('い', 'く'))), ['行', '往'])
+  assert.equals(CandidateTexts(database.Lookup(lookup.CreateQuery('かんじ', ''))), ['漢字', '感じ'])
+  assert.equals(database.Lookup(lookup.CreateQuery('かんじ', ''))[0].annotations, ['文字'])
 }
 
 suite.euc_jp_source_is_decoded_before_merging_with_utf8 = (): void => {
@@ -35,10 +35,10 @@ suite.euc_jp_source_is_decoded_before_merging_with_utf8 = (): void => {
   writefile(['かな /仮名;表記/'], utf8_path)
   # Fixed EUC-JP bytes for 'かな /仮名;注釈/' followed by LF.
   writefile(0zA4ABA4CA202FB2BECCBE3BC3EDBCE12F0A, euc_path)
-  const entries = loader.Load([loader.Source.new(utf8_path), loader.Source.new(euc_path, 'euc-jp')])
-  assert.equals(len(entries), 1)
-  assert.equals(CandidateTexts(entries['かな']), ['仮名'])
-  assert.equals(entries['かな'].candidates[0].annotations, ['表記', '注釈'])
+  const database = loader.Open([loader.Source.new(utf8_path), loader.Source.new(euc_path, 'euc-jp')])
+  assert.equals(len(database.Prefix('かな')), 1)
+  assert.equals(CandidateTexts(database.Lookup(lookup.CreateQuery('かな', ''))), ['仮名'])
+  assert.equals(database.Lookup(lookup.CreateQuery('かな', ''))[0].annotations, ['表記', '注釈'])
 }
 
 suite.euc_jp_dictionary_search_uses_the_encoded_key_sort_order = (): void => {
@@ -70,28 +70,28 @@ suite.file_and_line_order_determine_candidate_order = (): void => {
   writefile(['よみ /乙/丙/'], second_path)
   const first = loader.Source.new(first_path)
   const second = loader.Source.new(second_path)
-  const forward = loader.Load([first, second])
-  const swapped = loader.Load([second, first])
-  assert.equals(CandidateTexts(forward['よみ']), ['甲', '乙', '丙'])
-  assert.equals(CandidateTexts(swapped['よみ']), ['乙', '丙', '甲'])
+  const forward = loader.Open([first, second])
+  const swapped = loader.Open([second, first])
+  assert.equals(CandidateTexts(forward.Lookup(lookup.CreateQuery('よみ', ''))), ['甲', '乙', '丙'])
+  assert.equals(CandidateTexts(swapped.Lookup(lookup.CreateQuery('よみ', ''))), ['乙', '丙', '甲'])
 }
 
 suite.utf8_bom_and_crlf_are_handled_at_the_file_boundary = (): void => {
   const path = tempname()
   defer delete(path)
   writefile(["\ufeffかな /仮名/\r", "ほか /他/\r"], path)
-  const entries = loader.Load([loader.Source.new(path)])
-  assert.equals(len(entries), 2)
-  assert.equals(CandidateTexts(entries['かな']), ['仮名'])
-  assert.equals(CandidateTexts(entries['ほか']), ['他'])
+  const database = loader.Open([loader.Source.new(path)])
+  assert.equals(len(database.Prefix('かな')) + len(database.Prefix('ほか')), 2)
+  assert.equals(CandidateTexts(database.Lookup(lookup.CreateQuery('かな', ''))), ['仮名'])
+  assert.equals(CandidateTexts(database.Lookup(lookup.CreateQuery('ほか', ''))), ['他'])
 }
 
 suite.last_entry_does_not_require_a_final_newline = (): void => {
   const path = tempname()
   defer delete(path)
   writefile(['かな /仮名/'], path, 'b')
-  const entries = loader.Load([loader.Source.new(path)])
-  assert.equals(CandidateTexts(entries['かな']), ['仮名'])
+  const database = loader.Open([loader.Source.new(path)])
+  assert.equals(CandidateTexts(database.Lookup(lookup.CreateQuery('かな', ''))), ['仮名'])
 }
 
 suite.empty_sources_files_and_comment_only_files_produce_no_entries = (): void => {
@@ -101,9 +101,9 @@ suite.empty_sources_files_and_comment_only_files_produce_no_entries = (): void =
   defer delete(comments_path)
   writefile([], empty_path)
   writefile([';; comment', '', '  ', ';; okuri-nasi entries.'], comments_path)
-  assert.equals(loader.Load([]), {})
-  assert.equals(loader.Load([loader.Source.new(empty_path)]), {})
-  assert.equals(loader.Load([loader.Source.new(comments_path)]), {})
+  assert.equals(loader.Open([]).SourceCount(), 0)
+  assert.equals(loader.Open([loader.Source.new(empty_path)]).Lookup(lookup.CreateQuery('かな', '')), [])
+  assert.equals(loader.Open([loader.Source.new(comments_path)]).Lookup(lookup.CreateQuery('かな', '')), [])
 }
 
 suite.incremental_database_builder_loads_all_sources_in_order = (): void => {
@@ -142,7 +142,7 @@ suite.missing_file_reports_its_path = (): void => {
   const path = tempname()
   var caught = ''
   try
-    loader.Load([loader.Source.new(path)])
+    loader.Open([loader.Source.new(path)])
   catch
     caught = v:exception
   endtry
@@ -156,7 +156,7 @@ suite.invalid_encoded_bytes_report_path_and_encoding = (): void => {
     writefile(bytes, path)
     var caught = ''
     try
-      loader.Load([loader.Source.new(path, coding)])
+      loader.Open([loader.Source.new(path, coding)])
     catch
       caught = v:exception
     endtry
@@ -171,7 +171,7 @@ suite.unknown_encoding_is_reported_instead_of_loading_garbled_text = (): void =>
   writefile(['かな /仮名/'], path)
   var caught = ''
   try
-    loader.Load([loader.Source.new(path, 'invalid-caskk-encoding')])
+    loader.Open([loader.Source.new(path, 'invalid-caskk-encoding')])
   catch
     caught = v:exception
   endtry
@@ -183,18 +183,18 @@ suite.malformed_dictionary_line_is_skipped_and_following_entries_load = (): void
   const path = tempname()
   defer delete(path)
   writefile(['かな /仮名/', '壊れた行', 'ほか /他/'], path)
-  const entries = loader.Load([loader.Source.new(path)])
-  assert.equals(CandidateTexts(entries['かな']), ['仮名'])
-  assert.equals(CandidateTexts(entries['ほか']), ['他'])
+  const database = loader.Open([loader.Source.new(path)])
+  assert.equals(CandidateTexts(database.Lookup(lookup.CreateQuery('かな', ''))), ['仮名'])
+  assert.equals(CandidateTexts(database.Lookup(lookup.CreateQuery('ほか', ''))), ['他'])
 }
 
 suite.unsupported_okuri_block_is_skipped_and_following_entries_load = (): void => {
   const path = tempname()
   defer delete(path)
   writefile([';; okuri-ari entries.', 'おおk /大/多/[き/大/]/', 'ほか /他/'], path)
-  const entries = loader.Load([loader.Source.new(path)])
-  assert.equals(has_key(entries, 'おおk'), false)
-  assert.equals(CandidateTexts(entries['ほか']), ['他'])
+  const database = loader.Open([loader.Source.new(path)])
+  assert.equals(database.Lookup(lookup.CreateQuery('おお', 'く')), [])
+  assert.equals(CandidateTexts(database.Lookup(lookup.CreateQuery('ほか', ''))), ['他'])
 }
 
 suite.loading_is_read_only_and_results_do_not_depend_on_the_file = (): void => {
@@ -202,10 +202,10 @@ suite.loading_is_read_only_and_results_do_not_depend_on_the_file = (): void => {
   defer delete(path)
   writefile(['かな /仮名/'], path)
   const before = readblob(path)
-  const entries = loader.Load([loader.Source.new(path)])
+  const database = loader.Open([loader.Source.new(path)])
   assert.equals(readblob(path), before)
   writefile(['かな /変更/'], path)
-  assert.equals(CandidateTexts(entries['かな']), ['仮名'])
+  assert.equals(CandidateTexts(database.Lookup(lookup.CreateQuery('かな', ''))), ['仮名'])
   assert.equals(delete(path), 0)
-  assert.equals(CandidateTexts(entries['かな']), ['仮名'])
+  assert.equals(CandidateTexts(database.Lookup(lookup.CreateQuery('かな', ''))), ['仮名'])
 }

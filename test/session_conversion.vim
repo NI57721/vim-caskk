@@ -478,7 +478,7 @@ suite.no_candidates_preserve_reading_and_expose_the_registration_query = (): voi
 
 suite.conversion_while_initial_dictionary_loads_keeps_preedit_without_registration = (): void => {
   const database = dict_index.Database.new([])
-  database.MarkLoading()
+  database.ResetForLoading()
   const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', {}, null_object,
     '', true, '', {}, input_mode.HIRAGANA, true, database)
   ime.Feed('K')

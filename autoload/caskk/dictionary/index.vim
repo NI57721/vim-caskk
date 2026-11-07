@@ -134,45 +134,15 @@ export class SourceData
   const _fallback: dict<dictionary.Entry>
   const _encoding: string
 
-  def new(lines: list<string>, okuri_start: number = 0, plain_start: number = 0,
-      sectioned: bool = false, fallback: dict<dictionary.Entry> = {}, prepared: bool = false,
-      encoding: string = 'utf-8')
+  # Builder has already resolved sections and parsed any fallback entries.
+  def new(lines: list<string>, okuri_start: number, plain_start: number,
+      sectioned: bool, fallback: dict<dictionary.Entry>, encoding: string)
+    this._lines = lines
+    this._okuri_start = okuri_start
+    this._plain_start = plain_start
+    this._sectioned = sectioned
+    this._fallback = fallback
     this._encoding = encoding
-    if prepared
-      this._lines = lines
-      this._sectioned = sectioned
-      this._okuri_start = okuri_start
-      this._plain_start = plain_start
-      this._fallback = fallback
-      return
-    endif
-    this._lines = copy(lines)
-    const sections = SectionSearch.new(lines)
-    while !sections.Step(max([1, len(lines)]))
-    endwhile
-    const okuri_header = sections.okuri_header
-    const plain_header = sections.plain_header
-    this._sectioned = okuri_header >= 0 && plain_header > okuri_header
-    final fallback_entries: dict<dictionary.Entry> = {}
-    if !this._sectioned
-      for line in lines
-        try
-          const entry = parser.ParseLine(line)
-          if entry isnot null_object
-            if has_key(fallback_entries, entry.lookup_key)
-              fallback_entries[entry.lookup_key] = merger.Merge([[fallback_entries[entry.lookup_key], entry]])[entry.lookup_key]
-            else
-              fallback_entries[entry.lookup_key] = entry
-            endif
-          endif
-        catch
-          # Keep the loader's behavior of skipping lines outside our supported subset.
-        endtry
-      endfor
-    endif
-    this._okuri_start = okuri_header + 1
-    this._plain_start = plain_header + 1
-    this._fallback = fallback_entries
   enddef
 
   # Empty keys are rows excluded from the sorted sequence. Walk across them
@@ -362,7 +332,7 @@ export class Builder
   def _Finish()
     const sectioned = this._okuri_header >= 0 && this._plain_header > this._okuri_header
     this._result = SourceData.new(this._lines, this._okuri_header + 1, this._plain_header + 1,
-      sectioned, this._fallback, true, this._encoding)
+      sectioned, this._fallback, this._encoding)
     this._phase = 'done'
   enddef
 
@@ -443,10 +413,6 @@ export class Database
 
   def IsReady(): bool
     return this._ready
-  enddef
-
-  def MarkLoading()
-    this._ready = false
   enddef
 
   def ResetForLoading()

@@ -1,8 +1,5 @@
 vim9script
 
-import 'caskk/dictionary.vim' as dictionary
-import autoload 'caskk/dictionary/parser.vim' as parser
-import autoload 'caskk/dictionary/merge.vim' as merger
 import autoload 'caskk/dictionary/index.vim' as index
 
 export class Source
@@ -135,24 +132,6 @@ def ReadLines(source: Source): list<string>
   return lines
 enddef
 
-def ReadSource(source: Source): list<dictionary.Entry>
-  final entries: list<dictionary.Entry> = []
-  for line in ReadLines(source)
-    var entry: dictionary.Entry
-    try
-      entry = parser.ParseLine(line)
-    catch
-      # System dictionaries may contain entries outside the supported subset.
-      # Ignore only that physical line and keep reading the rest of the source.
-      continue
-    endtry
-    if entry isnot null_object
-      entries->add(entry)
-    endif
-  endfor
-  return entries
-enddef
-
 export def Open(sources: list<Source>): index.Database
   final indexed_sources: list<index.SourceData> = []
   for source in sources
@@ -226,12 +205,3 @@ export class DatabaseBuilder
     return this.IsDone()
   enddef
 endclass
-
-# Eagerly read all configured sources in order. Returned data needs no file I/O.
-export def Load(sources: list<Source>): dict<dictionary.Entry>
-  final entries: list<list<dictionary.Entry>> = []
-  for source in sources
-    entries->add(ReadSource(source))
-  endfor
-  return merger.Merge(entries)
-enddef

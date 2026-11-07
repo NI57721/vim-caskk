@@ -101,7 +101,7 @@ suite.duplicates_across_ignored_rows_preserve_candidates_in_both_sections = (): 
   const builder = dict_index.Builder.new(lines)
   while !builder.Step(1)
   endwhile
-  for source in [dict_index.SourceFromLines(lines), builder.Result(), dict_index.SourceData.new(lines)]
+  for source in [dict_index.SourceFromLines(lines), builder.Result()]
     const database = dict_index.Database.new([source])
     assert.equals(CandidateTexts(database.Lookup(lookup.CreateQuery('か', 'く'))), ['書', '描'])
     assert.equals(CandidateTexts(database.Lookup(lookup.CreateQuery('か', ''))), ['蚊', '科'])
@@ -183,9 +183,8 @@ suite.ambiguous_boundary_probe_falls_back_to_the_actual_section_headers = (): vo
   # Non-okuri keys in the okuri section must not create an inferred boundary.
   const lines = [';; okuri-ari entries.'] + repeat(['あ /亜/'], 101)
     + [';; okuri-nasi entries.', 'word /単語/']
-  for source in [dict_index.SourceFromLines(lines), dict_index.SourceData.new(lines)]
-    assert.equals(len(source.Lookup('あ', true)), 101)
-    assert.equals(len(source.Lookup('word', false)), 1)
-    assert.equals(source.Lookup('あ', false), [])
-  endfor
+  const source = dict_index.SourceFromLines(lines)
+  assert.equals(len(source.Lookup('あ', true)), 101)
+  assert.equals(len(source.Lookup('word', false)), 1)
+  assert.equals(source.Lookup('あ', false), [])
 }
