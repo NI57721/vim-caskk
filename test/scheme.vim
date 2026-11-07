@@ -1,44 +1,58 @@
 vim9script
 
 import autoload 'caskk/scheme.vim' as scheme
-import autoload 'caskk/composer/combination.vim' as combination
+import autoload 'caskk/composer.vim' as composer
+import 'caskk/input.vim' as input
+import 'caskk/combination_table.vim' as table_types
 
 final suite = themis#suite('input scheme')
 const assert = themis#helper('assert')
 
+# Isolate the compiled combination table while using the live event pipeline.
+def ComposeInput(table: table_types.CombinationTable, consonant: string,
+    combination_key: string, modified: bool = false): dict<string>
+  const engine = composer.Composer.new(scheme.CompiledScheme.new(table, []))
+  engine.Feed(input.Event.new(consonant))
+  const results = engine.Feed(input.Event.new(combination_key, modified))
+  const result = composer.Compose(results[0])
+  return {reading: result.reading, okuri: result.okuri}
+enddef
+
 suite.definition_keys_resolve_to_outputs = (): void => {
   const table = scheme.Compile({k: 'k', n: 'n', v: 'ky'}, {a: 'a', l: 'o*N', m: 'a*iN'}).table
-  assert.equals(combination.ComposeKeys(table, 'k', 'a'), {reading: 'か', okuri: ''})
-  assert.equals(combination.ComposeKeys(table, 'k', 'l'), {reading: 'こん', okuri: ''})
-  assert.equals(combination.ComposeKeys(table, 'n', 'm'), {reading: 'ないん', okuri: ''})
-  assert.equals(combination.ComposeKeys(table, 'v', 'l'), {reading: 'きょん', okuri: ''})
+  assert.equals(ComposeInput(table, 'k', 'a'), {reading: 'か', okuri: ''})
+  assert.equals(ComposeInput(table, 'k', 'l'), {reading: 'こん', okuri: ''})
+  assert.equals(ComposeInput(table, 'n', 'm'), {reading: 'ないん', okuri: ''})
+  assert.equals(ComposeInput(table, 'v', 'l'), {reading: 'きょん', okuri: ''})
 }
 
 suite.okuri_input_uses_compiled_boundary = (): void => {
   const table = scheme.Compile({k: 'k', v: 'ky'}, {a: 'a', l: 'o*N'}).table
-  assert.equals(combination.ComposeKeys(table, 'k', 'l', true), {reading: 'こ', okuri: 'ん'})
-  assert.equals(combination.ComposeKeys(table, 'v', 'l', true), {reading: 'きょ', okuri: 'ん'})
-  assert.equals(combination.ComposeKeys(table, 'k', 'a', true), {reading: 'か', okuri: ''})
+  assert.equals(ComposeInput(table, 'k', 'l', true), {reading: 'こ', okuri: 'ん'})
+  assert.equals(ComposeInput(table, 'v', 'l', true), {reading: 'きょ', okuri: 'ん'})
+  assert.equals(ComposeInput(table, 'k', 'a', true), {reading: 'か', okuri: ''})
 }
 
 suite.small_tsu_and_kana_boundary_edges = (): void => {
   const table = scheme.Compile({j: 'ky'}, {l: 'aTi', o: 'o*'}).table
-  assert.equals(combination.ComposeKeys(table, 'j', 'l'), {reading: 'きゃっい', okuri: ''})
-  assert.equals(combination.ComposeKeys(table, 'j', 'o', true), {reading: 'きょ', okuri: ''})
+  assert.equals(ComposeInput(table, 'j', 'l'), {reading: 'きゃっい', okuri: ''})
+  assert.equals(ComposeInput(table, 'j', 'o', true), {reading: 'きょ', okuri: ''})
 }
 
 suite.small_kana_and_palatalized_i = (): void => {
   const table = scheme.Compile({j: 'ky', c: 'x', y: 'xy', w: 'xw'}, {a: 'a', i: 'i*iN'}).table
-  assert.equals(combination.ComposeKeys(table, 'j', 'i', true), {reading: 'き', okuri: 'いん'})
-  assert.equals(combination.ComposeKeys(table, 'c', 'a'), {reading: 'ぁ', okuri: ''})
-  assert.equals(combination.ComposeKeys(table, 'y', 'a'), {reading: 'ゃ', okuri: ''})
-  assert.equals(combination.ComposeKeys(table, 'w', 'a'), {reading: 'ゎ', okuri: ''})
+  assert.equals(ComposeInput(table, 'j', 'i', true), {reading: 'き', okuri: 'いん'})
+  assert.equals(ComposeInput(table, 'c', 'a'), {reading: 'ぁ', okuri: ''})
+  assert.equals(ComposeInput(table, 'y', 'a'), {reading: 'ゃ', okuri: ''})
+  assert.equals(ComposeInput(table, 'w', 'a'), {reading: 'ゎ', okuri: ''})
 }
 
 suite.key_tokens_are_opaque = (): void => {
-  const table = scheme.Compile({'1': 'k', '<M-j>': 'n'}, {'<C-x>': 'ei'}).table
-  assert.equals(combination.ComposeKeys(table, '1', '<C-x>'), {reading: 'けい', okuri: ''})
-  assert.equals(combination.ComposeKeys(table, '<M-j>', '<C-x>'), {reading: 'ねい', okuri: ''})
+  const table = scheme.Compile(
+    scheme.ValidateConsonants({'1': 'k', "\<M-j>": 'n'}),
+    scheme.ValidateCombinations({"\<C-X>": 'ei'})).table
+  assert.equals(ComposeInput(table, '1', '<C-X>'), {reading: 'けい', okuri: ''})
+  assert.equals(ComposeInput(table, scheme.ConsonantKeys("\<M-j>")[0], '<C-X>'), {reading: 'ねい', okuri: ''})
 }
 
 suite.input_key_strings_distinguish_vim_keycodes_from_literal_angle_text = (): void => {
@@ -51,7 +65,7 @@ suite.patterns_are_decoded_at_compile_time = (): void => {
   const table = scheme.Compile({k: 'k'}, {l: 'a\**i\\N'}).table
   assert.equals(table.combinations.l.text, 'a*i\N')
   assert.equals(table.combinations.l.boundary, 2)
-  assert.equals(combination.ComposeKeys(table, 'k', 'l', true), {reading: 'か*', okuri: 'い\ん'})
+  assert.equals(ComposeInput(table, 'k', 'l', true), {reading: 'か*', okuri: 'い\ん'})
 }
 
 suite.source_definitions_remain_independent = (): void => {
@@ -60,7 +74,7 @@ suite.source_definitions_remain_independent = (): void => {
   const table = scheme.Compile(consonants, combinations).table
   consonants.k = 'n'
   combinations.l = 'a'
-  assert.equals(combination.ComposeKeys(table, 'k', 'l', true), {reading: 'こ', okuri: 'ん'})
+  assert.equals(ComposeInput(table, 'k', 'l', true), {reading: 'こ', okuri: 'ん'})
   assert.equals(consonants.k, 'n')
   assert.equals(combinations.l, 'a')
 }
@@ -68,8 +82,8 @@ suite.source_definitions_remain_independent = (): void => {
 suite.independent_schemes = (): void => {
   const first = scheme.Compile({k: 'k'}, {l: 'o*N'}).table
   const second = scheme.Compile({k: 'n'}, {l: 'a*iN'}).table
-  assert.equals(combination.ComposeKeys(first, 'k', 'l', true), {reading: 'こ', okuri: 'ん'})
-  assert.equals(combination.ComposeKeys(second, 'k', 'l', true), {reading: 'な', okuri: 'いん'})
+  assert.equals(ComposeInput(first, 'k', 'l', true), {reading: 'こ', okuri: 'ん'})
+  assert.equals(ComposeInput(second, 'k', 'l', true), {reading: 'な', okuri: 'いん'})
 }
 
 suite.empty_definitions_and_outputs = (): void => {
@@ -77,7 +91,7 @@ suite.empty_definitions_and_outputs = (): void => {
   assert.equals(empty.consonants, {})
   assert.equals(empty.combinations, {})
   const table = scheme.Compile({k: ''}, {a: ''}).table
-  assert.equals(combination.ComposeKeys(table, 'k', 'a'), {reading: '', okuri: ''})
+  assert.equals(ComposeInput(table, 'k', 'a'), {reading: '', okuri: ''})
 }
 
 suite.nasal_and_sokuon_are_stored_as_output_symbols_not_consonant_rows = (): void => {
@@ -106,29 +120,29 @@ suite.combination_cannot_start_with_okuri_boundary = (): void => {
   assert.equals(caught, 'caskk: combination output cannot start with latent okuri boundary')
 }
 
-suite.unknown_keys_are_rejected = (): void => {
-  const table = scheme.Compile({k: 'k'}, {a: 'a'}).table
-  var caught = ''
-  try
-    combination.ComposeKeys(table, 'x', 'a')
-  catch
-    caught = v:exception
-  endtry
-  assert.equals(caught, 'caskk: unknown consonant key: x')
-  caught = ''
-  try
-    combination.ComposeKeys(table, 'k', 'x')
-  catch
-    caught = v:exception
-  endtry
-  assert.equals(caught, 'caskk: unknown combination key: x')
+suite.unknown_keys_are_returned_for_normal_fallback = (): void => {
+  for keys in [['x', 'a'], ['k', 'x']]
+    const engine = composer.Composer.new(scheme.Compile({k: 'k'}, {a: 'a'}))
+    final results: list<composer.Result> = []
+    for key in keys
+      results->extend(engine.Feed(input.Event.new(key)))
+    endfor
+    if keys[0] ==# 'x'
+      assert.equals(results[0].output is null_object, true)
+      assert.equals(results[0].events[0].key, 'x')
+      assert.equals(results[1].output.text, 'あ')
+    else
+      assert.equals(mapnew(results, (_, result) => result.output is null_object), [true, true])
+      assert.equals(mapnew(results, (_, result) => result.events[0].key), ['k', 'x'])
+    endif
+  endfor
 }
 
 suite.specials_are_compiled_with_normal_combinations = (): void => {
   const compiled = scheme.Compile({k: 'k'}, {a: 'a'}, [
     scheme.SpecialDefinition.new(['k', 'a'], '特別'),
   ])
-  assert.equals(combination.ComposeKeys(compiled.table, 'k', 'a'), {reading: 'か', okuri: ''})
+  assert.equals(ComposeInput(compiled.table, 'k', 'a'), {reading: 'か', okuri: ''})
   assert.equals(len(compiled.specials), 1)
   assert.equals(compiled.specials[0].keys, ['k', 'a'])
   assert.equals(compiled.specials[0].output.text, '特別')
@@ -152,7 +166,7 @@ suite.special_outputs_are_literal_text_without_kana_generation = (): void => {
 suite.specials_can_be_omitted = (): void => {
   const compiled = scheme.Compile({k: 'k'}, {a: 'a'})
   assert.equals(compiled.specials, [])
-  assert.equals(combination.ComposeKeys(compiled.table, 'k', 'a'), {reading: 'か', okuri: ''})
+  assert.equals(ComposeInput(compiled.table, 'k', 'a'), {reading: 'か', okuri: ''})
 }
 
 suite.empty_special_output_is_preserved = (): void => {

@@ -4,10 +4,20 @@ import 'caskk/input.vim' as input
 import autoload 'caskk/scheme.vim' as scheme
 import autoload 'caskk/scheme/registry.vim' as registry
 import autoload 'caskk/composer.vim' as composer
-import autoload 'caskk/composer/combination.vim' as combination
+import 'caskk/combination_table.vim' as table_types
 
 final suite = themis#suite('input scheme registry')
 const assert = themis#helper('assert')
+
+# Isolate the compiled combination table while using the live event pipeline.
+def ComposeInput(table: table_types.CombinationTable, consonant: string,
+    combination_key: string, modified: bool = false): dict<string>
+  const engine = composer.Composer.new(scheme.CompiledScheme.new(table, []))
+  engine.Feed(input.Event.new(consonant))
+  const results = engine.Feed(input.Event.new(combination_key, modified))
+  const result = composer.Compose(results[0])
+  return {reading: result.reading, okuri: result.okuri}
+enddef
 
 suite.register_compiles_normal_rules_and_specials = (): void => {
   const schemes = registry.Registry.new()
@@ -15,7 +25,7 @@ suite.register_compiles_normal_rules_and_specials = (): void => {
     scheme.SpecialDefinition.new(['k', 'a'], 'か*ける'),
   ])
   const compiled = schemes.Get('custom')
-  assert.equals(combination.ComposeKeys(compiled.table, 'k', 'a'), {reading: 'か', okuri: ''})
+  assert.equals(ComposeInput(compiled.table, 'k', 'a'), {reading: 'か', okuri: ''})
   assert.equals(len(compiled.specials), 1)
   assert.equals(compiled.specials[0].keys, ['k', 'a'])
   assert.equals(compiled.specials[0].output.text, 'かける')
@@ -26,9 +36,9 @@ suite.schemes_are_selected_by_name = (): void => {
   const schemes = registry.Registry.new()
   schemes.Register('first', {k: 'k'}, {a: 'a'})
   schemes.Register('second', {k: 'n'}, {a: 'a'})
-  assert.equals(combination.ComposeKeys(schemes.Get('first').table, 'k', 'a'),
+  assert.equals(ComposeInput(schemes.Get('first').table, 'k', 'a'),
     {reading: 'か', okuri: ''})
-  assert.equals(combination.ComposeKeys(schemes.Get('second').table, 'k', 'a'),
+  assert.equals(ComposeInput(schemes.Get('second').table, 'k', 'a'),
     {reading: 'な', okuri: ''})
 }
 
@@ -48,9 +58,9 @@ suite.registries_do_not_share_registered_schemes = (): void => {
   const second = registry.Registry.new()
   first.Register('custom', {k: 'k'}, {a: 'a'})
   second.Register('custom', {k: 'n'}, {a: 'a'})
-  assert.equals(combination.ComposeKeys(first.Get('custom').table, 'k', 'a'),
+  assert.equals(ComposeInput(first.Get('custom').table, 'k', 'a'),
     {reading: 'か', okuri: ''})
-  assert.equals(combination.ComposeKeys(second.Get('custom').table, 'k', 'a'),
+  assert.equals(ComposeInput(second.Get('custom').table, 'k', 'a'),
     {reading: 'な', okuri: ''})
 }
 
@@ -75,7 +85,7 @@ suite.reregistering_preserves_existing_composer_and_pending_input = (): void => 
   assert.equals(previous_results[0].output.text, '以前')
   assert.equals(len(current_results), 1)
   assert.equals(current_results[0].output.text, '更新')
-  assert.equals(combination.ComposeKeys(schemes.Get('custom').table, 'k', 'a'),
+  assert.equals(ComposeInput(schemes.Get('custom').table, 'k', 'a'),
     {reading: 'な', okuri: ''})
 }
 
@@ -107,7 +117,7 @@ suite.failed_reregistration_preserves_previous_definition = (): void => {
     caught = v:exception
   endtry
   assert.equals(caught, 'caskk: output pattern contains multiple latent okuri boundaries')
-  assert.equals(combination.ComposeKeys(schemes.Get('custom').table, 'k', 'a'),
+  assert.equals(ComposeInput(schemes.Get('custom').table, 'k', 'a'),
     {reading: 'か', okuri: ''})
 }
 
@@ -121,7 +131,7 @@ suite.registration_does_not_retain_source_containers = (): void => {
   combinations.a = 'i'
   specials[0] = scheme.SpecialDefinition.new(['x'], '変更')
   const compiled = schemes.Get('custom')
-  assert.equals(combination.ComposeKeys(compiled.table, 'k', 'a'), {reading: 'か', okuri: ''})
+  assert.equals(ComposeInput(compiled.table, 'k', 'a'), {reading: 'か', okuri: ''})
   assert.equals(compiled.specials[0].keys, ['k', 'a'])
   assert.equals(compiled.specials[0].output.text, '特別')
 }
