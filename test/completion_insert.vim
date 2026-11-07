@@ -12,8 +12,10 @@ var previous = 0
 var target = 0
 var dictionary_path = ''
 var snapshot: user_state.Snapshot = null_object
+const WAIT = "\<Cmd>sleep 30m\<CR>"
 
 def Capture()
+  sleep 30m
   captures->add(getline(1))
   final lines: list<string> = []
   for id in popup_list()
@@ -33,7 +35,8 @@ def Setup(options: dict<any> = {})
   snapshot = user_runtime.Get().GetSnapshot()
   user_runtime.Get().Restore(user_state.State.new().GetSnapshot())
   dictionary_path = tempname()
-  writefile(['かな /仮名;文字/', 'かなた /彼方/', 'かなもの /金物/'], dictionary_path)
+  writefile(['かな /仮名;文字/', 'かなた /彼方/', 'かなもの /金物/',
+    'apple /林檎/', 'application /アプリ/', 'ABC123 /英数字/'], dictionary_path)
   Caskk.RegisterInputScheme({name: 'completion-test', consonants: {k: 'k', n: 'n', t: 't'},
     combinations: {a: 'a', i: 'i'}})
   Caskk.Config(extend({dictionaries: [dictionary_path], completion_min_length: 2,
@@ -80,7 +83,7 @@ suite.cancel_backspace_and_native_movement_do_not_accept_completion = (): void =
 suite.arrow_navigation_accepts_directly_without_inserting_a_newline = (): void => {
   Setup()
   defer Cleanup()
-  feedkeys("aKana\<Down>\<Down>\<Up>\<CR>\<Esc>", 'xt')
+  feedkeys("aKana" .. WAIT .. "\<Down>\<Down>\<Up>\<CR>\<Esc>", 'xt')
   assert.equals(getline(1), '前彼方後')
 }
 
@@ -97,7 +100,7 @@ suite.no_match_short_reading_and_unfinished_keys_do_not_start_conversion = (): v
 suite.accepted_completion_is_one_commit_with_undo_reading_disabled = (): void => {
   Setup({undo_revert_to_reading: false})
   defer Cleanup()
-  feedkeys("aKana\<CR>\<Esc>", 'xt')
+  feedkeys("aKana" .. WAIT .. "\<CR>\<Esc>", 'xt')
   assert.equals(getline(1), '前仮名後')
   normal! u
   assert.equals(getline(1), '前後')
@@ -216,4 +219,130 @@ suite.backspace_deletes_reading_and_refreshes_automatic_completion = (): void =>
   assert.equals(index(popup_lines[1], '▶ 1/3 仮名 — 文字 / 読み: かな') >= 0, true)
   assert.equals(len(popup_lines[2]), 1)
   assert.equals(user_runtime.Get().GetSnapshot().mru, {})
+}
+
+suite.pending_search_does_not_accept_or_reopen_after_immediate_enter = (): void => {
+  Setup()
+  defer Cleanup()
+  feedkeys("aKana\<CR>" .. WAIT .. "\<F12>\<Esc>", 'xt')
+  assert.equals(getline(1), '前かな')
+  assert.equals(getline(2), '後')
+  assert.equals(len(popup_lines[0]), 1)
+  assert.equals(user_runtime.Get().GetSnapshot().mru, {})
+}
+
+suite.cancelling_a_pending_search_keeps_it_closed_without_consuming_text = (): void => {
+  Setup()
+  defer Cleanup()
+  feedkeys("aKana\<F5>" .. WAIT .. "\<F12>\<Esc>", 'xt')
+  assert.equals(captures, ['前かな後'])
+  assert.equals(len(popup_lines[0]), 1)
+  assert.equals(user_runtime.Get().GetSnapshot().mru, {})
+}
+
+suite.disable_cancels_pending_search_before_its_timer_runs = (): void => {
+  Setup()
+  defer Cleanup()
+  inoremap <buffer> <F11> <ScriptCmd>Caskk.Disable()<CR>
+  feedkeys("aKana\<F11>" .. WAIT .. "\<F12>\<Esc>", 'xt')
+  assert.equals(captures, ['前かな後'])
+  assert.equals(popup_lines[0], [])
+  assert.equals(Caskk.IsEnabled(), false)
+}
+
+suite.broad_prefix_search_keeps_terminal_input_responsive_and_discards_old_results = (): void => {
+  const dictionary = tempname()
+  const script = tempname() .. '.vim'
+  const report = tempname()
+  defer delete(dictionary)
+  defer delete(script)
+  defer delete(report)
+  defer delete(report .. '.next')
+  final lines = [';; okuri-ari entries.', ';; okuri-nasi entries.']
+  for number in range(20000)
+    lines->add(printf('おお%05d /候補%d/', number, number))
+  endfor
+  lines->add('おおか /更新された候補/')
+  writefile(lines, dictionary)
+  writefile([
+    'vim9script',
+    'set rtp^=' .. escape(getcwd(), ' ,'),
+    "import autoload 'caskk.vim' as C",
+    "C.RegisterInputScheme({name: 'responsive', consonants: {k: 'k'}, combinations: {a: 'a', o: 'o'}})",
+    'C.Config({mode_popup: false, sticky_key: ";", dictionaries: [' .. string(dictionary) .. ']})',
+    "C.Enable('responsive')",
+    'def Report(timer: number)',
+    '  const popups = mapnew(popup_list(), (_, id) => getbufline(winbufnr(id), 1, "$"))',
+    '  writefile([json_encode({text: getline(1), popups: popups, state: C.GetDictionaryLoadStatus().state})], ' .. string(report .. '.next') .. ')',
+    '  rename(' .. string(report .. '.next') .. ', ' .. string(report) .. ')',
+    'enddef',
+    'timer_start(5, Report, {repeat: -1})',
+  ], script)
+  const terminal = term_start([v:progpath, '-Nu', 'NONE', '-i', 'NONE', '-n', '-N', '-S', script],
+    {hidden: true, term_rows: 12, term_cols: 60})
+  try
+    var state: dict<any> = {}
+    for _ in range(300)
+      term_wait(terminal, 10)
+      if filereadable(report)
+        state = json_decode(readfile(report)[0])
+        if state.state ==# 'ready'
+          break
+        endif
+      endif
+    endfor
+    assert.equals(get(state, 'state', ''), 'ready')
+    term_sendkeys(terminal, 'i;oo')
+    term_wait(terminal, 20)
+    term_sendkeys(terminal, 'ka')
+    for _ in range(100)
+      term_wait(terminal, 10)
+      state = json_decode(readfile(report)[0])
+      if state.text ==# 'おおか' && stridx(string(state.popups), '更新された候補') >= 0
+        break
+      endif
+    endfor
+    assert.equals(state.text, 'おおか')
+    assert.equals(stridx(string(state.popups), '更新された候補') >= 0, true)
+    assert.equals(stridx(string(state.popups), '候補0') < 0, true)
+    term_sendkeys(terminal, "\<CR>")
+    term_wait(terminal, 100)
+    state = json_decode(readfile(report)[0])
+    assert.equals(state.text, '更新された候補')
+    assert.equals(state.popups, [])
+  finally
+    job_stop(term_getjob(terminal), 'kill')
+    execute 'silent! bwipeout! ' .. terminal
+  endtry
+}
+
+suite.abbreviation_enter_keeps_literal_ascii_when_completions_are_visible = (): void => {
+  Setup({mappings: {q: 'AbbreviationMode', "\<Space>": 'Convert', "\<CR>": 'Commit'}})
+  defer Cleanup()
+  feedkeys("aqapple\<F12>\<CR>\<F12>\<Esc>", 'xt')
+  assert.equals(stridx(string(popup_lines[0]), '林檎') >= 0, true)
+  assert.equals(captures, ['前apple後', '前apple後'])
+  assert.equals(line('$'), 1)
+  assert.equals(user_runtime.Get().GetSnapshot().mru, {})
+}
+
+suite.abbreviation_enter_keeps_ascii_before_search_results_arrive = (): void => {
+  Setup({mappings: {q: 'AbbreviationMode'}})
+  defer Cleanup()
+  feedkeys("aqABC123\<CR>" .. WAIT .. "\<F12>\<Esc>", 'xt')
+  assert.equals(getline(1), '前ABC123後')
+  assert.equals(line('$'), 1)
+  assert.equals(user_runtime.Get().GetSnapshot().mru, {})
+}
+
+suite.abbreviation_explicit_conversion_and_commit_still_accept_candidates = (): void => {
+  Setup({mappings: {q: 'AbbreviationMode', "\<Space>": 'Convert', "\<CR>": 'Commit', "\<F10>": 'Commit'}})
+  defer Cleanup()
+  feedkeys("aqapple \<CR>\<F12>\<Esc>", 'xt')
+  assert.equals(captures[0], '前林檎後')
+  setline(1, '前後')
+  cursor(1, 1)
+  feedkeys("aqapple" .. WAIT .. "\<F10>\<F12>\<Esc>", 'xt')
+  assert.equals(captures[1], '前林檎後')
+  assert.equals(user_runtime.Get().GetSnapshot().mru[json_encode(['apple', ''])], ['林檎'])
 }

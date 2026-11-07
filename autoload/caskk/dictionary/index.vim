@@ -125,6 +125,135 @@ class SectionSearch
   enddef
 endclass
 
+# A resumable prefix lookup. Each step examines at most max_rows physical rows
+# (including comments and malformed rows), or fallback entries.
+export class PrefixSearch
+  const _lines: list<string>
+  const _prefix: string
+  const _encoding: string
+  const _okuri_start: number
+  const _plain_start: number
+  const _fallback: list<dictionary.Entry>
+  var _phase: string = 'binary'
+  var _section: number = 0
+  var _low: number = 0
+  var _high: number = -1
+  var _middle: number = 0
+  var _probe: number = 0
+  var _position: number = 0
+
+  def new(lines: list<string>, prefix: string, encoding: string,
+      okuri_start: number, plain_start: number, sectioned: bool,
+      fallback: dict<dictionary.Entry>)
+    this._lines = lines
+    this._prefix = prefix
+    this._encoding = encoding
+    this._okuri_start = okuri_start
+    this._plain_start = plain_start
+    this._fallback = sectioned ? [] : values(fallback)
+    if sectioned
+      this._StartSection()
+    else
+      this._phase = 'fallback'
+    endif
+  enddef
+
+  def _StartSection()
+    this._low = this._section == 0 ? this._okuri_start : this._plain_start
+    this._high = this._section == 0 ? this._plain_start - 2 : len(this._lines) - 1
+    this._phase = 'binary'
+    this._PrepareProbe()
+  enddef
+
+  def _PrepareProbe()
+    if this._low > this._high
+      this._phase = 'scan'
+      this._position = this._low
+    else
+      this._middle = (this._low + this._high) / 2
+      this._probe = this._middle
+    endif
+  enddef
+
+  def _NextSection()
+    this._section += 1
+    if this._section >= 2
+      this._phase = 'done'
+    else
+      this._StartSection()
+    endif
+  enddef
+
+  def IsDone(): bool
+    return this._phase ==# 'done'
+  enddef
+
+  def Step(max_rows: number): list<dictionary.Entry>
+    if max_rows <= 0
+      throw 'caskk: prefix search step must be positive'
+    endif
+    final found: list<dictionary.Entry> = []
+    var work = 0
+    while work < max_rows && !this.IsDone()
+      work += 1
+      if this._phase ==# 'fallback'
+        if this._position >= len(this._fallback)
+          this._phase = 'done'
+          continue
+        endif
+        const entry = this._fallback[this._position]
+        this._position += 1
+        if stridx(entry.lookup_key, this._prefix) == 0
+          found->add(entry)
+        endif
+      elseif this._phase ==# 'binary'
+        if this._probe > this._high
+          this._high = this._middle - 1
+          this._PrepareProbe()
+          continue
+        endif
+        const key = EntryKey(this._lines[this._probe])
+        if key ==# ''
+          this._probe += 1
+          continue
+        endif
+        const comparison = stridx(key, this._prefix) == 0 ? 0
+          : CompareKeys(key, this._prefix, this._encoding)
+        if this._section == 0 ? comparison > 0 : comparison < 0
+          this._low = this._probe + 1
+        else
+          this._high = this._middle - 1
+        endif
+        this._PrepareProbe()
+      else
+        const end = this._section == 0 ? this._plain_start - 2 : len(this._lines) - 1
+        if this._position > end
+          this._NextSection()
+          continue
+        endif
+        const line = this._lines[this._position]
+        this._position += 1
+        const key = EntryKey(line)
+        if key ==# ''
+          continue
+        elseif stridx(key, this._prefix) != 0
+          this._NextSection()
+          continue
+        endif
+        try
+          const entry = parser.ParseLine(line)
+          if entry isnot null_object
+            found->add(entry)
+          endif
+        catch
+          # Unsupported rows do not hide later matching entries.
+        endtry
+      endif
+    endwhile
+    return found
+  enddef
+endclass
+
 export class SourceData
   const _lines: list<string>
   # The plain header closes okuri; the retained line count closes plain.
@@ -143,6 +272,11 @@ export class SourceData
     this._sectioned = sectioned
     this._fallback = fallback
     this._encoding = encoding
+  enddef
+
+  def BeginPrefix(prefix: string): PrefixSearch
+    return PrefixSearch.new(this._lines, prefix, this._encoding,
+      this._okuri_start, this._plain_start, this._sectioned, this._fallback)
   enddef
 
   # Empty keys are rows excluded from the sorted sequence. Walk across them
@@ -174,62 +308,14 @@ export class SourceData
     return entries
   enddef
 
-  # Prefix ranges are contiguous in each SKK section, including dictionaries
-  # whose source encoding sorts differently from Unicode.
+  # Synchronous consumers use the same bounded iterator as background completion.
   def Prefix(prefix: string): list<dictionary.Entry>
-    if !this._sectioned
-      return filter(values(this._fallback), (_, entry) => stridx(entry.lookup_key, prefix) == 0)
-    endif
-    final entries: list<dictionary.Entry> = []
-    for has_okuri in [true, false]
-      const start = has_okuri ? this._okuri_start : this._plain_start
-      const end = has_okuri ? this._plain_start - 2 : len(this._lines) - 1
-      var low = start
-      var high = end
-      while low <= high
-        const midpoint = (low + high) / 2
-        const middle = this._NextEntry(midpoint, high, 1)
-        if middle > high
-          high = midpoint - 1
-          continue
-        endif
-        const key = EntryKey(this._lines[middle])
-        if stridx(key, prefix) == 0
-          var first = middle
-          var previous = this._NextEntry(first - 1, start, -1)
-          while previous >= start && stridx(EntryKey(this._lines[previous]), prefix) == 0
-            first = previous
-            previous = this._NextEntry(first - 1, start, -1)
-          endwhile
-          var row = first
-          while row <= end
-            const matched = EntryKey(this._lines[row])
-            if matched != '' && stridx(matched, prefix) != 0
-              break
-            endif
-            if matched != ''
-              try
-                const entry = parser.ParseLine(this._lines[row])
-                if entry isnot null_object
-                  entries->add(entry)
-                endif
-              catch
-                # As with exact lookup, invalid rows do not hide valid ones.
-              endtry
-            endif
-            row += 1
-          endwhile
-          break
-        endif
-        const comparison = CompareKeys(key, prefix, this._encoding)
-        if (has_okuri && comparison > 0) || (!has_okuri && comparison < 0)
-          low = middle + 1
-        else
-          high = midpoint - 1
-        endif
-      endwhile
-    endfor
-    return entries
+    const search = this.BeginPrefix(prefix)
+    final found: list<dictionary.Entry> = []
+    while !search.IsDone()
+      found->extend(search.Step(64))
+    endwhile
+    return found
   enddef
 
   def Lookup(key: string, has_okuri: bool): list<dictionary.Entry>
@@ -373,6 +459,10 @@ export class Database
 
   def new(sources: list<SourceData>)
     this._sources = copy(sources)
+  enddef
+
+  def BeginPrefix(prefix: string): list<PrefixSearch>
+    return mapnew(this._sources, (_, source) => source.BeginPrefix(prefix))
   enddef
 
   def Prefix(prefix: string): dict<dictionary.Entry>

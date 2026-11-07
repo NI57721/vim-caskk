@@ -54,6 +54,22 @@ export class State
     return Snapshot.new(SCHEMA_VERSION, this._entries, this._mru, this._pinned, this._demoted)
   enddef
 
+  # Completion reads one registered identity at a time, guarded by Revision().
+  def RegisteredIdentities(): list<string>
+    return keys(this._entries)
+  enddef
+
+  def RegisteredCandidates(identity: string): list<dictionary.Candidate>
+    return copy(get(this._entries, identity, []))
+  enddef
+
+  # Candidates already include registered entries; only apply their preferences.
+  def RankCandidates(query: dictionary.Query, candidates: list<dictionary.Candidate>): list<dictionary.Candidate>
+    const key = Identity(query)
+    return ranking.Rank(candidates, get(this._pinned, key, ''),
+      get(this._mru, key, []), get(this._demoted, key, []))
+  enddef
+
   def Revision(): number
     return this._revision
   enddef
@@ -259,7 +275,6 @@ export class State
   enddef
 
   def Rank(query: dictionary.Query, candidates: list<dictionary.Candidate>): list<dictionary.Candidate>
-    const key = Identity(query)
     final registered: list<dictionary.Entry> = []
     for identity in sort(keys(this._entries))
       const entries = this._entries[identity]
@@ -270,7 +285,6 @@ export class State
     endfor
     const merged = merger.Merge([[dictionary.Entry.new(query.lookup_key, candidates)], registered])
     const combined = get(merged, query.lookup_key, dictionary.Entry.new(query.lookup_key, [])).candidates
-    return ranking.Rank(combined, get(this._pinned, key, ''),
-      get(this._mru, key, []), get(this._demoted, key, []))
+    return this.RankCandidates(query, combined)
   enddef
 endclass

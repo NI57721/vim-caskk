@@ -11,6 +11,7 @@ import autoload 'caskk/buffer.vim' as buffer
 import autoload 'caskk/undo.vim' as undo
 import autoload 'caskk/presentation.vim' as presentation
 import autoload 'caskk/conversion.vim' as conversion
+import autoload 'caskk/completion.vim' as completion
 import autoload 'caskk/presentation/candidate.vim' as candidate_view
 import autoload 'caskk/input/mode.vim' as input_mode
 
@@ -150,9 +151,27 @@ export class Editor
     return this._session.InCompletion()
   enddef
 
-  def ShowCompletion(minimum: number): bool
+  def CreateCompletionSearch(minimum: number): completion.Search
     this._CheckInput()
-    const shown = this._session.ShowCompletion(minimum)
+    return this._session.CreateCompletionSearch(minimum)
+  enddef
+
+  def CancelCompletionSearch()
+    this._session.CancelCompletionSearch()
+  enddef
+
+  def CanApplyCompletion(): bool
+    if this._closed || this._registration_suspended || bufnr('%') != this._buffer
+        || win_getid() != this._window || mode(1) !~# '^i' || !this.IsBufferCurrent()
+      return false
+    endif
+    const position = this._writer.GetPosition()
+    return line('.') == position.line && col('.') == position.column
+  enddef
+
+  def ApplyCompletion(search: completion.Search): bool
+    this._CheckInput()
+    const shown = this._session.ApplyCompletion(search)
     this._candidate_view.Render(this.GetDisplayCandidatesInfo())
     return shown
   enddef

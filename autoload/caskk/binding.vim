@@ -18,6 +18,7 @@ import autoload 'caskk/registration/editor.vim' as registration_editor
 import autoload 'caskk/config.vim' as configuration
 import autoload 'caskk/user_state/runtime.vim' as user_runtime
 import autoload 'caskk/conversion.vim' as conversion
+import autoload 'caskk/completion.vim' as completion
 import 'caskk/reconversion.vim' as reconversion
 
 const NATIVE_KEYS = ['<Left>', '<Right>', '<Up>', '<Down>', '<Home>', '<End>', '<CR>', '<Tab>', '<BS>', '<Del>', '<Nul>']
@@ -50,6 +51,9 @@ export class Binding
   const _inline_mappings = mapping_state.State.new()
   const _delete_mappings = mapping_state.State.new()
   const _reconversion_mappings = mapping_state.State.new()
+  var _completion_timer: number = -1
+  var _completion_search: completion.Search = null_object
+  var _completion_editor: insert.Editor = null_object
   var _editor: insert.Editor = null_object
   var _enabled: bool = false
   var _registration_reply: dictionary.Candidate = null_object
@@ -694,14 +698,58 @@ export class Binding
     return false
   enddef
 
+  def _StopCompletionSearch()
+    if this._completion_timer >= 0
+      timer_stop(this._completion_timer)
+    endif
+    if this._completion_editor isnot null_object
+      this._completion_editor.CancelCompletionSearch()
+    endif
+    this._completion_timer = -1
+    this._completion_search = null_object
+    this._completion_editor = null_object
+  enddef
+
+  def _StartCompletionSearch()
+    this._StopCompletionSearch()
+    const search = this._editor.CreateCompletionSearch(configuration.GetInput().completion_min_length)
+    if search is null_object
+      return
+    endif
+    this._completion_search = search
+    this._completion_editor = this._editor
+    this._completion_timer = timer_start(1, this._AdvanceCompletion, {repeat: -1})
+  enddef
+
+  def _AdvanceCompletion(timer: number)
+    if timer != this._completion_timer
+      return
+    endif
+    if this._editor isnot this._completion_editor || !this._enabled
+        || !this._editor.CanApplyCompletion() || !this._completion_search.IsCurrent()
+      this._StopCompletionSearch()
+      return
+    endif
+    try
+      if this._completion_search.Step(64)
+        const shown = this._editor.ApplyCompletion(this._completion_search)
+        this._StopCompletionSearch()
+        if shown
+          this._SyncInputMode()
+        endif
+      endif
+    catch
+      this._StopCompletionSearch()
+      throw v:exception
+    endtry
+  enddef
+
   def _ShowAutomaticCompletion()
     if !configuration.GetCandidatePopup() || this._editor is null_object
         || this._editor.IsRegistrationSuspended() || this._editor.IsInCompletion()
       return
     endif
-    if this._editor.ShowCompletion(configuration.GetInput().completion_min_length)
-      this._SyncInputMode()
-    endif
+    this._StartCompletionSearch()
   enddef
 
   def _FeedEditor(key: string)
@@ -785,6 +833,7 @@ export class Binding
   enddef
 
   def Leave(force: bool = false)
+    this._StopCompletionSearch()
     const previous_revision = this._preferences.Revision()
     try
       this._LeaveInternal(force)
@@ -821,6 +870,12 @@ export class Binding
   enddef
 
   def Dispatch(key: string)
+    const cancel_pending = this._completion_search isnot null_object
+      && get(this._actions, key, '') ==# 'CancelCompletion'
+    this._StopCompletionSearch()
+    if cancel_pending
+      return
+    endif
     const previous_revision = this._preferences.Revision()
     try
       this._DispatchInput(key)
@@ -845,6 +900,13 @@ export class Binding
     endif
     if this._editor isnot null_object && this._editor.IsRegistrationSuspended()
       throw 'caskk: input is suspended for dictionary registration'
+    endif
+    if key ==# '<CR>' && this._editor isnot null_object
+        && this._editor.GetInputMode() ==# input_mode.ABBREVIATION
+        && this._editor.GetSnapshot().in_preedit && !this._editor.IsInCandidate()
+      this._editor.CancelCompletion()
+      this._Record(this._editor.Commit())
+      return
     endif
     if this._editor isnot null_object && this._editor.IsInCompletion()
       const completion_action = get(this._actions, key, '')
@@ -913,7 +975,7 @@ export class Binding
     if action !=# '' && !this._CanRunAction(action)
       this._FallbackActionKey(key)
     elseif action ==# 'ShowCompletion'
-      this._editor.ShowCompletion(configuration.GetInput().completion_min_length)
+      this._StartCompletionSearch()
       this._SyncInputMode()
     elseif action ==# 'Convert'
       if this._editor.IsInCandidate()
@@ -1062,6 +1124,7 @@ export class Binding
   enddef
 
   def Forget()
+    this._StopCompletionSearch()
     this._CloseReconversion()
     const id = string(this._buffer)
     if has_key(reconversion_owners, id)

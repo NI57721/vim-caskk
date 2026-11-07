@@ -65,7 +65,7 @@ export class View
         line: previous.line, col: previous.col, pos: 'topleft', posinvert: false,
         minheight: previous.core_height, maxheight: previous.core_height,
         minwidth: previous.core_width, maxwidth: previous.core_width,
-        firstline: info.selected_index + 1,
+        firstline: info.selected_index - info.candidates[0].index + 1,
       })
       if !commandline
         # Candidate replacement may move the buffer cursor; track its new position.
@@ -75,7 +75,7 @@ export class View
     endif
     final position: dict<any> = {
       line: 'cursor+1', col: 'cursor', pos: 'topleft', posinvert: true,
-      firstline: info.selected_index + 1,
+      firstline: info.selected_index - info.candidates[0].index + 1,
       padding: [0, 1, 0, 1], maxwidth: 60,
       wrap: true, highlight: 'Pmenu', moved: 'any',
     }

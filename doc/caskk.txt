@@ -265,8 +265,10 @@ and learns the candidate before Vim's native deletion.  Left/Right remain
 within a single-line preedit; subsequent composition resumes at the end of
 that preedit rather than inserting at the temporary cursor position.  Other
 movement and editing keys finish the IME transaction before native Vim input.
-Enter commits the reading/candidate and then inserts a native newline.  To
-commit without a newline, assign Enter to Commit.  Escape leaves Insert mode
+Enter commits the reading/candidate and then inserts a native newline.
+Completion and abbreviation input use their own Enter behavior described in
+|caskk-completion| and |caskk-abbreviation-mode|.  To commit ordinary reading
+without a newline, assign Enter to Commit.  Escape leaves Insert mode
 and commits pending reading/candidate; use PreviousCandidate to return to the
 reading before leaving.  These differ from command-line and registration
 editing; see |caskk-commandline| and |caskk-config-registration-inline|.
@@ -372,6 +374,13 @@ Completion appears automatically as the preedit reading reaches
 completion_min_length characters and has no unfinished key sequence or sticky
 modifier.  It searches readings that start with the current reading and updates
 as typing continues.  No Tab press or ShowCompletion mapping is required.
+Searching, merging, ranking, and candidate generation run in timer slices while
+Vim is waiting for input.  Both automatic and explicitly requested completion
+are asynchronous; typing and normal conversion remain available while a search
+is pending.  Changing the input, cancelling, disabling Caskk, or leaving the
+input session cancels old work.  Results appear only for the current request;
+Enter before results arrive performs its usual reading commit/native action
+(see |caskk-abbreviation-mode| for abbreviation input).
 Short readings, unfinished input, and no matches close the list, preserve the
 reading, and do not request registration.  Deleting a reading character also
 refreshes the list when the remaining reading meets these conditions.
@@ -382,15 +391,17 @@ to false, automatic completion is disabled; explicitly requested completion
 still works.  This prevents Enter from accepting an unseen automatic candidate.
 
 The popup uses candidate_popup and shows the completed words, annotations, and
-source readings.  Headwords are ordered by reading; candidates within each
-known reading/okuri use the usual pin, MRU, and demotion preferences.
+source readings.  It renders at most 20 candidates around the selected item;
+all matches remain selectable, and displayed positions use the full count.
+Headwords are ordered by reading; candidates within each known reading/okuri
+use the usual pin, MRU, and demotion preferences.
 Automatic display and focus movement keep the original reading in the buffer
 and do not learn a candidate.  ShowCompletion, NextCandidate, or an otherwise
-unmapped Down moves focus
-forward; PreviousCandidate or an otherwise unmapped Up moves backward.  Moving
-past an end wraps within the completion list.  Enter or Commit accepts the
-focused word directly, closes preedit, and shares normal learning using the
-completed word's reading.  A second conversion step is not required.  Undo
+unmapped Down moves focus forward; PreviousCandidate or an otherwise unmapped
+Up moves backward.  Moving past an end wraps within the completion list.
+Enter (except in abbreviation input) or Commit accepts the focused word
+directly, closes preedit, and shares normal learning using the completed word's
+reading.  A second conversion step is not required.  Undo
 follows undo_revert_to_reading, as for other committed conversions.
 
 CancelCompletion closes the list while keeping the reading and does not
@@ -909,8 +920,15 @@ AbbreviationMode takes subsequent keyboard characters as the reading for direct
 dictionary lookup.  The first character starts preedit, and abbreviation input
 does not have okuri.  For example, an `apple /アップル/` entry can be converted by
 entering AbbreviationMode, typing 'apple', and invoking Convert.
-After committing an abbreviation conversion, the input mode returns to the mode
-that was active before AbbreviationMode was entered.
+In Insert input, Enter commits the typed abbreviation literally, without a
+newline or implicit completion acceptance, even when a completion list is
+visible or a search is pending.  For example, typing 'apple' then Enter keeps
+'apple'.  To accept a suggested word, use the configured Commit action on
+another key, or explicitly start dictionary conversion with Convert.  After
+explicit conversion, Enter follows the usual conversion Commit/native mapping
+behavior and confirms the selected dictionary candidate.
+After committing abbreviation input, the mode returns to the mode that was
+active before AbbreviationMode was entered.
 
 Numeric dictionary conversion                              *caskk-numeric-conversion*
 

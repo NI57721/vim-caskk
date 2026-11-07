@@ -51,6 +51,7 @@ export class Session
   const _register_mode_conversions: bool
   var _completions: list<completion.Candidate> = []
   var _completion_index: number = 0
+  var _completion_request: completion.Search = null_object
   var _prepared: conversion.Candidates = null_object
   var _selection: conversion.Selection = null_object
   var _request_preferences: user_state.State = null_object
@@ -226,6 +227,7 @@ export class Session
 
   # Delete only unfinished input; reading and candidate editing are separate.
   def BackspacePending(): bool
+    this.CancelCompletionSearch()
     if this._normalizer.Backspace()
       return true
     endif
@@ -252,6 +254,7 @@ export class Session
   enddef
 
   def Commit(): list<Result>
+    this.CancelCompletionSearch()
     if this.InCompletion()
       const chosen = this._completions[this._completion_index]
       const text = this._Render(chosen.text)
@@ -298,12 +301,32 @@ export class Session
       this.MoveCompletion(1)
       return true
     endif
-    if this.InCandidate() || !this._state.in_preedit || strchars(this._state.reading) < minimum
-        || !empty(this._composer.Pending()) || this._normalizer.HasPendingModifier()
+    const search = this.CreateCompletionSearch(minimum)
+    if search is null_object
       return false
     endif
-    this._completions = completion.Prepare(this._entries, this._preferences,
+    while !search.Step(64)
+    endwhile
+    return this.ApplyCompletion(search)
+  enddef
+
+  def CreateCompletionSearch(minimum: number): completion.Search
+    this.CancelCompletionSearch()
+    if this.InCandidate() || !this._state.in_preedit || strchars(this._state.reading) < minimum
+        || !empty(this._composer.Pending()) || this._normalizer.HasPendingModifier()
+      return null_object
+    endif
+    this._completion_request = completion.Search.new(this._entries, this._preferences,
       this._state.reading, this._state.okuri, this._dictionary_index, this._small_tsu_okuri_as_t)
+    return this._completion_request
+  enddef
+
+  def ApplyCompletion(search: completion.Search): bool
+    if search isnot this._completion_request || !search.IsCurrent()
+      return false
+    endif
+    this.CancelCompletionSearch()
+    this._completions = search.Result()
     this._completion_index = 0
     return this.InCompletion()
   enddef
@@ -316,7 +339,12 @@ export class Session
     this._completion_index = ((this._completion_index + delta) % count + count) % count
   enddef
 
+  def CancelCompletionSearch()
+    this._completion_request = null_object
+  enddef
+
   def CancelCompletion()
+    this.CancelCompletionSearch()
     this._completions = []
     this._completion_index = 0
   enddef
@@ -327,7 +355,8 @@ export class Session
     endif
     final candidates: list<conversion.CandidateInfo> = []
     const count = len(this._completions)
-    for index in range(count)
+    const first = max([0, min([this._completion_index - 10, count - 20])])
+    for index in range(first, min([count - 1, first + 19]))
       const item = this._completions[index]
       const annotations = item.candidate.annotations + ['読み: ' .. item.query.reading
         .. (item.okuri == '' ? '' : '*' .. item.okuri)]
