@@ -174,13 +174,14 @@ export class Editor
 
   def _PreviewCompletion()
     const info = this._session.GetCompletionInfo()
-    if info is null_object || info.selected_index < 0
+    if info is null_object
       return
     endif
-    const selected = info.candidates[info.selected_index - info.candidates[0].index]
     const snapshot = this._session.GetSnapshot()
     const reading = this._session.RenderText(snapshot.reading .. snapshot.okuri)
-    this._Apply([session.Result.new(selected.text, [], snapshot, false, true, true,
+    const selected = info.selected_index >= 0
+    const text = selected ? info.candidates[info.selected_index - info.candidates[0].index].text : reading
+    this._Apply([session.Result.new(text, [], snapshot, false, selected, true,
       false, false, reading)])
   enddef
 

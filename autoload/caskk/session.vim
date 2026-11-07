@@ -341,8 +341,12 @@ export class Session
       throw 'caskk: no active completion'
     endif
     const count = len(this._completions)
-    this._completion_index = this._completion_index < 0 ? (delta < 0 ? count - 1 : 0)
-      : ((this._completion_index + delta) % count + count) % count
+    if this._completion_index == 0 && delta == -1
+      this._completion_index = -1
+    else
+      this._completion_index = this._completion_index < 0 ? (delta < 0 ? count - 1 : 0)
+        : ((this._completion_index + delta) % count + count) % count
+    endif
   enddef
 
   def CancelCompletionSearch()

@@ -99,6 +99,18 @@ suite.commit_with_unselected_menu_keeps_reading_without_learning = (): void => {
   assert.equals(user_runtime.Get().GetSnapshot().mru, {})
 }
 
+suite.previous_from_first_candidate_restores_unselected_reading = (): void => {
+  Setup({mappings: {"\<Tab>": 'ShowCompletion', "\<F6>": 'PreviousCandidate'}})
+  defer Cleanup()
+  feedkeys("aKana\<F12>\<Tab>\<F12>\<F6>\<F12>\<Tab>\<F12>\<Up>\<F12>\<CR>\<Esc>", 'xt')
+  assert.equals(captures, ['前かな後', '前仮名後', '前かな後', '前仮名後', '前かな後'])
+  assert.equals(selected_rows, [0, 1, 0, 1, 0])
+  assert.equals(index(popup_lines[2], '1/3 仮名 — 文字 / 読み: かな') >= 0, true)
+  assert.equals(getline(1), '前かな')
+  assert.equals(getline(2), '後')
+  assert.equals(user_runtime.Get().GetSnapshot().mru, {})
+}
+
 suite.menu_previews_selection_and_enter_commits_the_selected_word = (): void => {
   Setup()
   defer Cleanup()

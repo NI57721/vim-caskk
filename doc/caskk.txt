@@ -411,7 +411,10 @@ in the buffer.  ShowCompletion selects the first candidate; subsequent presses
 move to the next candidate.  Focus movement previews the selected word without
 learning it.  The original reading is retained for further editing.  ShowCompletion, NextCandidate, or an otherwise
 unmapped Down moves focus forward; PreviousCandidate or an otherwise unmapped
-Up moves backward.  Moving past an end wraps within the completion list.
+Up moves backward.  Moving backward from the first candidate clears selection
+and restores the reading while keeping the list open.  Moving backward again
+selects the last candidate.  Moving forward from the last candidate wraps to
+the first.
 With no selection, Enter and Commit retain their usual reading behavior.
 Enter (except in abbreviation input) or Commit accepts the focused word
 directly, closes preedit, and shares normal learning using the completed word's
