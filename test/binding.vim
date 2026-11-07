@@ -926,3 +926,26 @@ suite.explicit_enter_commit_action_precedes_native_line_break = (): void => {
   assert.equals(getline(1, '$'), ['前かか後'])
   keys.Disable()
 }
+
+var captured_okuri_boundaries: list<bool> = []
+
+def CaptureOkuriBackspace()
+  captured_preedit_text->add(getline(1))
+  captured_okuri_boundaries->add(!empty(filter(prop_list(1), (_, property) => get(property, 'text', '') ==# '*')))
+enddef
+
+suite.backspace_deletes_okuri_then_its_boundary_before_editing_reading = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  captured_preedit_text = []
+  captured_okuri_boundaries = []
+  const compiled = scheme.Compile({}, {i: 'i'}, [scheme.SpecialDefinition.new(['a', 'b'], 'かえ*る')])
+  const keys = binding.Binding.new(compiled)
+  keys.Enable()
+  inoremap <buffer> <F12> <ScriptCmd>CaptureOkuriBackspace()<CR>
+  feedkeys("aAB\<BS>\<F12>\<BS>\<F12>i\<F12>\<Esc>", 'xt')
+  assert.equals(captured_preedit_text, ['前かえ後', '前かえ後', '前かえい後'])
+  assert.equals(captured_okuri_boundaries, [true, false, false])
+  assert.equals(getline(1), '前かえい後')
+  keys.Disable()
+}

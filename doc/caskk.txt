@@ -258,7 +258,10 @@ returning to an okuri reading commits that reading and suffix before continuing.
 
 Unless explicitly assigned by the scheme or action mappings, Insert keys work
 as follows.  Backspace removes a waiting sticky modifier or an unfinished key
-before deleting the previous reading/okuri character.  Deleting a Modified
+before editing preedit.  Within preedit, it deletes okuri characters first,
+then an empty okuri boundary, then reading characters.  For example, two
+Backspaces change 'かえ*る' to 'かえ*' and then 'かえ', preserving 'え'.
+Following input then continues the reading.  Deleting a Modified
 unfinished key retains its modification for the next key; another Backspace
 clears that modification.  With a selected candidate it commits
 and learns the candidate before Vim's native deletion.  Left/Right remain

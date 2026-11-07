@@ -62,12 +62,14 @@ export class State
     endif
     if this.okuri != ''
       this.okuri = strcharpart(this.okuri, 0, strchars(this.okuri) - 1)
+    elseif this.okuri_started
+      this.okuri_started = false
     elseif this.reading != ''
       this.reading = strcharpart(this.reading, 0, strchars(this.reading) - 1)
     else
       return false
     endif
-    if this.reading ==# '' && this.okuri ==# ''
+    if this.reading ==# '' && this.okuri ==# '' && !this.okuri_started
       this.Commit()
     endif
     return true

@@ -213,3 +213,35 @@ suite.snapshot_retains_values_after_state_changes_and_commit = (): void => {
   assert.equals(snapshot.okuri, 'け')
   assert.equals(snapshot.okuri_started, true)
 }
+
+suite.backspace_removes_empty_okuri_boundary_before_the_reading = (): void => {
+  const ime = state.State.new()
+  ime.Apply(composition.Result.new(true, 'かえ', 'る', true))
+  assert.equals(ime.Backspace(), true)
+  const after_okuri = ime.GetSnapshot()
+  assert.equals(after_okuri.reading, 'かえ')
+  assert.equals(after_okuri.okuri, '')
+  assert.equals(after_okuri.okuri_started, true)
+  assert.equals(ime.Backspace(), true)
+  assert.equals(ime.reading, 'かえ')
+  assert.equals(ime.okuri_started, false)
+  assert.equals(ime.in_preedit, true)
+  assert.equals(after_okuri.okuri_started, true)
+  ime.Apply(composition.Result.new(false, 'い', '', false))
+  assert.equals(ime.reading, 'かえい')
+  assert.equals(ime.okuri, '')
+  ime.Backspace()
+  assert.equals(ime.reading, 'かえ')
+}
+
+suite.backspace_keeps_a_boundary_without_reading_until_it_is_deleted = (): void => {
+  const ime = state.State.new()
+  ime.Apply(composition.Result.new(true, '', 'る', true))
+  assert.equals(ime.Backspace(), true)
+  assert.equals(ime.in_preedit, true)
+  assert.equals(ime.okuri_started, true)
+  assert.equals(ime.Backspace(), true)
+  assert.equals(ime.in_preedit, false)
+  assert.equals(ime.okuri_started, false)
+  assert.equals(ime.Backspace(), false)
+}
