@@ -857,7 +857,9 @@ does not restore it to normal; MRU learning only reorders normal candidates.
 
 DeleteUserEntry                                  *caskk-action-delete-user-entry*
 Requests confirmation before removing the selected registered user candidate.
-Press y/Y to delete, or n/N/Escape to cancel.  Any other key cancels confirmation
+In ordinary Insert conversion, the confirmation temporarily replaces the
+candidate list with a centered popup that wraps to fit the screen.  Cancelling
+restores the candidate list.  Press y/Y to delete, or n/N/Escape to cancel.  Any other key cancels confirmation
 and is then processed normally.  Matching user entries sharing the current SKK
 lookup key are deleted, including other exact-okuri variants; independent
 pin/demote and MRU preferences are retained.  Candidate selection is refreshed;

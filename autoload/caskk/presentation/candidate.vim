@@ -25,6 +25,7 @@ enddef
 # A read-only information popup. Input and selection stay in the source window.
 export class View
   var _window: number = 0
+  var _confirmation: bool = false
 
   def new()
   enddef
@@ -34,6 +35,7 @@ export class View
       popup_close(this._window)
     endif
     this._window = 0
+    this._confirmation = false
   enddef
 
   def Render(info: conversion.CandidateListInfo, message: string = '', commandline: bool = false)
@@ -41,10 +43,20 @@ export class View
       this.Close()
       return
     endif
-    var lines = Format(info)
     if message !=# ''
-      lines->add(message)
+      # A confirmation must not inherit the candidate list's fixed viewport.
+      this.Close()
+      this._window = popup_create([message], {
+        pos: 'center', padding: [0, 1, 0, 1],
+        maxwidth: min([60, max([1, &columns - 2])]),
+        wrap: true, highlight: 'Pmenu', moved: 'any',
+      })
+      this._confirmation = true
+      return
+    elseif this._confirmation
+      this.Close()
     endif
+    const lines = Format(info)
     const previous = this._window == 0 ? {} : popup_getpos(this._window)
     if !empty(previous)
       # Preserve the initial screen rectangle as selection scrolls toward the end.

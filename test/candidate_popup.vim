@@ -287,3 +287,58 @@ suite.candidate_popup_keeps_its_position_and_height_near_the_end = (): void => {
       [initial.line, initial.col, observations[0].height])
   endfor
 }
+
+suite.deletion_confirmation_is_fully_visible_in_a_small_terminal = (): void => {
+  const script = tempname() .. '.vim'
+  const report = tempname()
+  defer delete(script)
+  defer delete(report)
+  writefile([
+    'vim9script',
+    'set rtp^=' .. escape(getcwd(), ' ,'),
+    'const inline = readfile(' .. string(report) .. ')[0] ==# "inline"',
+    "import autoload 'caskk.vim' as C",
+    "import autoload 'caskk/user_state/runtime.vim' as runtime",
+    "import autoload 'caskk/dictionary/lookup.vim' as lookup",
+    "import 'caskk/dictionary.vim' as dictionary",
+    "C.RegisterInputScheme({name: 'small-confirmation', consonants: {k: 'k'}, combinations: {a: 'a', i: 'i'}})",
+    "C.Config({mode_popup: false, registration_auto: false, registration_inline: inline, registration_prefill: false, mappings: {s: 'Convert', x: 'DeleteUserEntry', q: 'OpenRegistration'}})",
+    "runtime.Get().AddEntry(lookup.CreateQuery('か', ''), dictionary.Candidate.new('蚊', []))",
+    "C.Enable('small-confirmation')",
+    'def Capture(timer: number)',
+    "  writefile([string(runtime.Get().HasEntryForLookup(lookup.CreateQuery('か', ''), '蚊'))], " .. string(report) .. ')',
+    'enddef',
+    'timer_start(10, Capture, {repeat: -1})',
+    'writefile(["ready"], ' .. string(report) .. ')',
+  ], script)
+  for dimensions in [[8, 24, false], [6, 36, false], [8, 24, true], [6, 36, true]]
+    writefile([dimensions[2] ? 'inline' : 'normal'], report)
+    const terminal = term_start([v:progpath, '-Nu', 'NONE', '-i', 'NONE', '-n', '-N', '-S', script],
+      {hidden: true, term_rows: dimensions[0], term_cols: dimensions[1]})
+    try
+      for _ in range(100)
+        term_wait(terminal, 10)
+        if readfile(report) == ['ready'] || readfile(report) == ['true']
+          break
+        endif
+      endfor
+      term_sendkeys(terminal, dimensions[2] ? 'iKisqKasx' : 'iKasx')
+      term_wait(terminal, 100)
+      const screen = join(mapnew(range(1, dimensions[0]), (_, row) => term_getline(terminal, row)), '')
+      # Ignore background cells and Vim's filler before a wrapped wide character.
+      const compact = substitute(screen, '[[:space:]~>]', '', 'g')
+      assert.equals(stridx(compact, 'ユーザー辞書から削除しますか？y:削除n/Esc:取消') >= 0, true, screen)
+      term_sendkeys(terminal, 'n')
+      term_wait(terminal, 100)
+      assert.equals(readfile(report), ['true'])
+      const restored = join(mapnew(range(1, dimensions[0]), (_, row) => term_getline(terminal, row)), '')
+      assert.equals(stridx(restored, dimensions[2] ? '辞書登録' : '▶ 1/1 蚊') >= 0, true, restored)
+      term_sendkeys(terminal, 'xy')
+      term_wait(terminal, 100)
+      assert.equals(readfile(report), ['false'])
+    finally
+      job_stop(term_getjob(terminal), 'kill')
+      execute 'silent! bwipeout! ' .. terminal
+    endtry
+  endfor
+}
