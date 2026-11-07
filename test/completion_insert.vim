@@ -443,3 +443,17 @@ suite.typing_after_a_selected_completion_commits_then_starts_new_input = (): voi
   normal! u
   assert.equals(getline(1), '前仮名後')
 }
+
+suite.experimental_adjective_marker_is_removed_on_commit_and_undo = (): void => {
+  const source = tempname()
+  defer delete(source)
+  writefile(['かな /仮名;@adj/'], source)
+  Setup({dictionaries: [source], completion_min_length: 20, mappings: {"\<F10>": "Commit"}})
+  defer Cleanup()
+  feedkeys("aKanaI\<F12>\<F10>\<F12>\<Esc>", 'xt')
+  assert.equals(captures, ['前仮名い［adj］後', '前仮名い後'])
+  assert.equals(stridx(string(popup_lines[0]), '仮名い［adj］') >= 0, true)
+  assert.equals(user_runtime.Get().GetSnapshot().mru, {})
+  normal! u
+  assert.equals(getline(1), '前かない後')
+}
