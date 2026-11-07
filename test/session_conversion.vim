@@ -692,3 +692,20 @@ suite.selection_actions_outside_candidate_state_are_rejected = (): void => {
     assert.equals(ime.GetSnapshot().in_preedit, false)
   endfor
 }
+
+suite.abbreviation_numeric_reading_offers_literal_entries_and_numeric_conversions = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('1000001 /東京都千代田区千代田/'),
+    parser.ParseLine('# /#0/#1/')]])
+  const preferences = user_state.State.new()
+  const ime = session.Session.new(scheme.Compile({}, {}), '', entries, preferences)
+  ime.SetInputMode(input_mode.ABBREVIATION)
+  for key in split('1000001', '\zs')
+    ime.Feed(key)
+  endfor
+  assert.equals(ime.StartConversion(entries, preferences)[-1].text, '東京都千代田区千代田')
+  assert.equals(ime.NextCandidate().text, '1000001')
+  assert.equals(ime.NextCandidate().text, '１０００００１')
+  assert.equals(ime.PreviousCandidate().text, '1000001')
+  assert.equals(ime.PreviousCandidate().text, '東京都千代田区千代田')
+  assert.equals(ime.Commit()[-1].text, '東京都千代田区千代田')
+}

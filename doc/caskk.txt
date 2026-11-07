@@ -664,8 +664,14 @@ that was active before AbbreviationMode was entered.
 
 Numeric dictionary conversion                              *caskk-numeric-conversion*
 
-ASCII digit runs in a conversion reading are replaced by '#' when looking up a
-dictionary key.  In a candidate, numeric placeholders use the corresponding
+A conversion reading containing ASCII digits searches both its literal
+dictionary key and a key with each digit run replaced by '#'.  Literal-key
+candidates come first, followed by numeric-template candidates; duplicate
+candidates have their annotations merged.  User-state ranking still applies
+to the combined list.  For example, '1000001 /東京都千代田区千代田/' can be
+converted alongside numeric entries under '#'.
+
+In a candidate, numeric placeholders use the corresponding
 digit runs from the reading in order.  For example, the entry >
 
     #:# /#0時#0分/

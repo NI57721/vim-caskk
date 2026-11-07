@@ -2,6 +2,7 @@ vim9script
 
 import 'caskk/dictionary.vim' as dictionary
 import autoload 'caskk/dictionary/numeric.vim' as numeric
+import autoload 'caskk/dictionary/merge.vim' as merger
 import autoload 'caskk/dictionary/index.vim' as index
 
 # DDSKK standard skk-kana-rom-vector; independent of the input scheme.
@@ -31,8 +32,8 @@ export def CreateQuery(reading: string, okuri: string, small_tsu_okuri_as_t: boo
   return dictionary.Query.new(reading, exact_okuri, numeric.NormalizeLookupReading(reading) .. prefix)
 enddef
 
-# Search already loaded entries without I/O or inferred morphological filtering.
-export def Lookup(entries: dict<dictionary.Entry>, query: dictionary.Query,
+# Search one SKK key without I/O or inferred morphological filtering.
+def LookupKey(entries: dict<dictionary.Entry>, query: dictionary.Query,
     database: index.Database = null_object): list<dictionary.Candidate>
   if database isnot null_object
     return database.Lookup(query)
@@ -42,4 +43,22 @@ export def Lookup(entries: dict<dictionary.Entry>, query: dictionary.Query,
   endif
   # Ranking or selection may rearrange the returned list without changing sources.
   return copy(entries[query.lookup_key].candidates)
+enddef
+
+# Exact numeric readings and numeric templates are both candidate sources.
+export def Lookup(entries: dict<dictionary.Entry>, query: dictionary.Query,
+    database: index.Database = null_object): list<dictionary.Candidate>
+  const normalized = numeric.NormalizeLookupReading(query.reading)
+  if normalized ==# query.reading || stridx(query.lookup_key, normalized) != 0
+    return LookupKey(entries, query, database)
+  endif
+  const literal_key = query.reading .. strpart(query.lookup_key, strlen(normalized))
+  const literal_query = dictionary.Query.new(query.reading, query.exact_okuri, literal_key)
+  const literal = LookupKey(entries, literal_query, database)
+  const templates = LookupKey(entries, query, database)
+  const merged = merger.Merge([[
+    dictionary.Entry.new(query.lookup_key, literal),
+    dictionary.Entry.new(query.lookup_key, templates),
+  ]])
+  return merged[query.lookup_key].candidates
 enddef

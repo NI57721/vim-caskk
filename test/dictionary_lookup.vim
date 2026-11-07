@@ -4,6 +4,7 @@ import 'caskk/dictionary.vim' as dictionary
 import 'caskk/composition.vim' as composition
 import autoload 'caskk/state.vim' as state
 import autoload 'caskk/dictionary/lookup.vim' as lookup
+import autoload 'caskk/dictionary/index.vim' as dict_index
 import autoload 'caskk/dictionary/parser.vim' as parser
 import autoload 'caskk/dictionary/merge.vim' as merger
 
@@ -148,4 +149,37 @@ suite.returned_list_can_change_without_altering_system_candidates = (): void => 
   assert.equals(CandidateTexts(candidates), ['感じ', '変更'])
   assert.equals(CandidateTexts(lookup.Lookup(entries, query)), ['漢字', '感じ'])
   assert.equals(CandidateTexts(entries['かんじ'].candidates), ['漢字', '感じ'])
+}
+
+suite.numeric_readings_search_literal_and_placeholder_keys_in_both_sources = (): void => {
+  const lines = ['# /#0;数字/共通;数値/', '1000001 /東京都千代田区千代田/共通;郵便番号/']
+  const entries = merger.Merge([mapnew(lines, (_, line) => parser.ParseLine(line))])
+  for source_lines in [lines, [';; okuri-nasi entries.'] + lines]
+    const database = dict_index.Database.new([dict_index.SourceFromLines(source_lines)])
+    for source in [null_object, database]
+      const candidates = lookup.Lookup(entries, lookup.CreateQuery('1000001', ''), source)
+      assert.equals(CandidateTexts(candidates), ['東京都千代田区千代田', '共通', '#0'])
+      assert.equals(candidates[1].annotations, ['郵便番号', '数値'])
+      assert.equals(CandidateTexts(lookup.Lookup(entries, lookup.CreateQuery('9999999', ''), source)),
+        ['#0', '共通'])
+    endfor
+  endfor
+  assert.equals(entries['1000001'].candidates[1].annotations, ['郵便番号'])
+}
+
+suite.literal_numeric_reading_is_found_without_a_placeholder_entry = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('1000001 /東京都千代田区千代田/')]])
+  assert.equals(CandidateTexts(lookup.Lookup(entries, lookup.CreateQuery('1000001', ''))),
+    ['東京都千代田区千代田'])
+}
+
+suite.numeric_literal_keys_keep_the_okuri_prefix_including_small_tsu_configuration = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('だい12k /第十二/'),
+    parser.ParseLine('だい#k /第#3/'), parser.ParseLine('12t /固定/'),
+    parser.ParseLine('#t /数値/'), parser.ParseLine('12x /標準/'), parser.ParseLine('#x /標準数値/')]])
+  assert.equals(CandidateTexts(lookup.Lookup(entries, lookup.CreateQuery('だい12', 'くらい'))),
+    ['第十二', '第#3'])
+  assert.equals(CandidateTexts(lookup.Lookup(entries, lookup.CreateQuery('12', 'って'))), ['固定', '数値'])
+  assert.equals(CandidateTexts(lookup.Lookup(entries, lookup.CreateQuery('12', 'って', false))),
+    ['標準', '標準数値'])
 }
