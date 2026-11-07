@@ -694,6 +694,21 @@ export class Binding
     return false
   enddef
 
+  def _ShowAutomaticCompletion()
+    if !configuration.GetCandidatePopup() || this._editor is null_object
+        || this._editor.IsRegistrationSuspended() || this._editor.IsInCompletion()
+      return
+    endif
+    if this._editor.ShowCompletion(configuration.GetInput().completion_min_length)
+      this._SyncInputMode()
+    endif
+  enddef
+
+  def _FeedEditor(key: string)
+    this._Record(this._editor.Feed(key))
+    this._ShowAutomaticCompletion()
+  enddef
+
   def _FallbackActionKey(key: string)
     const literal = key ==# '<Space>' ? ' '
       : strchars(key) == 1 && char2nr(key) >= 0x20 && char2nr(key) != 0x7f ? key : ''
@@ -701,7 +716,7 @@ export class Binding
       if this._editor is null_object
         this.Enter()
       endif
-      this._Record(this._editor.Feed(literal))
+      this._FeedEditor(literal)
       return
     endif
     this.Leave()
@@ -846,8 +861,14 @@ export class Binding
         this._editor.MoveCompletion(-1)
         this._SyncInputMode()
         return
-      elseif completion_action ==# 'CancelCompletion' || key ==# '<BS>'
+      elseif completion_action ==# 'CancelCompletion'
         this._editor.CancelCompletion()
+        this._SyncInputMode()
+        return
+      elseif key ==# '<BS>'
+        this._editor.CancelCompletion()
+        this._editor.Backspace()
+        this._ShowAutomaticCompletion()
         this._SyncInputMode()
         return
       else
@@ -863,6 +884,7 @@ export class Binding
     endif
     if has_key(this._native, key)
       if key ==# '<BS>' && this._editor isnot null_object && this._editor.Backspace()
+        this._ShowAutomaticCompletion()
         this._SyncInputMode()
         return
       endif
@@ -878,11 +900,12 @@ export class Binding
     endif
     const action = get(this._actions, key, '')
     if action !=# '' && this._editor.IsSpecialContinuation(key)
-      this._Record(this._editor.Feed(key))
+      this._FeedEditor(key)
       return
     endif
     if action ==# 'DeleteUserEntry' && key ==# '<BS>' && !this._editor.IsInCandidate()
       if this._editor.Backspace()
+        this._ShowAutomaticCompletion()
         this._SyncInputMode()
         return
       endif
@@ -929,7 +952,7 @@ export class Binding
         this._mode_view.Show(this._input_mode, this._mode_marker)
       endif
     else
-      this._Record(this._editor.Feed(key))
+      this._FeedEditor(key)
     endif
   enddef
 

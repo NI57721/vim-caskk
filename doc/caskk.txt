@@ -368,26 +368,37 @@ settings, dictionaries, and mappings: >vim9
       "\<Space>": 'Convert',
     },
 <
-ShowCompletion searches readings that start with the current reading.  It
-requires preedit of at least completion_min_length characters and no unfinished
-key sequence or sticky modifier.  There is no automatic activation or default
-completion mapping.  Short readings, unfinished input, and no matches leave
-preedit unchanged and do not request registration.
+Completion appears automatically as the preedit reading reaches
+completion_min_length characters and has no unfinished key sequence or sticky
+modifier.  It searches readings that start with the current reading and updates
+as typing continues.  No Tab press or ShowCompletion mapping is required.
+Short readings, unfinished input, and no matches close the list, preserve the
+reading, and do not request registration.  Deleting a reading character also
+refreshes the list when the remaining reading meets these conditions.
+
+ShowCompletion remains available to open the list explicitly or move to the
+next item.  There is no default completion mapping.  With candidate_popup set
+to false, automatic completion is disabled; explicitly requested completion
+still works.  This prevents Enter from accepting an unseen automatic candidate.
 
 The popup uses candidate_popup and shows the completed words, annotations, and
 source readings.  Headwords are ordered by reading; candidates within each
 known reading/okuri use the usual pin, MRU, and demotion preferences.
-Showing or moving through the list keeps the original reading in the buffer.
-ShowCompletion again, NextCandidate, or an otherwise unmapped Down moves focus
+Automatic display and focus movement keep the original reading in the buffer
+and do not learn a candidate.  ShowCompletion, NextCandidate, or an otherwise
+unmapped Down moves focus
 forward; PreviousCandidate or an otherwise unmapped Up moves backward.  Moving
 past an end wraps within the completion list.  Enter or Commit accepts the
 focused word directly, closes preedit, and shares normal learning using the
 completed word's reading.  A second conversion step is not required.  Undo
 follows undo_revert_to_reading, as for other committed conversions.
 
-CancelCompletion and Backspace close the list while keeping the reading.
-Ordinary input closes it and continues editing; Convert closes it and starts
-normal conversion of the reading.  Leaving Insert mode, disabling the IME, or
+CancelCompletion closes the list while keeping the reading and does not
+immediately reopen it.  Backspace deletes a reading character and refreshes
+the matching completions; it does not accept the focused word.  Ordinary input
+continues editing and refreshes the list, hiding it during unfinished input or
+when no match remains.  Convert closes the list and starts normal conversion
+of the reading.  Leaving Insert mode, disabling the IME, or
 native movement does not accept the focused completion.
 
 Okuri entries are included.  Already entered okuri and known user-entry okuri
@@ -771,9 +782,10 @@ empty dictionary.
 
 completion_min_length                       *caskk-config-completion-min-length*
 
-The minimum number of characters in the preedit reading required by
-ShowCompletion.  It must be a positive integer and defaults to 2.  This setting
-does not automatically open a completion list.  See |caskk-completion|.
+The minimum number of characters in the preedit reading required for automatic
+completion and ShowCompletion.  It must be a positive integer and defaults to
+2.  Automatic display also requires candidate_popup to be true and no unfinished
+input.  See |caskk-completion|.
 
 mappings                                             *caskk-config-mappings*
 
@@ -803,8 +815,10 @@ consumes unsupported editing keys instead; command-line support is described
 in |caskk-commandline|.
 
 ShowCompletion                                  *caskk-action-show-completion*
-Opens reading completion during Insert preedit.  With a completion list open,
-moves focus to the next item without changing buffer text.  See |caskk-completion|.
+Opens reading completion during Insert preedit.  The list also opens
+automatically once the reading meets completion_min_length.  With a completion
+list open, moves focus to the next item without changing buffer text.
+See |caskk-completion|.
 
 CancelCompletion                              *caskk-action-cancel-completion*
 Closes the completion list and preserves the current reading.
