@@ -531,6 +531,7 @@ export class Binding
       feedkeys(keycode.Encode(key), 'in')
       return
     elseif key ==# '<BS>'
+        && (!this._inline_editor.input.InCandidate() || has_key(this._native, key))
       if this._inline_editor.input.BackspacePending()
         this._RefreshInlinePopup()
       else
@@ -930,6 +931,7 @@ export class Binding
       elseif key ==# '<BS>'
         this._editor.CancelCompletion()
         this._editor.Backspace()
+        this._reconversion_pending = null_object
         this._ShowAutomaticCompletion()
         this._SyncInputMode()
         return
@@ -946,6 +948,7 @@ export class Binding
     endif
     if has_key(this._native, key)
       if key ==# '<BS>' && this._editor isnot null_object && this._editor.Backspace()
+        this._reconversion_pending = null_object
         this._ShowAutomaticCompletion()
         this._SyncInputMode()
         return
@@ -967,6 +970,7 @@ export class Binding
     endif
     if action ==# 'DeleteUserEntry' && key ==# '<BS>' && !this._editor.IsInCandidate()
       if this._editor.Backspace()
+        this._reconversion_pending = null_object
         this._ShowAutomaticCompletion()
         this._SyncInputMode()
         return

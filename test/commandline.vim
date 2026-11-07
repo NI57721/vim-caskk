@@ -99,7 +99,7 @@ suite.okuri_sticky_modes_missing_dictionary_and_backspace = (): void => {
   defer delete(path)
   feedkeys(":\<F2>;kaKa\<F3>\<C-C>", 'xt')
   assert.equals(captured, '書か')
-  feedkeys(":\<F2>Ka \<BS>\<BS>ka\<F3>\<C-C>", 'xt')
+  feedkeys(":\<F2>Ka \<BS>ka\<F3>\<C-C>", 'xt')
   assert.equals(captured, 'か')
   feedkeys(":\<F2>Kaka \<BS>ka\<F3>\<C-C>", 'xt')
   assert.equals(captured, 'かか')
@@ -430,4 +430,14 @@ suite.candidate_list_is_visible_and_follows_selection = (): void => {
   finally
     cunmap <F6>
   endtry
+}
+
+suite.backspace_cancels_conversion_and_deletes_one_reading_character = (): void => {
+  Setup()
+  defer Cleanup()
+  const path = Dictionary()
+  defer delete(path)
+  feedkeys(":前\<F2>Ka \<BS>\<F3>\<C-C>", 'xt')
+  assert.equals(captured, '前')
+  assert.equals(user_runtime.Get().GetSnapshot().mru, {})
 }

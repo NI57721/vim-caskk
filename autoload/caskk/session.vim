@@ -244,7 +244,11 @@ export class Session
 
   def BackspacePreedit(): Result
     this.CancelCompletion()
-    if this.InCandidate() || !this._state.Backspace()
+    if this.InCandidate()
+      this.CancelConversion()
+      this._reading_after_cancel = false
+    endif
+    if !this._state.Backspace()
       return null_object
     endif
     const snapshot = this._state.GetSnapshot()

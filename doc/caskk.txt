@@ -263,8 +263,13 @@ then an empty okuri boundary, then reading characters.  For example, two
 Backspaces change 'かえ*る' to 'かえ*' and then 'かえ', preserving 'え'.
 Following input then continues the reading.  Deleting a Modified
 unfinished key retains its modification for the next key; another Backspace
-clears that modification.  With a selected candidate it commits
-and learns the candidate before Vim's native deletion.  Left/Right remain
+clears that modification.  With a selected conversion candidate, unassigned
+Backspace cancels conversion and deletes one trailing reading/okuri item in
+the order above, without committing or learning the candidate.  For example,
+'漢字' with reading 'かんじ' becomes 'かん', and '帰る' with reading 'かえ*る'
+becomes 'かえ*'.  Subsequent input continues editing that reading.  Explicit
+BS scheme/action assignments, including DeleteUserEntry, take precedence.
+Left/Right remain
 within a single-line preedit; subsequent composition resumes at the end of
 that preedit rather than inserting at the temporary cursor position.  Other
 movement and editing keys finish the IME transaction before native Vim input.
@@ -335,8 +340,9 @@ PreviousCandidate, Commit, and the input-mode actions as needed.
 Kana, sticky input, okuri conversion, abbreviation conversion, and output-mode
 switching are supported.  Enter commits pending input or the selected candidate;
 press Enter again to execute the command or search.  With no pending input,
-Enter executes immediately.  Backspace cancels candidate selection to its
-reading, then edits unfinished input and reading.  PreviousCandidate before
+Enter executes immediately.  Unassigned Backspace cancels candidate selection
+and deletes one trailing reading/okuri item without learning it; otherwise it
+edits unfinished input and reading.  PreviousCandidate before
 the first candidate also returns to the reading.  A missing dictionary entry or
 advancing past the last candidate returns to editable reading without opening
 registration.  Committing a candidate shares the usual user-state learning.
@@ -558,7 +564,11 @@ logical editing position.  The mode popup is anchored below the registration
 popup, aligned with its left edge.  The usual input scheme and conversion
 actions work there.  Left and Right commit the current preedit or selected candidate into
 the draft, then move by one character.  Backspace removes pending input first,
-then the previous preedit character, then the draft character before the bar.
+then the previous preedit character or empty okuri boundary, then the draft
+character before the bar.  During candidate selection, unassigned Backspace
+cancels conversion and deletes one trailing preedit item without committing
+or learning that candidate.  An explicit DeleteUserEntry mapping on BS keeps
+its deletion-confirmation behavior.
 Delete commits active input and removes the draft character after the bar.
 Terminal bracketed paste inserts literal text at the registration caret after
 committing active input into the draft. It does not modify the source buffer

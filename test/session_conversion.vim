@@ -709,3 +709,39 @@ suite.abbreviation_numeric_reading_offers_literal_entries_and_numeric_conversion
   assert.equals(ime.PreviousCandidate().text, '東京都千代田区千代田')
   assert.equals(ime.Commit()[-1].text, '東京都千代田区千代田')
 }
+
+suite.backspace_cancels_candidate_and_deletes_the_reading_without_learning = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('かんじ /漢字/感じ/')]])
+  const preferences = user_state.State.new()
+  const ime = session.Session.new(scheme.Compile({}, {}), '', entries, preferences, 'かんじ')
+  ime.StartConversion(entries, preferences)
+  ime.NextCandidate()
+  const result = ime.BackspacePreedit()
+  assert.equals(result isnot null_object, true)
+  assert.equals(result.text, 'かん')
+  assert.equals(ime.InCandidate(), false)
+  assert.equals(ime.GetSnapshot().reading, 'かん')
+  ime.Feed('x')
+  assert.equals(ime.GetSnapshot().reading, 'かんx')
+  assert.equals(preferences.GetSnapshot().mru, {})
+}
+
+suite.backspace_cancels_okuri_selection_then_deletes_the_boundary_on_the_next_press = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('かえr /帰/')]])
+  const preferences = user_state.State.new()
+  const compiled = scheme.Compile({}, {i: 'i'}, [scheme.SpecialDefinition.new(['a', 'b'], 'かえ*る')])
+  const ime = session.Session.new(compiled, '', entries, preferences)
+  ime.Feed('A')
+  ime.Feed('B')
+  assert.equals(ime.InCandidate(), true)
+  ime.BackspacePreedit()
+  assert.equals(ime.GetSnapshot().reading, 'かえ')
+  assert.equals(ime.GetSnapshot().okuri, '')
+  assert.equals(ime.GetSnapshot().okuri_started, true)
+  ime.BackspacePreedit()
+  assert.equals(ime.GetSnapshot().reading, 'かえ')
+  assert.equals(ime.GetSnapshot().okuri_started, false)
+  ime.Feed('i')
+  assert.equals(ime.GetSnapshot().reading, 'かえい')
+  assert.equals(preferences.GetSnapshot().mru, {})
+}

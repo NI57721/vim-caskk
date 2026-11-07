@@ -276,10 +276,8 @@ def Dispatch(key: string)
       : current.StartConversion({}, user_runtime.Get()))
   elseif action ==# 'PreviousCandidate' && current.InCandidate()
     Apply([current.PreviousCandidate()])
-  elseif key ==# '<BS>' || key ==# '<C-H>'
-    if current.InCandidate()
-      Apply([current.CancelConversion()])
-    elseif current.BackspacePending()
+  elseif (key ==# '<BS>' || key ==# '<C-H>') && action == ''
+    if current.BackspacePending()
       Pending()
     else
       const result = current.BackspacePreedit()

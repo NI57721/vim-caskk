@@ -3,6 +3,8 @@ vim9script
 import autoload 'caskk.vim' as Caskk
 import autoload 'caskk/user_state.vim' as user_state
 import autoload 'caskk/user_state/runtime.vim' as user_runtime
+import autoload 'caskk/dictionary/lookup.vim' as lookup
+import 'caskk/dictionary.vim' as dictionary
 import autoload 'caskk/presentation/registration_inline.vim' as RegistrationInline
 
 final suite = themis#suite('in-buffer dictionary registration')
@@ -61,7 +63,7 @@ def g:CaskkTestInlineReloadConfig()
   Caskk.Config({})
 enddef
 
-def Setup(prefill: bool = false, with_candidates: bool = false): list<number>
+def Setup(prefill: bool = false, with_candidates: bool = false, extra_mappings: dict<string> = {}): list<number>
   previous_state = user_runtime.Get().GetSnapshot()
   user_runtime.Get().Restore(user_state.State.new().GetSnapshot())
   const previous = bufnr('%')
@@ -76,7 +78,7 @@ def Setup(prefill: bool = false, with_candidates: bool = false): list<number>
     registration_prefill: prefill,
     highlight: {preedit: {term: 'underline', cterm: 'underline', gui: 'underline'}},
     mode_popup: true, mode_popup_time: 0,
-    mappings: {s: 'Convert', n: 'NextCandidate', "\<F6>": 'OpenRegistration'}}
+    mappings: extend({s: 'Convert', n: 'NextCandidate', "\<F6>": 'OpenRegistration'}, extra_mappings)}
   if with_candidates
     dictionary_directory = tempname()
     mkdir(dictionary_directory)
@@ -430,4 +432,22 @@ suite.paste_preserves_prefill_and_can_be_cancelled_after_disabling_ime = (): voi
   assert.equals(popup_lines, ['辞書登録: か  [Enter:登録 Esc:取消]', '登録語: か貼付Ka│'])
   assert.equals(getline(1), '前か後')
   assert.equals(maparg('<PasteStart>', 'i', false, true), old_paste_mapping)
+}
+
+suite.backspace_cancels_inline_candidate_without_committing_it_to_the_draft = (): void => {
+  const context = Setup(false, true)
+  defer Cleanup(context)
+  feedkeys("aKus\<F6>Kas\<BS>\<Cmd>call CaskkTestInlineCapture()\<CR>\<Esc>\<Esc>", 'xt')
+  assert.equals(popup_lines, ['辞書登録: く  [Enter:登録 Esc:取消]', '登録語: │'])
+  assert.equals(user_runtime.Get().GetSnapshot().mru, {})
+  assert.equals(getline(1), '前く後')
+}
+
+suite.explicit_backspace_mapping_deletes_an_inline_user_entry = (): void => {
+  const context = Setup(false, true, {"\<BS>": 'DeleteUserEntry'})
+  defer Cleanup(context)
+  user_runtime.Get().AddEntry(lookup.CreateQuery('か', ''), dictionary.Candidate.new('登録のみ', []))
+  feedkeys("aKus\<F6>Kasnn\<BS>\<Cmd>call CaskkTestInlineCapture()\<CR>y\<Esc>\<Esc>", 'xt')
+  assert.equals(popup_lines[-1], 'ユーザー辞書から削除しますか？ y:削除 n/Esc:取消')
+  assert.equals(user_runtime.Get().HasEntryForLookup(lookup.CreateQuery('か', ''), '登録のみ'), false)
 }

@@ -342,3 +342,13 @@ suite.deletion_confirmation_is_fully_visible_in_a_small_terminal = (): void => {
     endtry
   endfor
 }
+
+suite.explicit_backspace_delete_mapping_keeps_its_confirmation_behavior = (): void => {
+  const fixture = Setup(true, {"\<BS>": 'DeleteUserEntry'})
+  defer Cleanup(fixture)
+  user_runtime.Get().AddEntry(lookup.CreateQuery('か', ''), dictionary.Candidate.new('登録のみ', []))
+  feedkeys('aKasnn' .. "\<BS>" .. CAPTURE .. 'y' .. CAPTURE .. "c\<Esc>", 'xt')
+  assert.equals(observations[0].lines[-1], 'ユーザー辞書から削除しますか？ y:削除 n/Esc:取消')
+  assert.equals(user_runtime.Get().HasEntryForLookup(lookup.CreateQuery('か', ''), '登録のみ'), false)
+  assert.equals(observations[1].lines, ['  1/2 蚊 — 昆虫', '▶ 2/2 科 — 学科'])
+}
