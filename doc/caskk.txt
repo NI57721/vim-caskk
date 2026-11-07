@@ -336,7 +336,8 @@ vim:tw=78:ts=8:noet:ft=help:norl:
 Experimental adjective stems                         *caskk-experimental-adj*
 
 A stem entry such as "うつくし /美し;@adj/" supplies okuri conversion
-candidates when the first okuri character is い, く, け, か, or さ.
+candidates when the first okuri character is one of:
+い, か, く, け, き, し, う, そ, さ, み, め, げ, が, す.
 For example, うつくし*か previews 美しか［adj］ and commits 美しか.
 The normal first-character okuri conversion timing is unchanged.
 Both system and user dictionaries support this experimental feature.
@@ -346,5 +347,6 @@ in "わる /悪;@adj/惡;「悪」の旧字(人名用漢字) @adj/" qualify.
 Experimental candidates precede ordinary candidates, even with identical text.
 They preserve dictionary order and do not learn, pin, demote, or delete entries.
 The ［adj］ marker appears only during conversion and in the candidate list.
-This does not generate completion candidates.  Other derivations, sound changes,
-and classical conjugations are outside its scope.  The feature may be removed.
+This does not generate completion candidates.  The entered okuri is appended
+unchanged; no grammatical validation or sound-change rewriting is performed.
+The feature may be removed.

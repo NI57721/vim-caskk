@@ -8,7 +8,7 @@ const assert = themis#helper('assert')
 suite.stem_conversion_is_marked_but_commit_is_plain = (): void => {
   const entry = parser.ParseLine('うつくし /美し;@adj/')
   const preferences = state.State.new()
-  for suffix in ['い', 'く', 'け', 'か', 'さ']
+  for suffix in ['い', 'か', 'く', 'け', 'き', 'し', 'う', 'そ', 'さ', 'み', 'め', 'げ', 'が', 'す']
     const prepared = conversion.Prepare({'うつくし': entry}, preferences, 'うつくし', suffix)
     assert.equals(len(prepared.candidates), 1)
     const selection = conversion.Selection.new(prepared, preferences)
@@ -36,7 +36,7 @@ suite.tags_are_per_candidate_and_duplicates_remain_separate = (): void => {
   assert.equals(ordinary.CurrentText(), '悪い')
   ordinary.Commit()
   assert.equals(empty(preferences.GetSnapshot().mru), false)
-  assert.equals(conversion.Prepare({'わる': stem}, preferences, 'わる', 'が').candidates, [])
+  assert.equals(conversion.Prepare({'わる': stem}, preferences, 'わる', 'な').candidates, [])
 }
 
 suite.user_stems_and_all_examples_are_supported = (): void => {

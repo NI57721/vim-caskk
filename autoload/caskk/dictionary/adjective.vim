@@ -7,7 +7,7 @@ import autoload 'caskk/user_state.vim' as user_state
 # Experimental stem expansion; never applies preference ranking or learning.
 export def Lookup(entries: dict<dictionary.Entry>, preferences: user_state.State,
     reading: string, okuri: string, database: dict_index.Database): list<dictionary.Candidate>
-  if index(['い', 'く', 'け', 'か', 'さ'], strcharpart(okuri, 0, 1)) < 0
+  if index(['い', 'か', 'く', 'け', 'き', 'し', 'う', 'そ', 'さ', 'み', 'め', 'げ', 'が', 'す'], strcharpart(okuri, 0, 1)) < 0
     return []
   endif
   final sources = copy(lookup.Lookup(entries, lookup.CreateQuery(reading, ''), database))
