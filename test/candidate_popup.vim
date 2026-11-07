@@ -352,3 +352,17 @@ suite.explicit_backspace_delete_mapping_keeps_its_confirmation_behavior = (): vo
   assert.equals(user_runtime.Get().HasEntryForLookup(lookup.CreateQuery('か', ''), '登録のみ'), false)
   assert.equals(observations[1].lines, ['  1/2 蚊 — 昆虫', '▶ 2/2 科 — 学科'])
 }
+
+suite.unavailable_backspace_actions_cancel_conversion_without_learning = (): void => {
+  for action in ['DeleteUserEntry', 'KatakanaMode', 'OpenRegistration', 'ShowCompletion', 'CancelCompletion']
+    const fixture = Setup(true, {"\<BS>": action})
+    try
+      feedkeys('aKas' .. "\<BS>" .. CAPTURE .. "\<Esc>", 'xt')
+      assert.equals(getline(1), '前後', action)
+      assert.equals(observations[0].popups, [], action)
+      assert.equals(user_runtime.Get().GetSnapshot().mru, {}, action)
+    finally
+      Cleanup(fixture)
+    endtry
+  endfor
+}

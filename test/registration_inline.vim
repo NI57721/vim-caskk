@@ -451,3 +451,24 @@ suite.explicit_backspace_mapping_deletes_an_inline_user_entry = (): void => {
   assert.equals(popup_lines[-1], 'ユーザー辞書から削除しますか？ y:削除 n/Esc:取消')
   assert.equals(user_runtime.Get().HasEntryForLookup(lookup.CreateQuery('か', ''), '登録のみ'), false)
 }
+
+suite.unavailable_inline_backspace_actions_cancel_conversion_without_learning = (): void => {
+  for action in ['DeleteUserEntry', 'KatakanaMode', 'OpenRegistration', 'ShowCompletion', 'CancelCompletion']
+    const context = Setup(false, true, {"\<BS>": action})
+    try
+      feedkeys("aKus\<F6>Kas\<BS>\<Cmd>call CaskkTestInlineCapture()\<CR>\<Esc>\<Esc>", 'xt')
+      assert.equals(popup_lines, ['辞書登録: く  [Enter:登録 Esc:取消]', '登録語: │'], action)
+      assert.equals(user_runtime.Get().GetSnapshot().mru, {}, action)
+      assert.equals(getline(1), '前く後', action)
+    finally
+      Cleanup(context)
+    endtry
+  endfor
+}
+
+suite.available_inline_backspace_action_keeps_candidate_navigation = (): void => {
+  const context = Setup(false, true, {"\<BS>": 'NextCandidate'})
+  defer Cleanup(context)
+  feedkeys("aKus\<F6>Kas\<BS>\<Cmd>call CaskkTestInlineCapture()\<CR>\<Esc>\<Esc>", 'xt')
+  assert.equals(popup_lines[1], '登録語: 科│')
+}

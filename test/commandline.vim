@@ -441,3 +441,14 @@ suite.backspace_cancels_conversion_and_deletes_one_reading_character = (): void 
   assert.equals(captured, '前')
   assert.equals(user_runtime.Get().GetSnapshot().mru, {})
 }
+
+suite.unavailable_backspace_action_cancels_commandline_conversion_without_learning = (): void => {
+  Setup()
+  defer Cleanup()
+  const path = Dictionary()
+  defer delete(path)
+  Caskk.Config({dictionaries: [path], mappings: {"\<Space>": 'Convert', "\<BS>": 'DeleteUserEntry'}})
+  feedkeys(":前\<F2>Ka \<BS>\<F3>\<C-C>", 'xt')
+  assert.equals(captured, '前')
+  assert.equals(user_runtime.Get().GetSnapshot().mru, {})
+}

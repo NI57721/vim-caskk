@@ -507,6 +507,14 @@ export class Binding
     this._AppendInlineResults(this._inline_editor.input.Feed(key ==# '<Space>' ? ' ' : key))
   enddef
 
+  def _CanRunInlineCandidateAction(action: string): bool
+    if action ==# 'DeleteUserEntry'
+      return this._inline_editor.input.CanDeleteUserEntry()
+    endif
+    return index(['Convert', 'NextCandidate', 'PreviousCandidate', 'Commit',
+      'TogglePin', 'ToggleDemote', 'AbbreviationMode'], action) >= 0
+  enddef
+
   def _DispatchInline(key: string)
     if this._ResolveDeleteUserEntryConfirmation(key)
       return
@@ -531,7 +539,8 @@ export class Binding
       feedkeys(keycode.Encode(key), 'in')
       return
     elseif key ==# '<BS>'
-        && (!this._inline_editor.input.InCandidate() || has_key(this._native, key))
+        && (!this._inline_editor.input.InCandidate() || has_key(this._native, key)
+          || (has_key(this._actions, key) && !this._CanRunInlineCandidateAction(this._actions[key])))
       if this._inline_editor.input.BackspacePending()
         this._RefreshInlinePopup()
       else
@@ -968,7 +977,7 @@ export class Binding
       this._FeedEditor(key)
       return
     endif
-    if action ==# 'DeleteUserEntry' && key ==# '<BS>' && !this._editor.IsInCandidate()
+    if key ==# '<BS>' && action !=# '' && !this._CanRunAction(action)
       if this._editor.Backspace()
         this._reconversion_pending = null_object
         this._ShowAutomaticCompletion()

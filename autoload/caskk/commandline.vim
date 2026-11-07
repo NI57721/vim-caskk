@@ -276,7 +276,7 @@ def Dispatch(key: string)
       : current.StartConversion({}, user_runtime.Get()))
   elseif action ==# 'PreviousCandidate' && current.InCandidate()
     Apply([current.PreviousCandidate()])
-  elseif (key ==# '<BS>' || key ==# '<C-H>') && action == ''
+  elseif (key ==# '<BS>' || key ==# '<C-H>') && (action == '' || current.InCandidate())
     if current.BackspacePending()
       Pending()
     else
