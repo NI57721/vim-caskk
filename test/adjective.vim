@@ -15,7 +15,7 @@ suite.stem_conversion_is_marked_but_commit_is_plain = (): void => {
     assert.equals(selection.CurrentText(), '美し' .. suffix .. '［adj］')
     assert.equals(selection.Commit(), '美し' .. suffix)
   endfor
-  assert.equals(preferences.GetSnapshot().mru, {})
+  assert.equals(empty(preferences.GetSnapshot().mru), false)
 }
 
 suite.tags_are_per_candidate_and_duplicates_remain_separate = (): void => {
@@ -26,14 +26,15 @@ suite.tags_are_per_candidate_and_duplicates_remain_separate = (): void => {
   assert.equals(mapnew(prepared.candidates, (_, candidate) => candidate.text), ['悪', '惡', '悪'])
   const selection = conversion.Selection.new(prepared, preferences)
   assert.equals(selection.GetCandidatesInfo().candidates[0].text, '悪い［adj］')
-  selection.TogglePin()
-  selection.ToggleDemote()
+  assert.equals(selection.TogglePin(), 'pinned')
+  assert.equals(selection.ToggleDemote(), 'demoted')
   assert.equals(selection.Commit(), '悪い')
   assert.equals(preferences.GetSnapshot().mru, {})
   const ordinary = conversion.Selection.new(prepared, preferences)
   ordinary.Next()
   ordinary.Next()
   assert.equals(ordinary.CurrentText(), '悪い')
+  preferences.Reset(prepared.query, prepared.candidates[0].text)
   ordinary.Commit()
   assert.equals(empty(preferences.GetSnapshot().mru), false)
   assert.equals(conversion.Prepare({'わる': stem}, preferences, 'わる', 'な').candidates, [])

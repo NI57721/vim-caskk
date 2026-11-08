@@ -17,7 +17,7 @@ suite.ichidan_stem_is_not_rewritten = (): void => {
     assert.equals(selection.CurrentText(), '食べ' .. suffix .. '［verb］')
     assert.equals(selection.Commit(), '食べ' .. suffix)
   endfor
-  assert.equals(preferences.GetSnapshot().mru, {})
+  assert.equals(empty(preferences.GetSnapshot().mru), false)
 }
 
 suite.types_filter_candidates_and_preserve_ordinary_duplicates = (): void => {
@@ -29,13 +29,14 @@ suite.types_filter_candidates_and_preserve_ordinary_duplicates = (): void => {
   assert.equals(prepared.experimental_count, 1)
   assert.equals(conversion.Prepare({'か': stem}, preferences, 'か', 'な').candidates, [])
   const selected = conversion.Selection.new(prepared, preferences)
-  selected.TogglePin()
-  selected.ToggleDemote()
+  assert.equals(selected.TogglePin(), 'pinned')
+  assert.equals(selected.ToggleDemote(), 'demoted')
   selected.Commit()
   assert.equals(preferences.GetSnapshot().mru, {})
   const ordinary = conversion.Selection.new(prepared, preferences)
   ordinary.Next()
   assert.equals(ordinary.CurrentText(), '書く')
+  preferences.Reset(prepared.query, prepared.candidates[0].text)
   ordinary.Commit()
   assert.equals(empty(preferences.GetSnapshot().mru), false)
 }
@@ -204,4 +205,27 @@ suite.plain_user_and_indexed_sources_survive_snapshot_copying = (): void => {
   assert.equals(len(conversion.Prepare({'たべ': unknown}, state.State.new(), 'たべ').candidates), 1)
   const both = parser.ParseLine('たべ /食べ;@adj @verb-1-shimo-b/')
   assert.equals(conversion.Prepare({'たべ': both}, state.State.new(), 'たべ').candidates, [])
+}
+
+suite.experimental_ranking_tracks_markers_and_explicit_choices = (): void => {
+  const entry = parser.ParseLine('かな /仮名;@adj/叶;@verb-5-wa/適;@adj @verb-5-wa/')
+  const entries = {'かな': entry}
+  const preferences = state.State.new()
+  const initial = conversion.Prepare(entries, preferences, 'かな', 'い')
+  const selected = conversion.Selection.new(initial, preferences)
+  selected.Select(2)
+  selected.Commit()
+  const learned = conversion.Prepare(entries, preferences, 'かな', 'い')
+  assert.equals(learned.DisplayAt(0), '叶い［verb］')
+  preferences.Pin(learned.query, '適')
+  const pinned = conversion.Prepare(entries, preferences, 'かな', 'い')
+  assert.equals(pinned.DisplayAt(0), '適い［adj,verb］')
+  const pin_selection = conversion.Selection.new(pinned, preferences)
+  assert.equals(pin_selection.GetInfo().tier, 'pinned')
+  pin_selection.Commit()
+  assert.equals(conversion.Prepare(entries, preferences, 'かな', 'い').DisplayAt(0), '適い［adj,verb］')
+  preferences.Demote(learned.query, '適')
+  const demoted = conversion.Prepare(entries, preferences, 'かな', 'い')
+  assert.equals(demoted.DisplayAt(2), '適い［adj,verb］')
+  assert.equals(conversion.Selection.new(demoted, preferences).GetCandidatesInfo().candidates[2].tier, 'demoted')
 }
