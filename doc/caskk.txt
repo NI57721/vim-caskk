@@ -185,6 +185,21 @@ Numeric conversion                              *caskk-numeric-conversion*
     #6 Roman numerals, #8 comma grouping.  For example, '#:# /#0時#0分/'
     converts abbreviation '12:34' to '12時34分'.
 
+Experimental dictionary entries ~
+
+Adjective stems                                        *caskk-experimental-adj*
+    An SKK entry such as 'うつくし /美し;@adj/' supplies okuri candidates:
+    うつくし*く becomes 美しく.  Candidates display ［adj］ while selecting.
+
+Verb stems                                            *caskk-experimental-verb*
+    Add a tagged stem dictionary through dictionaries.  For example,
+    'たべ /食べ;@verb-1-shimo-b/' converts たべ*る to 食べる, marked ［verb］.
+    Verb-only stems are omitted from reading completion and usually require
+    okuri; registered complete finite forms can also convert without it.
+
+These entries append the entered okuri unchanged.  Pin, demotion, and learning
+are shared across the stem's conjugations.  Markers are not committed as text.
+
 SETTINGS                                                *caskk-settings*
 
 Pass these options to Config().  Defaults are shown beside each type.
@@ -332,139 +347,3 @@ FullwidthAlphanumericMode      *caskk-action-fullwidth-alphanumeric-mode*
     that form.  Repeating the current non-hiragana mode returns to hiragana.
 
 vim:tw=78:ts=8:noet:ft=help:norl:
-
-Experimental adjective stems                         *caskk-experimental-adj*
-
-A stem entry such as "うつくし /美し;@adj/" supplies okuri conversion
-candidates when the first okuri character is one of:
-い, か, く, け, き, し, う, そ, さ, み, め, げ, が, す.
-For example, うつくし*か previews 美しか［adj］ and commits 美しか.
-The normal first-character okuri conversion timing is unchanged.
-Both system and user dictionaries support this experimental feature.
-Each candidate annotation is checked separately; @adj must be bounded by
-whitespace, semicolons, or the annotation's beginning/end.  Thus both candidates
-in "わる /悪;@adj/惡;「悪」の旧字(人名用漢字) @adj/" qualify.
-Experimental candidates precede ordinary candidates, even with identical text.
-They precede ordinary candidates; pin, demotion and MRU apply within the
-experimental group, shared across okuri through the stem reading and empty
-okuri preference key.  They do not delete entries.
-The ［adj］ marker appears only during conversion and in the candidate list.
-This does not generate completion candidates.  The entered okuri is appended
-unchanged; no grammatical validation or sound-change rewriting is performed.
-The feature may be removed.
-
-Experimental verb stems                              *caskk-experimental-verb*
-
-Add a generated verb dictionary through the existing dictionaries setting.
-The dictionary uses plain stem keys in the ascending okuri-nasi section.
-For example, "たべ /食べ;@verb-1-shimo-b/" converts たべ*る to 食べる.
-Neither the registered reading nor candidate text is rewritten.  The entered
-okuri is appended unchanged.  Conversion starts at its first completed kana;
-the full suffix is not grammatically validated.  Negative, polite, past,
-te-form, passive and causative connections are included through their first
-kana.  Multiple recognized tags allow the union of their connections.  Unknown
-tags are ignored.  Tags use the same annotation boundaries as @adj.
-System and user entries are supported.  Experimental candidates precede normal
-candidates and remain separate even with identical text.  Source and candidate
-order is retained within each group (adjectives before verbs).  A matching verb
-is shown once, regardless of how many tags match.  A candidate matching both
-features is shown once with ［adj,verb］; verbs alone use ［verb］.
-Markers appear only during conversion and in the list, never in committed text.
-Experimental candidates temporarily support pin, demotion and MRU learning
-within their group.  They continue to precede ordinary candidates.  Preferences
-use the registered stem reading, empty okuri and unmarked candidate text.
-They are shared across conjugations.  Ordinary okuri candidates continue to
-use the first okuri character and retain independent preferences.  Marker display never enters saved
-preferences.  Experimental candidates cannot delete user entries.
-Completion is not expanded.  No new configuration or persistence format is
-introduced.  This feature may be removed.
-
-Recognized tags and accepted first okuri characters:
-  @verb-5-k  かきくけこい
-  @verb-5-k-iku  かきくけこっ
-  @verb-5-k-yuku  かきくけこっ
-  @verb-5-g  がぎぐげごい
-  @verb-5-s  さしすせそ
-  @verb-5-t  たちつてとっ
-  @verb-5-n  なにぬねのん
-  @verb-5-b  ばびぶべぼん
-  @verb-5-m  まみむめもん
-  @verb-5-r  らりるれろっ
-  @verb-5-r-aru  らりるれろっい
-  @verb-5-wa  わいうえおっ
-  @verb-5-wa-iu  わいうえお
-  @verb-5-wa-yuu  わいうえお
-  @verb-1-kami-a  るれろよなまさてたらずぬん
-  @verb-1-kami-k  るれろよなまさてたらずぬん
-  @verb-1-kami-g  るれろよなまさてたらずぬん
-  @verb-1-kami-z  るれろよなまさてたらずぬん
-  @verb-1-kami-t  るれろよなまさてたらずぬん
-  @verb-1-kami-n  るれろよなまさてたらずぬん
-  @verb-1-kami-h  るれろよなまさてたらずぬん
-  @verb-1-kami-b  るれろよなまさてたらずぬん
-  @verb-1-kami-m  るれろよなまさてたらずぬん
-  @verb-1-kami-r  るれろよなまさてたらずぬん
-  @verb-1-shimo-a  るれろよなまさてたらずぬん
-  @verb-1-shimo-k  るれろよなまさてたらずぬん
-  @verb-1-shimo-g  るれろよなまさてたらずぬん
-  @verb-1-shimo-s  るれろよなまさてたらずぬん
-  @verb-1-shimo-z  るれろよなまさてたらずぬん
-  @verb-1-shimo-t  るれろよなまさてたらずぬん
-  @verb-1-shimo-d  るれろよなまさてたらずぬん
-  @verb-1-shimo-n  るれろよなまさてたらずぬん
-  @verb-1-shimo-h  るれろよなまさてたらずぬん
-  @verb-1-shimo-b  るれろよなまさてたらずぬん
-  @verb-1-shimo-m  るれろよなまさてたらずぬん
-  @verb-1-shimo-r  るれろよなまさてたらずぬん
-  @verb-1-shimo-r-kureru  るれよなまさてたらずぬん
-  @verb-irregular-k  こきくるれいよなまさてたらずぬん
-  @verb-irregular-s  さしすせそるれろよなまてたらずぬん
-  @verb-irregular-z  ざじずぜぞるれろよなまてたらぬん
-  @verb-classical-4-k  かきくけこ
-  @verb-classical-4-g  がぎぐげご
-  @verb-classical-4-s  さしすせそ
-  @verb-classical-4-t  たちつてと
-  @verb-classical-4-h-u  はひうへほ
-  @verb-classical-4-h-hu  はひふへほ
-  @verb-classical-4-b  ばびぶべぼ
-  @verb-classical-4-m  まみむめも
-  @verb-classical-4-r  らりるれろ
-  @verb-classical-2-kami-k  きくるれよ
-  @verb-classical-2-kami-g  ぎぐるれよ
-  @verb-classical-2-kami-t  ちつるれよ
-  @verb-classical-2-kami-d  ぢづるれよ
-  @verb-classical-2-kami-h  ひふるれよ
-  @verb-classical-2-kami-b  びぶるれよ
-  @verb-classical-2-kami-m  みむるれよ
-  @verb-classical-2-kami-y  いゆるれよ
-  @verb-classical-2-kami-r  りるれよ
-  @verb-classical-2-shimo-a  えうるれよ
-  @verb-classical-2-shimo-k  けくるれよ
-  @verb-classical-2-shimo-g  げぐるれよ
-  @verb-classical-2-shimo-s  せするれよ
-  @verb-classical-2-shimo-z  ぜずるれよ
-  @verb-classical-2-shimo-t  てつるれよ
-  @verb-classical-2-shimo-d-zu  ぜずるれよ
-  @verb-classical-2-shimo-d-du  でづるれよ
-  @verb-classical-2-shimo-n  ねぬるれよ
-  @verb-classical-2-shimo-h  へふるれよ
-  @verb-classical-2-shimo-b  べぶるれよ
-  @verb-classical-2-shimo-m  めむるれよ
-  @verb-classical-2-shimo-y  えゆるれよ
-  @verb-classical-2-shimo-r  れるよ
-  @verb-classical-2-shimo-w  ゑうるれよ
-  @verb-classical-irregular-k  こきくるれ
-  @verb-classical-irregular-s  さしすせるれよ
-  @verb-classical-irregular-z  ざじずぜるれよ
-  @verb-classical-irregular-n  なにぬね
-  @verb-classical-irregular-r  らりるれ
-
-Verb-tagged stems are excluded from conversion without okuri and from plain
-reading completion.  An independent untagged source for the same reading and
-text keeps that ordinary candidate available.  This also applies to user
-entries.  Unknown tags do not trigger exclusion.  A source bearing both @adj
-and a recognized verb tag is still excluded without okuri.
-
-Existing preference records are retained without migration.  New stem learning
-uses empty okuri; old okuri-specific learning remains available to ordinary
-candidates.  User entry identities and their okuri information are unchanged.
