@@ -453,7 +453,7 @@ suite.experimental_adjective_marker_is_removed_on_commit_and_undo = (): void => 
   feedkeys("aKanaI\<F12>\<F10>\<F12>\<Esc>", 'xt')
   assert.equals(captures, ['前仮名い［adj］後', '前仮名い後'])
   assert.equals(stridx(string(popup_lines[0]), '仮名い［adj］') >= 0, true)
-  assert.equals(user_runtime.Get().GetSnapshot().mru, {})
+  assert.equals(empty(user_runtime.Get().GetSnapshot().mru), false)
   normal! u
   assert.equals(getline(1), '前かない後')
 }
@@ -467,7 +467,7 @@ suite.experimental_verb_marker_is_removed_on_commit_and_undo = (): void => {
   feedkeys("aKanaKi\<F12>\<F10>\<F12>\<Esc>", 'xt')
   assert.equals(captures, ['前仮名き［verb］後', '前仮名き後'])
   assert.equals(stridx(string(popup_lines[0]), '仮名き［verb］') >= 0, true)
-  assert.equals(user_runtime.Get().GetSnapshot().mru, {})
+  assert.equals(empty(user_runtime.Get().GetSnapshot().mru), false)
   normal! u
   assert.equals(getline(1), '前かなき後')
 }

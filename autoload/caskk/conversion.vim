@@ -94,7 +94,7 @@ export class Selection
     const candidate = this._prepared.candidates[this._index]
     return CandidateInfo.new(this._index, len(this._prepared.candidates),
       this._prepared.DisplayAt(this._index), candidate.annotations,
-      this.IsExperimental() ? "normal" : this._preferences.GetCandidateTier(this._prepared.query, candidate.text))
+      this._preferences.GetCandidateTier(this._prepared.query, candidate.text))
   enddef
 
   def CurrentCandidateText(): string
@@ -109,7 +109,7 @@ export class Selection
     for index in range(0, count - 1)
       const candidate = this._prepared.candidates[index]
       candidates->add(CandidateInfo.new(index, count, this._prepared.DisplayAt(index), candidate.annotations,
-        index < this._prepared.experimental_count ? "normal" : this._preferences.GetCandidateTier(this._prepared.query, candidate.text)))
+        this._preferences.GetCandidateTier(this._prepared.query, candidate.text)))
     endfor
     return CandidateListInfo.new(this._index, candidates)
   enddef
@@ -120,18 +120,12 @@ export class Selection
 
   def TogglePin(): string
     this._CheckActive()
-    if this.IsExperimental()
-      return "normal"
-    endif
     const text = this._prepared.candidates[this._index].text
     return this._preferences.TogglePin(this._prepared.query, text)
   enddef
 
   def ToggleDemote(): string
     this._CheckActive()
-    if this.IsExperimental()
-      return "normal"
-    endif
     const text = this._prepared.candidates[this._index].text
     return this._preferences.ToggleDemote(this._prepared.query, text)
   enddef
@@ -166,9 +160,7 @@ export class Selection
   def Commit(): string
     this._CheckActive()
     const text = this._prepared.TextAt(this._index)
-    if !this.IsExperimental()
-      this._preferences.Learn(this._prepared.query, this._prepared.candidates[this._index].text)
-    endif
+    this._preferences.Learn(this._prepared.query, this._prepared.candidates[this._index].text)
     this._active = false
     return text
   enddef
@@ -203,5 +195,10 @@ export def Prepare(entries: dict<dictionary.Entry>, preferences: user_state.Stat
       markers->add('［verb］')
     endif
   endfor
-  return Candidates.new(query, okuri, experimental + ranked, len(experimental), markers)
+  const ordered = preferences.RankCandidates(query, experimental)
+  final ordered_markers: list<string> = []
+  for candidate in ordered
+    ordered_markers->add(markers[index(experimental, candidate)])
+  endfor
+  return Candidates.new(query, okuri, ordered + ranked, len(ordered), ordered_markers)
 enddef

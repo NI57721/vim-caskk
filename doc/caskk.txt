@@ -345,7 +345,8 @@ Each candidate annotation is checked separately; @adj must be bounded by
 whitespace, semicolons, or the annotation's beginning/end.  Thus both candidates
 in "わる /悪;@adj/惡;「悪」の旧字(人名用漢字) @adj/" qualify.
 Experimental candidates precede ordinary candidates, even with identical text.
-They preserve dictionary order and do not learn, pin, demote, or delete entries.
+They precede ordinary candidates; pin, demotion and MRU apply within the
+experimental group.  They do not delete entries.
 The ［adj］ marker appears only during conversion and in the candidate list.
 This does not generate completion candidates.  The entered okuri is appended
 unchanged; no grammatical validation or sound-change rewriting is performed.
@@ -368,7 +369,11 @@ order is retained within each group (adjectives before verbs).  A matching verb
 is shown once, regardless of how many tags match.  A candidate matching both
 features is shown once with ［adj,verb］; verbs alone use ［verb］.
 Markers appear only during conversion and in the list, never in committed text.
-Experimental candidates do not learn, pin, demote or delete user entries.
+Experimental candidates temporarily support pin, demotion and MRU learning
+within their group.  They continue to precede ordinary candidates.  Preferences
+use the normal reading, first okuri character and unmarked candidate text, so
+identical ordinary candidates share them.  Marker display never enters saved
+preferences.  Experimental candidates cannot delete user entries.
 Completion is not expanded.  No new configuration or persistence format is
 introduced.  This feature may be removed.
 
