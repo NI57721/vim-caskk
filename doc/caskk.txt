@@ -346,7 +346,8 @@ whitespace, semicolons, or the annotation's beginning/end.  Thus both candidates
 in "わる /悪;@adj/惡;「悪」の旧字(人名用漢字) @adj/" qualify.
 Experimental candidates precede ordinary candidates, even with identical text.
 They precede ordinary candidates; pin, demotion and MRU apply within the
-experimental group.  They do not delete entries.
+experimental group, shared across okuri through the stem reading and empty
+okuri preference key.  They do not delete entries.
 The ［adj］ marker appears only during conversion and in the candidate list.
 This does not generate completion candidates.  The entered okuri is appended
 unchanged; no grammatical validation or sound-change rewriting is performed.
@@ -371,8 +372,9 @@ features is shown once with ［adj,verb］; verbs alone use ［verb］.
 Markers appear only during conversion and in the list, never in committed text.
 Experimental candidates temporarily support pin, demotion and MRU learning
 within their group.  They continue to precede ordinary candidates.  Preferences
-use the normal reading, first okuri character and unmarked candidate text, so
-identical ordinary candidates share them.  Marker display never enters saved
+use the registered stem reading, empty okuri and unmarked candidate text.
+They are shared across conjugations.  Ordinary okuri candidates continue to
+use the first okuri character and retain independent preferences.  Marker display never enters saved
 preferences.  Experimental candidates cannot delete user entries.
 Completion is not expanded.  No new configuration or persistence format is
 introduced.  This feature may be removed.
@@ -462,3 +464,7 @@ reading completion.  An independent untagged source for the same reading and
 text keeps that ordinary candidate available.  This also applies to user
 entries.  Unknown tags do not trigger exclusion.  A source bearing both @adj
 and a recognized verb tag is still excluded without okuri.
+
+Existing preference records are retained without migration.  New stem learning
+uses empty okuri; old okuri-specific learning remains available to ordinary
+candidates.  User entry identities and their okuri information are unchanged.
