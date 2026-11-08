@@ -1,14 +1,11 @@
 *caskk.txt*  Japanese input method for Vim HEAD                       *caskk*
 
-Caskk requires Vim HEAD and uses Vim9 script.  It has no external runtime
-dependency and does not target Neovim.  Install this directory on 'runtimepath'
-using the usual Vim package or plugin-manager layout, then generate help tags
-with :helptags for its doc directory.
+Caskk requires Vim HEAD.  Install it on 'runtimepath' and run :helptags for
+its doc directory.  No input scheme or mappings are installed automatically.
 
-GETTING STARTED                                            *caskk-start*
+GETTING STARTED                                             *caskk-start*
 
-No input scheme, activation key, action mappings, or :Caskk command is installed
-automatically.  Define a scheme and the actions you want in a Vim9 script: >vim9
+In your Vim9 configuration: >vim9
 
     import autoload 'caskk.vim' as Caskk
     Caskk.RegisterInputScheme({
@@ -18,1204 +15,319 @@ automatically.  Define a scheme and the actions you want in a Vim9 script: >vim9
       specials: {nn: 'ん'},
     })
     Caskk.Config({
+      dictionaries: ['/path/to/SKK-JISYO.utf8'],
+      state_path: expand('~/.local/share/caskk/state.jsonl'),
+      state_auto: true,
       sticky_key: ';',
       mappings: {"\<Space>": 'Convert', "\<C-P>": 'PreviousCandidate',
         "\<F10>": 'Commit'},
     })
     inoremap <C-J> <ScriptCmd>Caskk.Toggle('example')<CR>
+    cnoremap <C-J> <ScriptCmd>Caskk.Toggle('example')<CR>
 <
-This is a small example, not a complete romanization scheme.  Press CTRL-J in
-Insert mode to enable it: 'ka' inserts 'か'; 'Ka' or ';ka' starts a reading
-'か'.  Space converts that reading, CTRL-P returns from the first candidate to
-the reading, and F10 commits it.  Configure dictionaries to obtain system
-candidates; with none, the default registration window handles missing words.
-See |caskk-config-dictionaries| and |caskk-registration|.
+Replace the dictionary path with an existing file.  This is a minimal input
+scheme: 'ka' inserts か; 'Ka' or ';ka' starts a reading for conversion.  Space
+converts, CTRL-P returns from the first candidate to the reading, and F10 commits.
 
-PUBLIC API                                                  *caskk-api*
+Reference: |caskk-api|, |caskk-input-schemes|, |caskk-config|,
+|caskk-config-mappings|.
 
-Import autoload 'caskk.vim' as Caskk in Vim9 script.  These are the user-facing
-functions; exports in caskk's other modules support internal implementation.
-Legacy Vim script can call the same autoload functions as caskk#Enable(name),
-caskk#Config(options), and so on.  No global configuration variables or Ex
-commands are provided.
+PUBLIC FUNCTIONS                                            *caskk-api*
 
-Function / result                           Details ~
-RegisterInputScheme(definition)              |caskk-register-input-scheme|
-GetInputScheme(name) -> CompiledScheme       |caskk-get-input-scheme|
-Enable(name)                                |caskk-enable|
-Disable()                                   |caskk-disable|
-Toggle(name)                                |caskk-toggle|
-IsEnabled() -> bool                         |caskk-is-enabled|
-Config(options)                             |caskk-config|
-GetDictionaryLoadStatus() -> dict<string>    |caskk-dictionary-load-status|
-GetRegistrationRequest() -> Request/null_object
-                                            |caskk-registration-request|
-OpenRegistration()                          |caskk-open-registration|
-CompleteRegistration(text [, annotations])  |caskk-complete-registration|
-CancelRegistration()                        |caskk-cancel-registration|
-Reconvert() -> bool                         |caskk-reconversion|
-LoadState()                                 |caskk-load-state|
-SaveState()                                 |caskk-save-state|
-ExportUserDictionary(path)                  |caskk-export-user-dictionary|
+Import autoload 'caskk.vim' as Caskk.  In legacy Vim script, use the corresponding
+caskk#Function() name.  Functions below return no value unless noted.
 
-Names, candidate text, and paths are strings.  annotations defaults to [] and
-must be a list of strings.  definition and options are dictionaries described
-below.  Functions without a result above return no value.  Invalid arguments
-and unavailable registration requests raise errors; Reconvert() uses false for
-an unavailable match.  The detailed sections describe validation and failure
-behavior.
+RegisterInputScheme(definition)                  *caskk-register-input-scheme*
+    Registers or replaces a named input scheme; see |caskk-input-schemes|.
+    Successful registration disables active Caskk input.  Enable it again.
 
-Feature guide ~
-Input grammar, kana table, and specials      |caskk-input-schemes|
-Modified input, okuri, and Insert editing    |caskk-input|
-Activation and buffer cleanup               |caskk-enable|
-Command-line input                          |caskk-commandline|
-Reading completion                          |caskk-completion|
-Recent-history reconversion                 |caskk-reconversion|
-Registration windows and inline drafts      |caskk-registration|
-User entries, preferences, and persistence   |caskk-load-state|
-Action mappings                             |caskk-config-mappings|
-Numeric dictionary conversion               |caskk-numeric-conversion|
-Undo units                                  |caskk-config-undo-revert-to-reading|
-Candidate and mode popups                   |caskk-config-candidate-popup|
-Preedit highlighting                        |caskk-config-highlight|
+GetInputScheme(name) -> CompiledScheme                *caskk-get-input-scheme*
+    Returns the compiled scheme.  An unknown name raises an error.
 
-INPUT SCHEMES                                           *caskk-input-schemes*
-                                                *caskk-register-input-scheme*
-                                                     *caskk-get-input-scheme*
+Enable(name)                                                *caskk-enable*
+    Enables the named scheme in the current buffer, or current outermost
+    :, / or ? command line.  Already enabled input is left as it is.
 
-Register input grammar separately from Config(): >vim9
+Disable()                                                  *caskk-disable*
+    Finishes pending input and restores the previous mappings in this buffer
+    or command line.  Does nothing when disabled.
 
-    import autoload 'caskk.vim' as Caskk
-    Caskk.RegisterInputScheme({
-      name: 'custom',
-      consonants: {k: 'k'},
-      combinations: {a: 'a'},
-      specials: {kan: 'かん', "\<C-K>": 'ケー'},
-    })
-    const compiled = Caskk.GetInputScheme('custom')
+Toggle(name)                                                *caskk-toggle*
+    Disables enabled input; otherwise enables the named scheme.
+
+IsEnabled() -> bool                                     *caskk-is-enabled*
+    Reports whether Caskk is enabled in the current buffer or command line.
+
+Config(options)                                             *caskk-config*
+    Applies |caskk-settings|.  Omitted options reset to defaults; Config({})
+    resets all settings.  Invalid options raise an error and retain the
+    previous configuration.  Changing input settings disables active input;
+    call Enable(name) again.  Dictionary-only reloads keep input enabled.
+
+GetDictionaryLoadStatus() -> dict<string>      *caskk-dictionary-load-status*
+    Returns {state: 'loading'/'ready'/'error', error: message}.
+    Large dictionaries load in the background; error is empty unless loading
+    failed.  A failed reload keeps the previous dictionaries available.
+
+Reconvert() -> bool                                    *caskk-reconversion*
+    From Normal mode, reopens a recent conversion beginning at the cursor.
+    Enters Insert mode on success; returns false if no match is available.
+    Example: >vim9
+        nnoremap <Leader>r <ScriptCmd>Caskk.Reconvert()<CR>
 <
-RegisterInputScheme(definition) compiles and stores a named scheme.  The
-definition dictionary requires `name`, `consonants`, and `combinations` fields;
-`specials` is optional.  Consonants, combinations, and specials are dictionaries
-of strings.  Unknown fields and duplicate normalized key definitions are
-rejected.
-
-name                                                     *caskk-scheme-name*
-The required string name identifies this scheme for GetInputScheme(),
-Enable(), and Toggle().  Registering an existing name replaces its definition
-for future retrievals and activations.
-
-consonants                                         *caskk-scheme-consonants*
-Consonant keys may be any nonempty input sequence.  Their values must name one
-consonant identifier defined by the kana table; an identifier may contain
-multiple characters, such as 'wh' or 'xy'.  The configuration-only
-values 'N' and 'T' map a key directly to 「ん」 and 「っ」; internally these are
-stored as output symbols, not consonant rows.  For example:
->
-    Caskk.RegisterInputScheme({
-      name: 'custom', consonants: {q: 'N', l: 'T'}, combinations: {},
-    })
-<
-combinations                                     *caskk-scheme-combinations*
-Combination keys must each be exactly one KeyToken.  Their values start with
-one kana-table vowel and contain only sequences accepted by its kana generator,
-plus at most one latent boundary `*`.  `N` and `T` are kana-output symbols here,
-not consonant rows.  Combination values do not use escapes.  For example,
-`e*Tte` is valid, while `ka` and `a\*` are not.
-
-specials                                             *caskk-scheme-specials*
-The optional specials dictionary maps input key sequences to output patterns.
-Specials take precedence over generated consonant/combination rules.  Their
-output is arbitrary text; unescaped `*` marks the latent boundary, and `\*` /
-`\\` represent literal `*` / `\`.  At most one unescaped `*` is allowed in a
-special output.
-
-Input keys are sequences of actual Vim keycodes and ordinary characters.  Write
-a physical Vim key using a double-quoted expression such as `"\<C-K>"`.
-Angle-bracket text is ordinary input: `'<C-K>'` is five characters, and
-`'\<C-K>'` is a backslash followed by those five characters.  Thus those forms
-are valid in consonant sequences and special keys, but are too long for a
-combination key.  ASCII uppercase keys in scheme definitions are normalized
-to their lowercase key token; Modified input is handled separately.
-
-GetInputScheme(name) returns the compiled scheme for the supplied name and raises
-an error for an unknown name.  Retrieval does not enable the IME or install maps.
-The result is the compiled form of the definition, not the original dictionary.
-Its table and specials fields are intended for core/integration use; normal
-configuration only needs the registered name.
-
-Every successful RegisterInputScheme() call disables Caskk in all enabled
-buffers and command-line input, even when registering a new name.  Pending
-input is finished and previous mappings are restored.  Call Enable(name) again
-to use a registered scheme.  Objects previously returned by GetInputScheme()
-keep their previous compiled definition.  Failed validation or compilation
-retains the previous registration and active bindings.  Config() calls do not
-clear registered schemes.
-
-Kana output vocabulary                                  *caskk-kana-table*
-
-Consonant identifiers and their a/i/u/e/o outputs are:
-
-    row     a       i       u       e       o ~
-    (none)  あ      い      う      え      お
-    x       ぁ      ぃ      ぅ      ぇ      ぉ
-    xy      ゃ      ぃ      ゅ      ぇ      ょ
-    xw      ゎ      ぃ      ぅ      ぇ      ぉ
-    k       か      き      く      け      こ
-    ky      きゃ    き      きゅ    きぇ    きょ
-    g       が      ぎ      ぐ      げ      ご
-    gy      ぎゃ    ぎ      ぎゅ    ぎぇ    ぎょ
-    s       さ      し      す      せ      そ
-    sy      しゃ    し      しゅ    しぇ    しょ
-    z       ざ      じ      ず      ぜ      ぞ
-    zy      じゃ    じ      じゅ    じぇ    じょ
-    t       た      ち      つ      て      と
-    ty      ちゃ    ち      ちゅ    ちぇ    ちょ
-    ts      つぁ    つぃ    つ      つぇ    つぉ
-    th      てゃ    てぃ    てゅ    てぇ    てょ
-    d       だ      ぢ      づ      で      ど
-    dy      ぢゃ    ぢ      ぢゅ    ぢぇ    ぢょ
-    dh      でゃ    でぃ    でゅ    でぇ    でょ
-    n       な      に      ぬ      ね      の
-    ny      にゃ    に      にゅ    にぇ    にょ
-    h       は      ひ      ふ      へ      ほ
-    hy      ひゃ    ひ      ひゅ    ひぇ    ひょ
-    f       ふぁ    ふぃ    ふ      ふぇ    ふぉ
-    b       ば      び      ぶ      べ      ぼ
-    by      びゃ    び      びゅ    びぇ    びょ
-    v       ゔぁ    ゔぃ    ゔ      ゔぇ    ゔぉ
-    p       ぱ      ぴ      ぷ      ぺ      ぽ
-    py      ぴゃ    ぴ      ぴゅ    ぴぇ    ぴょ
-    m       ま      み      む      め      も
-    my      みゃ    み      みゅ    みぇ    みょ
-    y       や      い      ゆ      いぇ    よ
-    r       ら      り      る      れ      ろ
-    ry      りゃ    り      りゅ    りぇ    りょ
-    w       わ      うぃ    う      うぇ    を
-    wh      うぁ    うぃ    う      うぇ    うぉ
-
-The (none) row has the empty-string identifier '' and supplies standalone
-vowels; consonant values may also select it explicitly.  N and T are additional direct-output values, yielding 'ん' and
-'っ'; an ordinary n consonant does not automatically yield 'ん'.
-
-A combination's first vowel combines with the consonant row; remaining symbols
-are generated independently.  For example, consonants {j: 'ky'} and
-combinations {a: 'a', l: 'o*N'} produce 'きゃ' for 'ja' and 'きょん' for 'jl'.
-The latter has a latent boundary between 'きょ' and 'ん'.  A multi-key consonant
-prefix waits for a longer definition, then uses the longest matching definition
-when continuation fails.  A combination used without a consonant is literal in
-ordinary direct input unless it is a standalone vowel: a key 'l' with value
-'o*N' inserts 'l', not 'おん', until used as part of a composition or preedit.
-
-Special matching                                        *caskk-special-matching*
-
-Matching waits while the current keys prefix a special, even if they already
-match a shorter special.  There is no timeout.  For specials {ka: '短',
-kab: '長'}, 'ka' waits, 'kab' emits '長', and 'kax' emits '短' and processes
-'x' again.  If no complete special matched, keys are replayed through ordinary
-input, retaining any suffix that can begin another special.  An explicit
-scheme entry for shifted punctuation takes precedence over keyboard-layout
-normalization.  A pending special can consume an action key when that key
-continues the special.  Committing or converting an active reading resolves
-pending input; leaving Insert mode also resolves it rather than waiting for
-a timeout.
-
-BASIC INPUT AND EDITING                                    *caskk-input*
-                                                        *caskk-modified-input*
-                                                        *caskk-okuri*
-
-Outside preedit, ordinary input emits direct text.  A Modified
-consonant/combination starts an
-editable reading (preedit).  ASCII uppercase and the configured sticky key
-represent the same modification: with sticky_key ';', 'Ka' and ';ka' both
-start 'か' using a k/a scheme.  Repeated sticky keys retain one modification;
-adding uppercase to a sticky-modified key does not apply it twice.  Unmatched
-printable characters, including non-ASCII input, are emitted literally in
-direct input and remain part of an active reading.  Unmatched Modified ASCII
-letters use their normalized lowercase form.
-
-Within preedit, another Modified syllable starts okuri.  With ordinary k/a/u
-rules, 'KaKu' gives reading 'か' and okuri 'く', then immediately looks up
-'かk'; an entry 'かk /書/' yields '書く'.  Vowel-initial okuri is supported
-by modifying a standalone vowel.  When a combination has a latent '*', that
-position determines the okuri split; '*' is omitted in ordinary input.
-
-For a special {abc: 'か*ける'}, ordinary 'abc' emits 'かける', 'Abc' starts
-a reading 'かける', and 'ABc' or 'AbC' activates reading 'か' plus okuri
-'ける'.  In an existing preedit, modifying a later special key also activates
-its latent boundary.  Modifying the first special key in an existing preedit
-instead makes the entire output okuri, taking precedence over its latent
-boundary.  For example, with {fu: "ふ"}, OmoFu converts おも*ふ to 思ふ
-when the dictionary contains おもh /思/.  Sticky Modified input behaves the same.
-
-Convert searches the current reading; completing nonempty okuri starts
-conversion automatically.  Candidate text and preedit are real buffer text;
-state markers are presentation, not inserted characters.  PreviousCandidate
-from the first candidate restores editable reading.  Typing ordinary text
-while selecting commits and learns the candidate before processing that text;
-Modified input starts a new reading.  Advancing beyond the last candidate
-requests registration without learning that candidate.  Normal input after
-returning to an okuri reading commits that reading and suffix before continuing.
-
-Unless explicitly assigned by the scheme or action mappings, Insert keys work
-as follows.  Backspace removes a waiting sticky modifier or an unfinished key
-before editing preedit.  Within preedit, it deletes okuri characters first,
-then an empty okuri boundary, then reading characters.  For example, two
-Backspaces change 'かえ*る' to 'かえ*' and then 'かえ', preserving 'え'.
-Following input then continues the reading.  By default, deleting the last
-item keeps an empty preedit and its Modified marker.  Ordinary input continues
-that reading.  Another BS cancels the empty preedit and is consumed, preserving
-confirmed text.  See |caskk-config-keep-preedit-on-backspace|.  Deleting a Modified
-unfinished key retains its modification for the next key; another Backspace
-clears that modification.  With a selected conversion candidate, BS without an available action
-cancels conversion and deletes one trailing reading/okuri item in
-the order above, without committing or learning the candidate.  For example,
-'漢字' with reading 'かんじ' becomes 'かん', and '帰る' with reading 'かえ*る'
-becomes 'かえ*'.  Subsequent input continues editing that reading.  Explicit
-BS scheme assignments and available actions, including DeleteUserEntry, take
-precedence.  If a BS action is unavailable in the current context, BS falls
-back to conversion cancellation and deletion instead of committing the candidate.
-Left/Right remain
-within a single-line preedit; subsequent composition resumes at the end of
-that preedit rather than inserting at the temporary cursor position.  Other
-movement and editing keys finish the IME transaction before native Vim input.
-Enter commits the reading/candidate and then inserts a native newline.
-Completion and abbreviation input use their own Enter behavior described in
-|caskk-completion| and |caskk-abbreviation-mode|.  To commit ordinary reading
-without a newline, assign Enter to Commit.  Escape leaves Insert mode
-and commits pending reading/candidate; use PreviousCandidate to return to the
-reading before leaving.  These differ from command-line and registration
-editing; see |caskk-commandline| and |caskk-config-registration-inline|.
-
-Confirmed input forms semantic undo units, not one unit per physical key.
-Intermediate preedit and candidate changes do not fragment undo history.
-Conversion's optional reading checkpoint is controlled by
-|caskk-config-undo-revert-to-reading|.  External buffer edits or cursor movement
-outside the managed range abandon tracking without overwriting external text.
-
-BUFFER LIFECYCLE                                        *caskk-enable*
-                                                        *caskk-disable*
-                                                        *caskk-toggle*
-                                                        *caskk-is-enabled*
-
-After registering a scheme, enable it in the current buffer: >vim9
-
-    Caskk.Enable('custom')
-    echo Caskk.IsEnabled()
-    Caskk.Disable()
-    Caskk.Toggle('custom')
-<
-Enable(name) installs buffer-local Insert-mode mappings for the registered
-scheme.  It can be called in Normal or Insert mode.  IsEnabled() reports the
-current buffer's status; leaving Insert mode finishes the current input session
-but keeps the buffer enabled for the next session.
-
-Toggle(name) disables the current buffer when enabled, and otherwise enables
-the named input scheme.  Like Enable(), it can be called in Normal or Insert mode.
-
-Disable() finishes pending input, commits the reading or selected candidate,
-removes IME presentation, and restores the previous local mappings.  Mappings
-changed by the user while enabled are preserved.  Disabling an inactive buffer
-is a no-op.  Other buffers are unaffected, and wiping a buffer releases its
-binding automatically.
-
-Enable() on an already enabled buffer is a no-op after validating the scheme
-name.  To use another scheme or a re-registered definition, call Disable() and
-then Enable(name).  An unknown name leaves the current binding untouched.
-If mapping installation fails, previous mappings are restored and the buffer
-remains disabled so that activation can be retried.
-
-Enable() uses the current sticky_key, mappings, and loaded dictionaries from
-Config().
-
-COMMAND-LINE INPUT                                       *caskk-commandline*
-
-Enable(), Disable(), Toggle(), and IsEnabled() also work in the outermost :, /,
-and ? command lines.  Their state there is independent of Insert-mode input and
-is cleared when the command line ends.  Add your own activation mapping, for
-example in a Vim9 configuration script: >vim9
-
-    import autoload 'caskk.vim' as Caskk
-    cnoremap <C-J> <ScriptCmd>Caskk.Toggle('custom')<CR>
-<
-No activation key is installed automatically.  The current sticky_key,
-keyboard layout, dictionaries, user entries, candidate ranking, and supported
-mappings are shared with Insert input.  Configure Convert, NextCandidate,
-PreviousCandidate, Commit, and the input-mode actions as needed.
-
-Kana, sticky input, okuri conversion, abbreviation conversion, and output-mode
-switching are supported.  Enter commits pending input or the selected candidate;
-press Enter again to execute the command or search.  With no pending input,
-Enter executes immediately.  Backspace without an available action cancels selection
-and deletes one trailing reading/okuri item without learning it; otherwise it
-edits unfinished input and reading.  PreviousCandidate before
-the first candidate also returns to the reading.  A missing dictionary entry or
-advancing past the last candidate returns to editable reading without opening
-registration.  Committing a candidate shares the usual user-state learning.
-
-Movement, history, completion, and register insertion commit input before Vim
-performs its normal operation.  Surrounding command-line text is preserved.
-External edits abandon the old tracked range while keeping its displayed text.
-Esc and CTRL-C abort normally and remove the input session and mode popup.
-Nested input() prompts, expression input, and the command-line window use native
-Vim input; returning from nested input starts a fresh IME session.
-
-The candidate list uses candidate_popup and appears above the command-line
-mode popup. It shows the selected candidate, other candidates, and annotations.
-Unsupported candidate actions on printable keys use the input scheme instead,
-so pin/demote mappings do not consume kana input outside their action context.
-
-The mode popup uses mode_popup, mode_popup_time, mode_popup_labels, and
-mode_popup_markers, and follows the command-line cursor with screen-edge and
-wrapping adjustments.  Command-line input has no highlighting,
-dictionary registration, reconversion, pin/demote actions, or dedicated
-undo handling.
-
-READING COMPLETION                                        *caskk-completion*
-
-Insert-mode preedit can be completed from SKK dictionary headwords and user
-entries.  Add these fields to your existing Config() call, keeping your other
-settings, dictionaries, and mappings: >vim9
-
-    completion_min_length: 2,
-    mappings: {
-      "\<Tab>": 'ShowCompletion',
-      "\<S-Tab>": 'PreviousCandidate',
-      "\<C-E>": 'CancelCompletion',
-      "\<Space>": 'Convert',
-    },
-<
-Completion appears automatically as the preedit reading reaches
-completion_min_length characters and has no unfinished key sequence or sticky
-modifier.  It searches readings that start with the current reading and updates
-as typing continues.  No Tab press or ShowCompletion mapping is required.
-Searching, merging, ranking, and candidate generation run in timer slices while
-Vim is waiting for input.  Both automatic and explicitly requested completion
-are asynchronous; typing and normal conversion remain available while a search
-is pending.  Changing the input, cancelling, disabling Caskk, or leaving the
-input session cancels old work.  Results appear only for the current request;
-Enter before results arrive performs its usual reading commit/native action
-(see |caskk-abbreviation-mode| for abbreviation input).
-Short readings, unfinished input, and no matches close the list, preserve the
-reading, and do not request registration.  Deleting a reading character also
-refreshes the list when the remaining reading meets these conditions.
-
-ShowCompletion remains available to open the list explicitly or move to the
-next item.  There is no default completion mapping.  With candidate_popup set
-to false, automatic completion is disabled; explicitly requested completion
-still works.  This prevents Enter from accepting an unseen automatic candidate.
-
-The popup uses candidate_popup and shows the completed words, annotations, and
-source readings.  It renders at most 20 candidates around the selected item;
-all matches remain selectable, and displayed positions use the full count.
-Headwords are ordered by reading; candidates within each known reading/okuri
-use the usual pin, MRU, and demotion preferences.
-Automatic display leaves every candidate unselected and preserves the reading
-in the buffer.  ShowCompletion selects the first candidate; subsequent presses
-move to the next candidate.  Focus movement previews the selected word without
-learning it.  The original reading is retained for further editing.  ShowCompletion, NextCandidate, or an otherwise
-unmapped Down moves focus forward; PreviousCandidate or an otherwise unmapped
-Up moves backward.  Moving backward from the first candidate clears selection
-and restores the reading while keeping the list open.  Moving backward again
-selects the last candidate.  Moving forward from the last candidate wraps to
-the first.
-With no selection, Enter and Commit retain their usual reading behavior.
-Enter (except in abbreviation input) or Commit accepts the focused word
-directly, closes preedit, and shares normal learning using the completed word's
-reading.  A second conversion step is not required.  Undo
-follows undo_revert_to_reading, as for other committed conversions.
-
-CancelCompletion closes the list and restores the original reading and does not
-immediately reopen it.  Backspace deletes a reading character and refreshes
-the matching completions; it does not accept the focused word.  Ordinary input with a selected completion commits that word before processing
-the new input.  With no selection it continues editing and refreshes the list, hiding it during unfinished input or
-when no match remains.  Convert closes the list and starts normal conversion
-of the reading.  Leaving Insert mode, disabling the IME, or
-native movement does not accept the focused completion.
-
-Okuri entries are included.  Already entered okuri and known user-entry okuri
-are preserved.  A coarse system key such as 'かk' supplies no exact suffix:
-its candidate may be completed without okuri, and acceptance does not create
-an invented exact-okuri learning record.  Inflection filtering is not performed.
-Completion is currently available in ordinary Insert input (including a
-registration window), not command-line input or inline registration.
-
-RECONVERSION                                             *caskk-reconversion*
-
-Recent dictionary conversions can be selected again from Normal mode. In a
-Vim9 configuration script, import the API and define a Normal-mode mapping: >vim9
-
-    import autoload 'caskk.vim' as Caskk
-    nnoremap <buffer> <Leader>r <ScriptCmd>Caskk.Reconvert()<CR>
-<
-From legacy Vim script, use: >
-
-    nnoremap <buffer> <Leader>r <Cmd>call caskk#Reconvert()<CR>
-<
-Reconvert() searches recent confirmed conversion text beginning at the cursor
-and starts candidate selection for the longest match.  It returns true when a
-match with candidates was found, otherwise false.  A successful call enters
-Insert mode in the same candidate-selection state as ordinary conversion: the
-current candidate is displayed in the matched buffer range, and the configured
-Convert and Commit mappings control candidate movement and confirmation.
-Confirmation leaves Insert mode active.  Esc follows ordinary conversion and
-Vim Escape behavior.  The replacement is one undoable edit, so one undo
-restores the original confirmed text.  Candidate display follows the normal
-candidate popup setting.
-
-History is kept in memory per buffer, stores up to 32 recent dictionary
-conversions, and remains available when Caskk is disabled or re-enabled.  It is
-discarded when the buffer is wiped.  Reconvert() can be called while Caskk is
-disabled; after a match, the configured Convert and Commit keys temporarily
-remain available for candidate selection and confirmation independently of the
-IME's enabled state.  The match is limited to
-the text remaining on the current line from the cursor.  Candidate display
-follows |caskk-config-candidate-popup|.
-
-Public activations share in-memory user state across buffers.  Committing a
-candidate learns its priority for the same reading and exact okuri, so subsequent
-conversions in other enabled buffers use that history too.  Disable(), buffer
-wipeout, and Config() do not discard the shared state.  System dictionaries
-remain read-only.  Use LoadState() and SaveState() explicitly to restore and save
-this shared state across Vim sessions.
-
-DICTIONARY REGISTRATION                                 *caskk-registration*
-                                                        *caskk-registration-request*
-                                                        *caskk-complete-registration*
-                                                        *caskk-cancel-registration*
-
-The public API provides integration points for a registration UI:
-
-    Caskk.GetRegistrationRequest()
-    Caskk.CompleteRegistration(text [, annotations])
-    Caskk.CancelRegistration()
-
-GetRegistrationRequest() returns a typed request for the current buffer when
-conversion has no candidates or candidate selection is exhausted.  It returns
-null_object otherwise, including when the buffer is disabled or the request
-has been completed or cancelled.  The request contains copied string fields:
-
-    reading       The reading without okuri.
-    okuri         The complete display suffix, such as 'くらい'.
-    exact_okuri   The first okuri character, such as 'く', or ''.
-    lookup_key    The system dictionary key, such as 'いk'.
-
-CompleteRegistration(text, annotations) accepts a nonempty candidate body and
-an optional list of annotation strings.  Do not include display okuri in text.
-The entry is registered and learned for reading plus exact_okuri, and the buffer
-preedit is replaced and committed with the complete okuri appended.  For example,
-registering '行' for reading 'い' and okuri 'くらい' commits '行くらい' and stores
-only '行' under reading 'い' and exact okuri 'く'.  SaveState() can persist it.
-The registered entry is looked up using its SKK dictionary key: another okuri
-with the same first consonant, such as 'か', can also find an entry registered
-under 'く' when both use the key 'いk'.  Candidate learning and pin/demote
-preferences remain scoped to the exact first okuri character.
-If the candidate text is exactly the hiragana reading, the text is committed as
-entered but no dictionary entry or learning preference is created.
-
-CancelRegistration() clears the request and retains the original reading and
-okuri as preedit without registering or learning a candidate.  Both completion
-and cancellation require the original buffer to be current in Insert mode with
-the tracked cursor position.  Invoke them from Insert-mode callbacks, such as
-<ScriptCmd> mappings; leaving Insert mode finishes the pending input session.
-Missing requests are errors.  Empty candidate text is rejected while keeping
-the request available for retry.
-
-OPENING REGISTRATION                                    *caskk-open-registration*
-                                                        *caskk-registration-prefill*
-                                                        *caskk-registration-auto*
-
-By default, conversion with no candidates opens the registration window
-automatically.  This includes automatic conversion when okuri is completed and
-moving past the last candidate with NextCandidate.  No extra opening key is
-needed.
-
-registration_auto                                  *caskk-config-registration-auto*
-
-registration_auto is a Boolean and defaults to true.  Set it to false for manual
-opening or custom registration integration.  This setting is copied at Enable();
-use Disable() then Enable(name) to change an already enabled buffer.
-
-In manual mode, OpenRegistration() opens the pending request in Insert mode in
-the original buffer.  Alternatively configure an OpenRegistration action: >vim9
-
-    Caskk.Config({
-      registration_auto: false,
-      mappings: {"\<Space>": 'Convert', "\<F6>": 'OpenRegistration'},
-      registration_prefill: true,
-    })
-<
-With this manual configuration, press F6 after conversion requests registration.
-The window uses the same input grammar, dictionaries, actions, and shared user
-state as the original input.  Enter confirms its text as the candidate body; Escape cancels
-and returns to the original reading.  These keys work in both Insert and Normal
-mode.  The original buffer range and undo boundaries are preserved.
-
-registration_prefill                        *caskk-config-registration-prefill*
-
-registration_prefill is a boolean that defaults to true.  The window starts with the requested
-reading as highlighted preedit, ready for ordinary IME input and conversion.
-Only the reading is prefilled; display okuri is shown in the title and appended
-by the original session after registration.  Set registration_prefill to false
-to start with an empty input field.  This setting is read when the window opens.
-
-registration_inline                        *caskk-config-registration-inline*
-
-registration_inline is a boolean that defaults to false.  When true, the
-registration input is shown in a popup above the current insertion point.  If
-there is not enough room above, Vim places it below.  The popup is display-only:
-keys are handled by Caskk in the original Insert-mode buffer and sent to a
-separate registration editing model held in memory.  It owns the draft, its
-character position, and a dedicated input session supporting the usual scheme,
-including okuri composition and dictionary conversion.  The original reading
-and surrounding text stay in the source buffer while registration is open; the
-draft does not change that buffer or its undo history.
-
-The popup shows the whole registration word and a vertical bar (│) for its
-logical editing position.  The mode popup is anchored below the registration
-popup, aligned with its left edge.  The usual input scheme and conversion
-actions work there.  Left and Right commit the current preedit or selected candidate into
-the draft, then move by one character.  Backspace removes pending input first,
-then the previous preedit character or empty okuri boundary, then the draft
-character before the bar.  During candidate selection, BS without an available action
-cancels conversion and deletes one trailing preedit item without committing
-or learning that candidate.  An explicit DeleteUserEntry mapping on BS keeps
-its deletion-confirmation behavior when the selected word has a user entry;
-otherwise BS cancels conversion and deletes one trailing preedit item.
-Delete commits active input and removes the draft character after the bar.
-Terminal bracketed paste inserts literal text at the registration caret after
-committing active input into the draft. It does not modify the source buffer
-until registration is accepted, and still works when the registration IME is
-disabled.
-While candidates are being selected, the selected candidate is previewed in
-the draft and the candidate list appears below it in the same popup.  Enter
-accepts the current candidate/preedit and registers the resulting draft.  If
-the draft is empty, the popup remains open and shows a message.  Escape while
-selecting a conversion candidate commits that candidate into the draft and keeps
-the registration popup open.  Escape in other registration states cancels the
-draft and restores the editable reading.  Ctrl-C cancels the draft, keeps the
-source reading as committed text, and exits Insert mode.
-
-Calling Disable() while this popup is open commits any active input in the draft,
-keeps the popup and its text, and turns off IME conversion for that registration
-session.  Printable keys are inserted literally; cursor movement, Backspace,
-Delete, Enter and Escape continue to work.  The buffer's Caskk mappings are
-removed after the registration is accepted or cancelled.
-
-registration_prefill controls whether the requested reading starts as preedit
-in this popup.  The popup uses the same input scheme, dictionaries, actions,
-and shared user state as the regular registration window.  Conversion results
-already committed inside the registration input retain their normal learning,
-even if the popup is later cancelled.
-
-Up/Down, Home/End, Tab, PageUp/PageDown, Insert, function keys, and unassigned
-Ctrl keys do not edit the draft; when captured by Caskk, they are ignored.
-Caskk does not provide general Vim editing,
-paste, mouse, or terminal-specific key handling in this popup.  Leaving Insert
-mode, changing or wiping the source buffer, or resetting Caskk through Config()
-closes the popup and discards the unfinished draft.  Ordinary Disable() keeps
-the draft open as described above.
-
-An empty candidate keeps the window open and shows a message so that input can
-be retried.  Cancelling discards the current unconfirmed candidate without
-learning it; IME conversions already committed inside the input field retain
-their normal learning.  This first window accepts candidate text only and does
-not provide annotation editing.
-
-Closing the registration window also cancels.  Disabling or wiping the original
-buffer closes its registration window without applying a late result.  If the
-original window is closed, remaining reading text is kept as plain buffer text
-and the registration UI is removed.  Temporary buffers and window settings are
-cleaned up when the window closes.
-
-Automatic opening is inherited by the registration input itself.  A conversion
-with no candidates there opens a nested registration window; completing or
-cancelling it returns to the outer input.  Closing or wiping an outer input also
-cancels its nested registration without registering pending text.  Cancelling a
-request does not reopen it.  The request/completion/cancellation APIs remain
-available for custom integration with registration_auto set to false.
-
-register_mode_conversions                  *caskk-config-register-mode-conversions*
-
-register_mode_conversions is a boolean that defaults to true. When a mode action
-commits a preedit as katakana, halfwidth katakana, or fullwidth alphanumeric, the
-converted text is added and learned as a user dictionary candidate for that
-reading and exact okuri. For okuri input, only the converted reading body is
-stored; the converted okuri remains the displayed suffix. Set this option to
-false to commit the converted text without adding it to the user dictionary.
-
-USER STATE                                              *caskk-load-state*
-                                                        *caskk-save-state*
-
-state_path                                           *caskk-config-state-path*
-
-Set the state_path configuration field, then load or save explicitly: >vim9
-
-    const state_path = '/path/to/existing-directory/caskk-state.jsonl'
-    Caskk.Config({
-      state_path: state_path,
-      sticky_key: ';',
-      mappings: {"\<Space>": 'Convert', "\<F10>": 'Commit'},
-    })
-    if filereadable(state_path)
-      Caskk.LoadState()
-    endif
-    Caskk.Enable('custom')
-    # Later, after committing the input to be learned:
-    Caskk.SaveState()
-<
-state_path is a string and defaults to ''.  LoadState() and SaveState() reject
-an empty path.  Config() resolves a nonempty path to an absolute path, so changing
-the working directory later does not change the target.  The parent directory
-is created as needed when saving.  Config() only stores this path; it does not
-read or write the state file.
-Omitting state_path in a later Config() call resets the path to '', while leaving
-the in-memory user state intact.
-
-LoadState() fully decodes and validates the file before replacing the shared
-in-memory state.  It replaces rather than merges existing entries and history.
-Already enabled buffers use the restored state for subsequent conversions.
-A missing, malformed, or invalidly encoded file raises an error containing its
-path and leaves the current shared state unchanged.
-
-SaveState() writes the current user entries, annotations, MRU history, pinned
-candidates, and demoted candidates.  It saves a snapshot of committed learning
-without committing pending input or the currently displayed candidate.  The
-file uses the internal UTF-8 JSON Lines format, not SKK dictionary syntax.
-It is application data rather than a manually edited configuration file.
-
-Saving uses a temporary file beside the destination and replaces the complete
-file after writing.  Saved files are readable and writable by their owner only.
-Failures preserve the in-memory state and remove temporary files.  Errors are
-reported to the caller.
-
-ExportUserDictionary(path)                            *caskk-export-user-dictionary*
-
-ExportUserDictionary(path) writes only registered user entries as an SKK
-dictionary.  It emits the okuri-ari and okuri-nasi sections, converts exact
-okuri kana to the standard SKK romaji prefix, and sorts okuri-ari keys in
-descending order and okuri-nasi keys in ascending order.  Candidate ranking,
-MRU history, pinned candidates, and demotions are not exported.  Entries sharing
-an SKK key are merged with their annotations.  Numeric readings use the same
-'#' normalization as numeric conversion keys.  Output is UTF-8.  path must be a
-nonempty string; relative paths are resolved at the time of the call.  The parent
-directory is created when needed.  Candidates containing SKK structural
-delimiters or line breaks cannot be exported and cause an error; the existing
-destination is left intact on failure.
-
-    Caskk.ExportUserDictionary('/path/to/SKK-JISYO.user')
-
-AUTOMATIC USER STATE                                    *caskk-state-auto*
-
-state_auto                                           *caskk-config-state-auto*
-
-Set state_auto to true to opt into initialization, saving after user-state
-changes, and exit saving: >vim9
-
-    Caskk.Config({
-      state_path: '/path/to/existing-directory/caskk-state.jsonl',
-      state_auto: true,
-      dictionaries: ['/path/to/SKK-JISYO.utf8'],
-      mappings: {"\<Space>": 'Convert', "\<F10>": 'Commit'},
-    })
-    Caskk.Enable('custom')
-<
-state_auto must be a Boolean and defaults to false.  When true it requires a
-nonempty state_path.  Config() itself still does not load or save state.
-
-The first Enable() initializes the configured path after installing mappings.
-If the file exists, it is loaded before input is accepted.  If it does not
-exist, the current shared in-memory state is retained (empty in a fresh Vim).
-Load failures roll back activation and restore previous mappings.  A failed
-mapping installation does not initialize the file or enable automatic saving.
-
-Repeated activations and Config() calls for the same initialized path do not
-reload the file and overwrite newer in-memory learning.  Use LoadState() for an
-explicit reload.  Selecting a different state_path and activating it initializes
-that path instead; loading it replaces the single shared state for all buffers.
-There is no separate in-memory profile for each path.
-
-After an operation changes the shared user state, Caskk saves it immediately
-when state_auto is enabled for an initialized path.  This includes candidate
-learning, registration, candidate preferences, and user-entry deletion.  An
-operation that leaves the state unchanged does not write the file.  A failed
-automatic save leaves the conversion and in-memory state intact, reports the
-error, and can be retried by a later state change or at exit.
-
-At VimLeavePre, the current shared state is saved only if state_auto is still
-true and state_path matches a successfully initialized path.  Successful manual
-LoadState() and SaveState() also initialize that path.  Merely configuring an
-unused path does not create a file.  Omitting state_auto in a later Config()
-call resets it to false and disables automatic exit saving.
-
-A failed explicit reload disables automatic saving for that path until it is
-successfully loaded, saved, or initialized again.  This prevents exit saving
-from overwriting a file that failed validation.  The parent directory is created
-when needed.  Exit save errors are reported with the path; temporary files are
-cleaned up.  Forced termination and concurrent writers are not handled by this
-lifecycle integration.
-
-CONFIGURATION                                           *caskk-config*
-
-In Vim9 script: >vim9
-
-    import autoload 'caskk.vim' as Caskk
-
-    Caskk.Config({
-      sticky_key: ';',
-      mappings: {"\<F10>": 'Commit'},
-      highlight: {
-        preedit: {
-          term: 'underline',
-          cterm: 'underline',
-          gui: 'underline',
-        },
-      },
-    })
-<
-Supported settings are |caskk-config-sticky-key|, |caskk-config-keyboard-layout|,
-|caskk-config-keyboard-layout-overrides|, |caskk-config-mappings|,
-|caskk-config-dictionaries|, |caskk-config-state-path|,
-|caskk-config-state-auto|, |caskk-config-small-tsu-okuri-as-t|,
-|caskk-config-persist-input-mode|, |caskk-config-registration-prefill|,
-|caskk-config-registration-auto|, |caskk-config-registration-inline|,
-|caskk-config-register-mode-conversions|, |caskk-config-completion-min-length|,
-|caskk-config-undo-revert-to-reading|,
-|caskk-config-candidate-popup|, |caskk-config-mode-popup|,
-|caskk-config-mode-popup-labels|, |caskk-config-mode-popup-markers|,
-|caskk-config-mode-popup-time|, and |caskk-config-highlight|. Input scheme
-fields are documented separately under |caskk-input-schemes|.
-
-Each Config() call builds a complete configuration from defaults and the supplied
-values.  Omitted term, cterm, and gui fields default to 'underline'.  Calling
-Config({}) restores the defaults.
-
-sticky_key                                             *caskk-config-sticky-key*
-
-sticky_key is a single printable character or a supported named KeyToken, such
-as '<F9>'.  Its default is '', which disables sticky input.  The sticky key marks
-the next input as Modified, just like an uppercase letter.
-
-keyboard_layout                                   *caskk-config-keyboard-layout*
-
-keyboard_layout selects how shifted printable symbols are normalized before
-input-scheme matching.  It accepts 'US' or 'JIS' and defaults to 'US'.  For
-example, '!' becomes Modified('1') on either layout, while '@' becomes
-Modified('2') on US and '"' becomes Modified('2') on JIS.  The layout setting
-does not affect named keys such as '<F10>'.  On JIS, '?' can come from both
-Shift+0 and Shift+/, so it is normalized as Modified('0'); Vim's character
-input does not distinguish those physical keys.
-
-keyboard_layout_overrides                 *caskk-config-keyboard-layout-overrides*
-
-keyboard_layout_overrides is an optional dictionary from an unshifted key to
-the character produced by its modified form.  For example,
-keyboard_layout_overrides: {1: '?'} makes '?' act as Modified('1') and replaces
-the selected layout's previous modified form for '1'.  Other layout mappings
-remain active.  If the symbol is already used by another layout mapping, the
-override takes precedence for that symbol.  Keys and values must each be one
-printable character, and override values must be unique.  The default is an
-empty dictionary.
-
-completion_min_length                       *caskk-config-completion-min-length*
-
-The minimum number of characters in the preedit reading required for automatic
-completion and ShowCompletion.  It must be a positive integer and defaults to
-2.  Automatic display also requires candidate_popup to be true and no unfinished
-input.  See |caskk-completion|.
-
-mappings                                             *caskk-config-mappings*
-
-mappings is a dictionary from KeyTokens to action names.  Vim special keys must
-use an actual keycode expression, such as "\<Space>", "\<C-N>", or "\<F10>".
-Angle-bracket key-name strings such as '<Space>' and '<F10>' are rejected.
-Ordinary printable keys such as 'q' remain single-character strings.  Multiple
-entries that resolve to the same physical key are rejected.  Supported actions are
-|caskk-action-show-completion|, |caskk-action-cancel-completion|,
-|caskk-action-convert|, |caskk-action-next-candidate|,
-|caskk-action-previous-candidate|, |caskk-action-commit|,
-|caskk-action-open-registration|, |caskk-action-toggle-pin|,
-|caskk-action-toggle-demote|, |caskk-action-delete-user-entry|,
-|caskk-action-abbreviation-mode|,
-|caskk-action-katakana-mode|, |caskk-action-halfwidth-katakana-mode|, and
-|caskk-action-fullwidth-alphanumeric-mode|.
-The default is an empty dictionary.  Unknown actions and invalid key names are
-rejected.  Conflicts with the selected input grammar are checked when Enable()
-installs the mappings.
-
-Each action may be assigned to one or more physical keys.  The action names
-are documented below; the default action dictionary is empty.  When an action
-is unavailable in the current context, printable keys follow the input scheme;
-named/control keys use the previous Vim mapping or native input.  An explicitly
-defined scheme key can override a default native editing key.  Inline input
-consumes unsupported editing keys instead; command-line support is described
-in |caskk-commandline|.
-
-ShowCompletion                                  *caskk-action-show-completion*
-Opens reading completion during Insert preedit.  The list also opens
-automatically once the reading meets completion_min_length.  With a completion
-list open but unselected, selects the first item.  Otherwise moves focus to the
-next item.  Selection previews the word in the buffer.
-See |caskk-completion|.
-
-CancelCompletion                              *caskk-action-cancel-completion*
-Closes the completion list and preserves the current reading.
-
-Convert                                                  *caskk-action-convert*
-Starts conversion for preedit text.  During candidate selection, the same
-action advances to the next candidate.
-
-NextCandidate                                    *caskk-action-next-candidate*
-Selects the next candidate.  At the end of the list, conversion proceeds to
-the dictionary-registration request.
-
-PreviousCandidate                          *caskk-action-previous-candidate*
-Selects the previous candidate.  At the first candidate, it returns to the
-editable reading.
-
-Commit                                                    *caskk-action-commit*
-Commits the focused completion, selected conversion candidate, or current
-preedit text.
-
-OpenRegistration                                *caskk-action-open-registration*
-Opens the pending dictionary-registration request when automatic registration
-is disabled.
-
-TogglePin                                                *caskk-action-toggle-pin*
-Toggles the pinned preference for the selected candidate.  One candidate per
-reading and exact first okuri character can be pinned; pinning another replaces
-the previous pin.  Pinned candidates rank before normal candidates in later
-conversions.  Pinning also removes that candidate's demotion.
-
-ToggleDemote                                          *caskk-action-toggle-demote*
-Toggles the demoted preference for the selected candidate.  Demoted candidates
-rank after normal candidates in later conversions and remain selectable.
-Demoting a pinned candidate removes its pin.  Committing a demoted candidate
-does not restore it to normal; MRU learning only reorders normal candidates.
-
-DeleteUserEntry                                  *caskk-action-delete-user-entry*
-Requests confirmation before removing the selected registered user candidate.
-In ordinary Insert conversion, the confirmation temporarily replaces the
-candidate list with a centered popup that wraps to fit the screen.  Cancelling
-restores the candidate list.  Press y/Y to delete, or n/N/Escape to cancel.  Any other key cancels confirmation
-and is then processed normally.  Matching user entries sharing the current SKK
-lookup key are deleted, including other exact-okuri variants; independent
-pin/demote and MRU preferences are retained.  Candidate selection is refreshed;
-if no candidates remain, the reading becomes editable again.  A candidate still
-present in a system dictionary remains available.  When the selected candidate
-has no user entry, the mapping falls through to ordinary input.  On BS,
-this cancels conversion and deletes one trailing reading/okuri item without
-learning the candidate.  This action
-is available in Insert conversion and inline registration, not command-line
-input or the reading-completion list.
-
-In Insert input, mode actions switch directly to their named mode.  Triggering
-the current non-hiragana mode again returns to hiragana.  While a modified hiragana reading
-is in preedit, KatakanaMode and HalfwidthKatakanaMode commit it as katakana or
-halfwidth katakana while keeping the input mode as hiragana.  While abbreviation
-text is in preedit, FullwidthAlphanumericMode commits it as fullwidth
-alphanumeric while keeping abbreviation mode active.  AbbreviationMode during
-candidate selection commits the selected candidate and enters abbreviation
-mode.  Other mode actions are unavailable during preedit or candidate
-selection; in that state their keys fall through to normal input.
-
-AbbreviationMode                              *caskk-action-abbreviation-mode*
-Enters abbreviation input, where typed characters are used directly as the
-dictionary reading.  See |caskk-abbreviation-mode| for numeric placeholders.
-
-KatakanaMode                                      *caskk-action-katakana-mode*
-Enters katakana input mode.
-
-HalfwidthKatakanaMode                    *caskk-action-halfwidth-katakana-mode*
-Enters halfwidth katakana input mode.
-
-FullwidthAlphanumericMode        *caskk-action-fullwidth-alphanumeric-mode*
-Enters fullwidth alphanumeric input mode, which inserts fullwidth forms
-without dictionary conversion.
-
-small_tsu_okuri_as_t                         *caskk-config-small-tsu-okuri-as-t*
-
-small_tsu_okuri_as_t is a boolean that defaults to true.  When true, okuri
-starting with 'っ' adds 't' to the dictionary reading key (for example, reading
-'か' with okuri 'って' uses 'かt').  Set it to false to use the standard 'x'
-prefix instead ('かx').  This affects dictionary lookup, not displayed okuri.
-
-Changing this setting through Config() releases active bindings.  Call
-Enable(name) again to use the new prefix.
-
-AbbreviationMode                                      *caskk-abbreviation-mode*
-
-AbbreviationMode takes subsequent keyboard characters as the reading for direct
-dictionary lookup.  The first character starts preedit, and abbreviation input
-does not have okuri.  For example, an `apple /アップル/` entry can be converted by
-entering AbbreviationMode, typing 'apple', and invoking Convert.
-In Insert input, Enter commits the typed abbreviation literally, without a
-newline or implicit completion acceptance, even when a completion list is
-visible or a search is pending.  For example, typing 'apple' then Enter keeps
-'apple'.  To accept a suggested word, use the configured Commit action on
-another key, or explicitly start dictionary conversion with Convert.  After
-explicit conversion, Enter follows the usual conversion Commit/native mapping
-behavior and confirms the selected dictionary candidate.
-After committing abbreviation input, the mode returns to the mode that was
-active before AbbreviationMode was entered.
-
-Numeric dictionary conversion                              *caskk-numeric-conversion*
-
-A conversion reading containing ASCII digits searches both its literal
-dictionary key and a key with each digit run replaced by '#'.  Literal-key
-candidates come first, followed by numeric-template candidates; duplicate
-candidates have their annotations merged.  User-state ranking still applies
-to the combined list.  For example, '1000001 /東京都千代田区千代田/' can be
-converted alongside numeric entries under '#'.
-
-In a candidate, numeric placeholders use the corresponding
-digit runs from the reading in order.  For example, the entry >
-
-    #:# /#0時#0分/
-
-matches the abbreviation reading '12:34' and produces '12時34分'.  The supported
-candidate placeholders are:
-
-    #0  unchanged ASCII digits       #1  fullwidth digits
-    #2  kanji digits, e.g. 一〇二四  #3  positional kanji, e.g. 千二十四
-    #5  daiji, e.g. 壱阡九百九拾伍  #6  Roman numerals, e.g. MMXXVI
-    #8  comma-grouped digits, e.g. 1,234,567
-
-For example, a dictionary entry '# /#3/#5/#6/' converts abbreviation input
-'2026' into '二千二十六', '弐阡弐拾六', and 'MMXXVI'.  For an ASCII-digit-only
-reading without okuri, Caskk supplies a Roman-numeral candidate even when the
-dictionary has no '#6' entry.  It follows dictionary candidates before user
-ranking; an existing '#6' keeps its dictionary position and annotations.
-For example, in abbreviation mode, type '12', invoke Convert, and navigate to
-'XII'.  Enter alone keeps '12' as described in |caskk-abbreviation-mode|.
-
-Roman numerals use standard subtractive notation through 3999 and combining
-overlines for larger values (for example, 4000 is 'I̅V̅').  Zero is represented
-by 'N'; leading zeroes are ignored.  This handles digit runs without converting
-the entire value to Vim's fixed-width integer type.
-When positional kanji exceeds the available large-number units, it falls back
-to digit-by-digit kanji.  Numeric relookup (#4) and shogi notation (#9) are not
-implemented; unsupported placeholders remain literal.
-
-KatakanaMode and HalfwidthKatakanaMode use the same hiragana reading and dictionary
-lookup as the default mode, while displaying kana in fullwidth or halfwidth
-katakana.  Kanji in candidates are unchanged.  FullwidthAlphanumericMode bypasses
-kana composition and dictionary conversion; it maps ASCII letters, digits,
-punctuation, and space to their fullwidth forms.
-
-keep_preedit_on_backspace             *caskk-config-keep-preedit-on-backspace*
-
-keep_preedit_on_backspace is a boolean that defaults to true.  Deleting the
-last reading character or the last empty okuri boundary keeps an empty
-Modified preedit.  Ordinary input continues the same reading; BS in that empty
-preedit cancels it without deleting confirmed text.  Empty preedit does not
-start completion or dictionary registration.  Set false to end preedit as
-soon as its last item is deleted.  Pending consonant, special and sticky-key
-BS handling, and available BS action mappings, retain their existing rules.
-This applies to Insert input, inline registration and command-line input.
-Changes take effect with the same session reset as other input settings.
-
-undo_revert_to_reading                *caskk-config-undo-revert-to-reading*
-
-undo_revert_to_reading is a boolean that defaults to true.  When true, one undo
-after conversion restores the hiragana reading, and a second undo removes that
-reading.  Set it to false to combine the reading and conversion into one undo
-unit; one undo then removes the converted text and restores the text from before
-the reading was entered.
-
-persist_input_mode                         *caskk-config-persist-input-mode*
-
-persist_input_mode is a boolean that defaults to false.  When false, leaving
-Insert mode resets the active mode to hiragana.  Set it to true to preserve the
-active mode when Insert mode is entered again in the same enabled buffer.
-
-Input settings are copied when accepted; mutating the supplied options later
-does not change the configuration.  Changing effective non-dictionary settings
-(other than highlight) through Config() disables all active buffer bindings and
-command-line input after finishing pending input.  Enable(name) again to use
-the accepted settings.  Highlight-only updates apply directly to presentation;
-dictionary-only reloads keep bindings active.  Omitted fields reset to defaults,
-so retain other desired settings in each Config() call.
-
-candidate_popup                                  *caskk-config-candidate-popup*
-
-candidate_popup is a boolean that controls the candidate list popup.  It
-defaults to true.  The popup lists all ranked candidates with their position,
-display text, and annotations without taking focus.  PmenuSel highlights the
-selected row in conversion and completion lists, including inline registration.
-'★' marks a pinned candidate, and '↓' marks a demoted candidate.
-Existing candidate-navigation mappings move the selection through the list.
-The popup keeps its initial screen position and size while candidates are
-selected, scrolling its contents to show the current candidate.
-It closes when candidate selection ends or the input session is cleaned up.
-Changes take effect on the next presentation update.  The popup uses Vim's
-Pmenu highlight group and wraps long lines.
-
-TogglePin and ToggleDemote apply to the currently selected candidate.  Each
-action toggles that candidate's preference on or off.  A pinned candidate is
-marked with '★' and a demoted candidate with '↓' in the candidate popup.  The
-choice affects ranking on subsequent conversions; it does not change the
-candidate currently being selected.
-
-mode_popup                                        *caskk-config-mode-popup*
-
-mode_popup is a boolean that controls the popup showing the active
-input mode.  It defaults to true.  The popup appears when an Insert-mode input
-session starts and when a mode changes, near the cursor without taking focus.
-It follows Caskk input and closes on native cursor movement, when Insert mode
-ends, or when a positive popup timeout expires.
-The label is prefixed with '▽' while a modified reading is being composed and
-'▼' while conversion candidates are being selected. The popup uses Vim's Pmenu
-highlight group.
-
-mode_popup_labels                            *caskk-config-mode-popup-labels*
-
-mode_popup_labels optionally replaces the default label for each mode.  It is
-a dictionary whose keys are hiragana, abbreviation, katakana,
-halfwidth_katakana, and fullwidth_alphanumeric.  Defaults are 'あ', 'ab', 'ア',
-'ｱ', and 'Ａ', respectively.  Values must be nonempty strings.  For example: >vim9
-
-    Caskk.Config({mode_popup_labels: {hiragana: 'かな', katakana: 'カナ'}})
-<
-Omitted labels retain their defaults.
-
-mode_popup_markers                          *caskk-config-mode-popup-markers*
-
-mode_popup_markers optionally replaces the marker shown before the mode label.
-Its keys are modified and candidate, defaulting to '▽' and '▼'.  Values are
-strings; an empty string hides that marker.  For example: >vim9
-
-    Caskk.Config({mode_popup_markers: {modified: '＊', candidate: '●'}})
-<
-
-mode_popup_time                                *caskk-config-mode-popup-time*
-
-mode_popup_time is a nonnegative number of milliseconds and defaults to 0. With
-the default, the popup follows the cursor as Caskk input advances it, and remains
-visible until Vim cursor movement or the input session ending closes it. Set it
-to a positive number to close it after that many milliseconds without input.
-
-dictionaries                                      *caskk-config-dictionaries*
-
-dictionaries is a list of read-only SKK dictionary sources in candidate priority
-order.  The default is an empty list.  Each source is either a nonempty path
-string (UTF-8), or a dictionary with path and an optional encoding string: >vim9
-
-    Caskk.Config({
-      dictionaries: [
-        '/path/to/SKK-JISYO.utf8',
-        {path: '/path/to/SKK-JISYO.euc', encoding: 'euc-jp'},
-      ],
-      sticky_key: ';',
-      mappings: {"\<Space>": 'Convert', "\<F10>": 'Commit'},
-    })
-<
-Paths are passed directly to Vim's file reader.  Replace the example paths with
-existing files.  Configured sources smaller than 128 KiB in total are read and
-indexed during Config().  Larger source sets are read and indexed incrementally
-by Vim timers after Config() returns.  Candidate order is retained across sources, and duplicate
-candidates are merged while preserving the first occurrence's order and
-combining annotations.  System dictionaries are never written.
-
-When both SKK section headers are present, lookups use binary search.  Key
-comparison follows the source encoding's byte order: okuri-ari entries must be
-in descending order and okuri-nasi entries in ascending order.  This also
-supports EUC-JP dictionaries whose key order differs from Unicode codepoint
-order.  Sectionless files use the fallback lookup path.
-
-Config() validates its options and applies highlighting before returning.  For
-large sources, dictionary loading continues afterward; Caskk.GetDictionaryLoadStatus()
-returns a dictionary with state 'loading', 'ready', or 'error', and an error
-message when loading fails.  A timer reads at most 64 KiB of source bytes and
-indexes at most 1000 rows per callback.  Decoding waits for a complete line so
-multibyte characters are not split across chunks.  An unusually long single
-dictionary line is decoded as a whole.
-
-On the first incremental load, each source becomes available after that source
-has been fully read and indexed.  While later sources are still loading,
-conversions can use candidates from completed sources.  If no candidate is
-found yet, Caskk keeps the reading and does not open registration.  If a later
-source fails, completed sources remain available, the status becomes 'error',
-and Caskk displays an error message.  During a reload, the previous complete
-dictionary remains active until the new source set has finished; then the new
-set is published at once.  Candidate selection already in progress keeps its
-prepared candidates.  A reload request cancels an older pending request, so
-only the newest request can be published.  A Config() call that changes
-non-dictionary binding settings still releases existing bindings.
-
-Conversion uses in-memory data.  Editing or removing a source file does not
-change it.  Call Config() again to reload.  A dictionary-only reload keeps
-existing bindings active; once the new index is published, subsequent
-conversions use it.  Omitting dictionaries in a Config() call resets the
-dictionary list to empty.
-
-GetDictionaryLoadStatus()                         *caskk-dictionary-load-status*
-
-Caskk.GetDictionaryLoadStatus() returns {state: string, error: string}.  The
-error field is empty unless the most recent incremental load failed.  Source
-sets below the size threshold and empty source sets are ready when Config()
-returns.
-
-Config() accepts a heterogeneous dictionary and validates its keys, value types,
-and contents before retaining typed settings.  A synchronous validation,
-highlight, or dictionary-load failure retains the previous input and highlight
-settings.  Incremental load failures are reported through
-GetDictionaryLoadStatus() as described above.
-
-highlight.preedit                                  *caskk-config-highlight*
-
-highlight.preedit controls the CaskkPreedit group used for preedit text and the
-latent okuri boundary marker.  Its term, cterm, and gui fields accept
-comma-separated highlight attributes, such as
-'bold,underline'.  Accepted attributes are bold, standout, underline,
-undercurl, underdouble, underdotted, underdashed, italic, reverse, inverse,
-strikethrough, and nocombine.  Names are case-insensitive.  Use 'NONE' to
-disable attributes for that display mode.  See |highlight-args| for their
-meaning.
-
-The following string fields are also supported:
-    ctermfg, ctermbg, ctermul, guifg, guibg, guisp, font, start, stop
-
-For example: >vim9
-
-    Caskk.Config({highlight: {preedit: {cterm: 'bold', guifg: '#123456'}}})
-<
-The plugin manages the CaskkPreedit highlight group for both preedit text and
-the virtual okuri boundary marker.  A separate user highlight definition is not
-required.  Configured attributes are reapplied after |ColorScheme| events and
-when presentation is initialized.  Use Config() as the source of these settings
-rather than separately redefining CaskkPreedit.
-
-Unknown settings, unknown attributes, and invalid colors cause an error.
-The previous configuration and highlight definition are retained on failure.
+LoadState()                                            *caskk-load-state*
+    Loads user entries and preferences from state_path, replacing current
+    in-memory state.  An unreadable or invalid file raises an error.
+
+SaveState()                                            *caskk-save-state*
+    Saves user entries and preferences to state_path.  Both LoadState() and
+    SaveState() require a nonempty path.  The state file is internal data;
+    use ExportUserDictionary() for an SKK dictionary.
+
+ExportUserDictionary(path)                  *caskk-export-user-dictionary*
+    Exports registered user entries as a UTF-8 SKK dictionary.  Learning and
+    ranking preferences are excluded.  path must be a nonempty string.
+
+OpenRegistration()                              *caskk-open-registration*
+    Opens a pending registration request in Insert mode.  Useful with
+    registration_auto: false.  See also the OpenRegistration action.
+
+Custom registration UI functions ~
+
+GetRegistrationRequest() -> Request/null_object  *caskk-registration-request*
+    Returns the pending request, or null_object.  String fields: reading,
+    okuri (full suffix), exact_okuri (first suffix character), lookup_key.
+
+CompleteRegistration(text [, annotations])     *caskk-complete-registration*
+    Registers and commits a nonempty candidate body; omit its okuri suffix.
+    annotations is a list of strings, default [].
+
+CancelRegistration()                            *caskk-cancel-registration*
+    Cancels the request and returns to the editable reading.
+
+Call completion/cancellation in the original buffer in Insert mode, for example
+from a <ScriptCmd> mapping.  Both require a pending request.
+
+INPUT SCHEMES                                        *caskk-input-schemes*
+
+RegisterInputScheme() takes these fields:
+
+name                                                  *caskk-scheme-name*
+    Required string used by Enable(), Toggle(), and GetInputScheme().
+
+consonants                                      *caskk-scheme-consonants*
+    Required dictionary of input sequences to kana consonant identifiers,
+    e.g. {k: 'k', j: 'ky'}.  'N' and 'T' produce ん and っ directly.
+
+combinations                                  *caskk-scheme-combinations*
+    Required dictionary of single keys to kana output sequences, e.g.
+    {a: 'a', l: 'o*N'}.  The first vowel combines with a preceding consonant;
+    'jl' in the examples produces きょん.  '*' sets an optional okuri boundary.
+
+specials                                            *caskk-scheme-specials*
+    Optional dictionary of input sequences to arbitrary text, e.g.
+    {nn: 'ん', zx: 'い*くらい'}.  Specials take precedence over generated rules.
+    In output, '*' marks an okuri boundary; '\*' and '\\' escape '*' and '\'.
+
+Keys use ordinary characters or actual Vim keycodes such as "\<C-K>".
+Combination values use kana symbols, not literal kana; special values use text.
+Only one unescaped '*' is allowed in an output pattern.
+
+Kana symbols                                           *caskk-kana-table*
+    Vowels: a i u e o.  Direct symbols: N (ん), T (っ).
+    Consonant identifiers: '' (vowels), x, xy, xw, k, ky, g, gy, s, sy,
+    z, zy, t, ty, ts, th, d, dy, dh, n, ny, h, hy, f, b, by, v, p, py,
+    m, my, y, r, ry, w, wh.  For example, k + a is か; ky + a is きゃ.
+
+Matching                                        *caskk-special-matching*
+    A special waits while a longer match is possible; there is no timeout.
+    A combination key without a consonant stays literal, except a plain vowel.
+
+BASIC USE                                                  *caskk-input*
+                                                  *caskk-modified-input*
+                                                             *caskk-okuri*
+
+Uppercase or sticky input starts an editable reading (Modified input).
+A further Modified syllable starts okuri: KaKu gives か*く and converts it.
+The displayed '*' marks the okuri boundary and is not inserted into the text.
+
+BS removes pending keys, then okuri, its empty boundary, and reading characters.
+By default, deleting the last item keeps Modified input; another BS cancels it.
+See |caskk-config-keep-preedit-on-backspace|.  With a selected candidate, BS
+returns to the reading and deletes one item.  Enter commits preedit; leaving
+Insert mode finishes input.  Undo follows |caskk-config-undo-revert-to-reading|.
+
+Completion                                            *caskk-completion*
+    Reading suggestions appear automatically.  ShowCompletion selects one;
+    NextCandidate/PreviousCandidate navigate, Commit accepts, CancelCompletion
+    restores the reading.  Typing with a selected suggestion accepts it first.
+    Available in Insert input, excluding inline registration.
+
+Registration                                        *caskk-registration*
+    Missing words open registration by default.  Enter registers the candidate
+    body; Escape cancels.  With inline registration, Escape during candidate
+    selection first commits that candidate into the draft.
+
+Command-line input                                   *caskk-commandline*
+    Enable it separately in :, / or ?.  Enter commits pending input; press it
+    again to execute.  Registration, reading completion, and reconversion are
+    unavailable in command-line input.
+
+Abbreviation mode                               *caskk-abbreviation-mode*
+    Uses typed text directly as the dictionary reading.  Enter keeps the typed
+    abbreviation literally; use Commit to accept completion or Convert for
+    dictionary conversion.  Committing returns to the previous input mode.
+
+Numeric conversion                              *caskk-numeric-conversion*
+    Digit runs also search '#' dictionary keys.  Candidate placeholders:
+    #0 ASCII, #1 fullwidth, #2 kanji digits, #3 positional kanji, #5 daiji,
+    #6 Roman numerals, #8 comma grouping.  For example, '#:# /#0時#0分/'
+    converts abbreviation '12:34' to '12時34分'.
+
+SETTINGS                                                *caskk-settings*
+
+Pass these options to Config().  Defaults are shown beside each type.
+Keep all desired options in each call; omitted options reset to defaults.
+
+sticky_key                                      *caskk-config-sticky-key*
+    string, ''.  Marks the next key as Modified, like uppercase input.
+    Use a printable character such as ';' or a named key such as '<F9>'.
+
+keyboard_layout                            *caskk-config-keyboard-layout*
+    string, 'US'.  Shifted-symbol layout: 'US' or 'JIS'.
+
+keyboard_layout_overrides         *caskk-config-keyboard-layout-overrides*
+    dict<string>, {}.  Unshifted key to shifted character, e.g. {1: '?'}.
+    Keys and values must be single printable characters; values must be unique.
+
+mappings                                          *caskk-config-mappings*
+    dict<string>, {}.  Key to action name; see |caskk-actions|.
+    Use actual keycodes: {"\<Space>": 'Convert', "\<F10>": 'Commit'}.
+
+small_tsu_okuri_as_t                   *caskk-config-small-tsu-okuri-as-t*
+    bool, true.  Okuri starting with っ uses the SKK lookup prefix 't'.
+    Set false to use 'x'.
+
+keep_preedit_on_backspace       *caskk-config-keep-preedit-on-backspace*
+    bool, true.  BS deleting the last reading item keeps empty Modified input.
+    Another BS cancels it without deleting confirmed text.  Set false to end
+    preedit as soon as the last item is deleted.
+
+undo_revert_to_reading              *caskk-config-undo-revert-to-reading*
+    bool, true.  Undo after conversion restores the reading; another removes
+    it.  Set false to undo the whole conversion in one step.
+
+persist_input_mode                    *caskk-config-persist-input-mode*
+    bool, false.  Keeps the input mode across Insert sessions in the buffer.
+
+dictionaries                                *caskk-config-dictionaries*
+    list, [].  Read-only SKK sources in candidate priority order.  Each item
+    is a UTF-8 path or {path: '/path/to/SKK-JISYO', encoding: 'euc-jp'}.
+    Call Config() again to reload changed files.
+
+state_path                                     *caskk-config-state-path*
+    string, ''.  User-state file for LoadState(), SaveState(), and state_auto.
+    Parent directories are created when saving.
+
+state_auto                                     *caskk-config-state-auto*
+                                                      *caskk-state-auto*
+    bool, false.  Loads state on first Enable(), then saves changes and at
+    exit.  Requires state_path.  A missing file starts with current user state.
+
+registration_auto                       *caskk-config-registration-auto*
+                                               *caskk-registration-auto*
+    bool, true.  Opens registration automatically when candidates run out.
+
+registration_prefill                 *caskk-config-registration-prefill*
+                                            *caskk-registration-prefill*
+    bool, true.  Prefills registration with the reading.
+
+registration_inline                   *caskk-config-registration-inline*
+    bool, false.  Uses an inline popup instead of a registration window.
+    Left/Right move in the draft; BS/Delete edit it; Enter registers it.
+
+register_mode_conversions          *caskk-config-register-mode-conversions*
+    bool, true.  Adds text committed by kana/fullwidth mode actions to the
+    user dictionary.  Set false to commit without registration.
+
+completion_min_length                *caskk-config-completion-min-length*
+    positive number, 2.  Minimum reading length for completion.
+
+candidate_popup                           *caskk-config-candidate-popup*
+    bool, true.  Shows candidate lists.  Disabling also stops automatic
+    completion; ShowCompletion remains available.  ★ marks pinned candidates,
+    ↓ marks demoted candidates.
+
+mode_popup                                     *caskk-config-mode-popup*
+    bool, true.  Shows the input mode near the cursor.
+
+mode_popup_labels                       *caskk-config-mode-popup-labels*
+    dict<string>.  Optional replacements for the default mode labels:
+    {hiragana: 'あ', abbreviation: 'ab', katakana: 'ア',
+     halfwidth_katakana: 'ｱ', fullwidth_alphanumeric: 'Ａ'}.
+    Values must be nonempty; omitted labels keep their defaults.
+
+mode_popup_markers                     *caskk-config-mode-popup-markers*
+    dict<string>.  Defaults: {modified: '▽', candidate: '▼'}.
+    An empty value hides that marker; omitted markers keep their defaults.
+
+mode_popup_time                           *caskk-config-mode-popup-time*
+    nonnegative number, 0.  Milliseconds before the mode popup hides.
+    Zero keeps it visible until cursor movement or input ends.
+
+highlight.preedit                               *caskk-config-highlight*
+    dict<string>.  Preedit highlighting; term, cterm, gui default to
+    'underline'.  Accepts |highlight-args| attributes and string fields
+    ctermfg, ctermbg, ctermul, guifg, guibg, guisp, font, start, stop.
+    Example: {highlight: {preedit: {gui: 'bold', guifg: '#123456'}}}.
+
+MAPPING ACTIONS                                          *caskk-actions*
+
+Assign these names through mappings.  No action keys are assigned by default.
+
+Convert                                           *caskk-action-convert*
+    Converts the reading; during selection, advances to the next candidate.
+
+NextCandidate                              *caskk-action-next-candidate*
+    Selects the next candidate.  Passing the last conversion candidate
+    requests registration.
+
+PreviousCandidate                      *caskk-action-previous-candidate*
+    Selects the previous candidate; before the first, restores the reading.
+
+Commit                                             *caskk-action-commit*
+    Accepts the selected completion, conversion candidate, or reading.
+
+ShowCompletion                            *caskk-action-show-completion*
+    Opens completion and selects the first item, or advances the selection.
+
+CancelCompletion                        *caskk-action-cancel-completion*
+    Closes completion and restores the reading.
+
+OpenRegistration                        *caskk-action-open-registration*
+    Opens a pending registration request when automatic opening is disabled.
+
+TogglePin                                      *caskk-action-toggle-pin*
+    Toggles the selected candidate's pinned preference (ranks first).
+
+ToggleDemote                                *caskk-action-toggle-demote*
+    Toggles the selected candidate's demotion (ranks after normal candidates).
+
+DeleteUserEntry                          *caskk-action-delete-user-entry*
+    Removes a selected user entry after y/N confirmation.  System dictionary
+    candidates remain available.  Not available in command-line or completion.
+
+AbbreviationMode                        *caskk-action-abbreviation-mode*
+    Uses literal input as the dictionary reading.
+
+KatakanaMode                                *caskk-action-katakana-mode*
+    Switches to katakana, or commits a hiragana preedit as katakana.
+
+HalfwidthKatakanaMode              *caskk-action-halfwidth-katakana-mode*
+    Switches to halfwidth katakana, or commits a hiragana preedit in that form.
+
+FullwidthAlphanumericMode      *caskk-action-fullwidth-alphanumeric-mode*
+    Switches to fullwidth alphanumeric input, or commits an abbreviation in
+    that form.  Repeating the current non-hiragana mode returns to hiragana.
 
 vim:tw=78:ts=8:noet:ft=help:norl:
-
-A combination-only key without a preceding consonant remains literal, except
-for standalone vowels.  Modified input preserves that literal key as the reading:
-with {3: "a*iN"}, ;3 starts reading "3", while K3 produces "かいん".
-In an existing reading, the same standalone key is appended literally without
-creating an okuri boundary.  Explicit specials retain their priority.
-
-When a consonant is pending, shifted punctuation is normalized through the
-keyboard layout if its base key completes a combination, even if the physical
-symbol has a special mapping.  With US layout, {1: "e*Tte", /: "e*ki"},
-and specials {!: "！", ?: "？"}, K! produces け*って and K? produces け*き.
-Standalone ! and ? still use their special mappings.  A pending multi-key
-special retains its matching priority.
-
-This also applies when the consonant is temporarily held as a special prefix:
-with {ds: "です"}, d! can still use the shifted 1 combination.  A physical
-key that continues the pending special keeps its special matching priority.
-
-Typing ordinary input while a completion is selected accepts and learns that
-completion, then processes the typed key as new input.  An unselected list
-continues editing the reading.  CancelCompletion, Backspace, Convert and native
-movement keep their existing cancellation behavior.
-
-Shifted punctuation with no pending consonant or special remains literal in
-preedit too: Shift-. appends > instead of interpreting the base . combination.
-Sticky ; followed by > starts a reading containing >.  After a consonant,
-Shift-. still uses the . combination.  Explicit physical-symbol specials retain
-their priority unless a consonant combination takes precedence.
