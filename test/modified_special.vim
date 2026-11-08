@@ -32,13 +32,13 @@ suite.modified_semantics_in_preedit = (): void => {
   const pattern = output_pattern.Parse('か*ける')
   for [first, second, third, reading, okuri] in [
     [false, false, false, 'かける', ''],
-    [true, false, false, 'かける', ''],
+    [true, false, false, '', 'かける'],
     [false, true, false, 'か', 'ける'],
     [false, false, true, 'か', 'ける'],
     [false, true, true, 'か', 'ける'],
-    [true, true, false, 'か', 'ける'],
-    [true, false, true, 'か', 'ける'],
-    [true, true, true, 'か', 'ける'],
+    [true, true, false, '', 'かける'],
+    [true, false, true, '', 'かける'],
+    [true, true, true, '', 'かける'],
   ]
     const events = [input.Event.new('a', first), input.Event.new('b', second), input.Event.new('c', third)]
     const composed = special.Compose(pattern, events, true)

@@ -484,28 +484,28 @@ suite.pending_returns_a_copy = (): void => {
   assert.equals(engine.Pending(), [event])
 }
 
-suite.special_output_keeps_special_modified_semantics_in_preedit = (): void => {
+suite.modified_special_starts_okuri_before_the_whole_output = (): void => {
   const compiled = scheme.Compile({j: 'z'}, {i: 'i'}, [scheme.SpecialDefinition.new(['j', 'i'], 'じ')])
   const engine = composer.Composer.new(compiled)
   assert.equals(engine.Feed(input.Event.new('j', true)), [])
   const results = engine.Feed(input.Event.new('i'))
   const composed = composer.Compose(results[0], true)
   assert.equals(composed.start_conversion, false)
-  assert.equals(composed.reading, 'じ')
-  assert.equals(composed.okuri, '')
-  assert.equals(composed.okuri_started, false)
+  assert.equals(composed.reading, '')
+  assert.equals(composed.okuri, 'じ')
+  assert.equals(composed.okuri_started, true)
 }
 
-suite.single_key_special_does_not_implicitly_start_okuri = (): void => {
+suite.modified_single_key_special_starts_okuri = (): void => {
   const compiled = scheme.Compile({}, {}, [scheme.SpecialDefinition.new(['x'], 'じ')])
   const engine = composer.Composer.new(compiled)
   const results = engine.Feed(input.Event.new('x', true))
   assert.equals(len(results), 1)
   const composed = composer.Compose(results[0], true)
   assert.equals(composed.start_conversion, false)
-  assert.equals(composed.reading, 'じ')
-  assert.equals(composed.okuri, '')
-  assert.equals(composed.okuri_started, false)
+  assert.equals(composed.reading, '')
+  assert.equals(composed.okuri, 'じ')
+  assert.equals(composed.okuri_started, true)
 }
 
 suite.modified_nasal_and_sokuon_consonants_start_okuri_in_preedit = (): void => {

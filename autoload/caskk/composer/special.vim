@@ -106,13 +106,16 @@ export def MatchEvents(rules: list<Rule>, events: list<input.Event>,
 enddef
 
 # Interpret an already matched special using the current preedit context.
-# Boundary placement is determined solely by the output pattern.
+# A Modified first key in preedit starts okuri before the entire output.
 export def Compose(pattern: pattern_types.OutputPattern, events: list<input.Event>,
     in_preedit: bool = false): composition.Result
   if empty(events)
     throw 'caskk: special composition requires at least one input event'
   endif
   const first_modified = events[0].modified
+  if in_preedit && first_modified
+    return composition.Result.new(false, "", pattern.text, true)
+  endif
   var later_modified = false
   for event in events[1 :]
     if event.modified

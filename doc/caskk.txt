@@ -244,8 +244,10 @@ position determines the okuri split; '*' is omitted in ordinary input.
 For a special {abc: 'か*ける'}, ordinary 'abc' emits 'かける', 'Abc' starts
 a reading 'かける', and 'ABc' or 'AbC' activates reading 'か' plus okuri
 'ける'.  In an existing preedit, modifying a later special key also activates
-its latent boundary.  The boundary position does not depend on which later
-key was modified.
+its latent boundary.  Modifying the first special key in an existing preedit
+instead makes the entire output okuri, taking precedence over its latent
+boundary.  For example, with {fu: "ふ"}, OmoFu converts おも*ふ to 思ふ
+when the dictionary contains おもh /思/.  Sticky Modified input behaves the same.
 
 Convert searches the current reading; completing nonempty okuri starts
 conversion automatically.  Candidate text and preedit are real buffer text;

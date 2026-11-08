@@ -745,3 +745,19 @@ suite.backspace_cancels_okuri_selection_then_deletes_the_boundary_on_the_next_pr
   assert.equals(ime.GetSnapshot().reading, 'かえい')
   assert.equals(preferences.GetSnapshot().mru, {})
 }
+
+suite.modified_fu_special_converts_omofu_with_uppercase_and_sticky_input = (): void => {
+  const compiled = scheme.Compile({m: 'm'}, {o: 'o', u: 'u'},
+    [scheme.SpecialDefinition.new(['f', 'u'], 'ふ')])
+  const entries = merger.Merge([[parser.ParseLine('おもh /思/')]])
+  for keys in [['O', 'm', 'o', 'F', 'u'], [';', 'o', 'm', 'o', ';', 'f', 'u']]
+    const ime = session.Session.new(compiled, ';', entries)
+    for key in keys
+      ime.Feed(key)
+    endfor
+    assert.equals(ime.GetSnapshot().reading, 'おも')
+    assert.equals(ime.GetSnapshot().okuri, 'ふ')
+    assert.equals(ime.GetCandidatesInfo().candidates[0].text, '思ふ')
+    assert.equals(ime.Commit()[0].text, '思ふ')
+  endfor
+}
