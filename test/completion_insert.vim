@@ -483,3 +483,18 @@ suite.verb_only_stem_does_not_open_automatic_completion = (): void => {
   assert.equals(stridx(string(popup_lines[0]), '仮名') < 0, true)
   assert.equals(selected_rows[0], 0)
 }
+
+suite.zero_okuri_imperative_converts_with_a_verb_marker = (): void => {
+  const source = tempname()
+  defer delete(source)
+  writefile([';; okuri-ari entries.', ';; okuri-nasi entries.',
+    'くれ /呉れ;@verb-1-shimo-r-kureru/'], source)
+  Setup({dictionaries: [source], mappings: {"\<Space>": 'Convert', "\<F10>": 'Commit'}})
+  defer Cleanup()
+  Caskk.Disable()
+  Caskk.RegisterInputScheme({name: 'bare-imperative', consonants: {}, combinations: {}, specials: {x: 'くれ'}})
+  Caskk.Enable('bare-imperative')
+  feedkeys("aX \<F12>\<F10>\<F12>\<Esc>", 'xt')
+  assert.equals(captures, ['前呉れ［verb］後', '前呉れ後'])
+  assert.equals(stridx(string(popup_lines[0]), '呉れ［verb］') >= 0, true)
+}

@@ -251,3 +251,23 @@ suite.stem_preferences_are_shared_across_okuri_but_not_ordinary_candidates = ():
   const demoted = conversion.Prepare(entries, preferences, 'か', 'け')
   assert.equals(demoted.DisplayAt(1), '描け［verb］')
 }
+
+suite.standalone_complete_forms_are_exceptions_to_bare_stem_suppression = (): void => {
+  for [reading, text, tag] in [
+    ['くれ', '呉れ', '1-shimo-r-kureru'], ['みてくれ', '見て呉れ', '1-shimo-r-kureru'],
+    ['こ', '来', 'classical-irregular-k'], ['く', '来', 'classical-irregular-k'],
+    ['す', '為', 'classical-irregular-s'], ['ず', 'ず', 'classical-irregular-z'],
+    ['あり', '有り', 'classical-irregular-r'], ['いぬ', '往ぬ', 'classical-irregular-n']]
+    const entry = parser.ParseLine(reading .. ' /' .. text .. ';@verb-' .. tag .. '/')
+    const prepared = conversion.Prepare({[reading]: entry}, state.State.new(), reading)
+    assert.equals(prepared.experimental_count, 1, reading)
+    const selected = conversion.Selection.new(prepared, state.State.new())
+    assert.equals(selected.CurrentText(), text .. '［verb］')
+    assert.equals(selected.Commit(), text)
+  endfor
+  for [reading, tag] in [['たべ', '1-shimo-b'], ['くれ', '1-shimo-r'],
+    ['か', '5-k'], ['こ', 'irregular-k'], ['し', 'classical-irregular-n']]
+    const entry = parser.ParseLine(reading .. ' /語;@verb-' .. tag .. '/')
+    assert.equals(conversion.Prepare({[reading]: entry}, state.State.new(), reading).candidates, [], reading)
+  endfor
+}
