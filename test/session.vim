@@ -434,3 +434,22 @@ suite.commit_notifies_empty_preedit_and_is_idempotent = (): void => {
   assert.equals(results[0].state.in_preedit, false)
   assert.equals(ime.Commit(), [])
 }
+
+
+suite.empty_preedit_is_reading_state_without_modifier_or_conversion = (): void => {
+  const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}), ';')
+  ime.Feed('K')
+  ime.Feed('a')
+  assert.equals(ime.BackspacePreedit().state.in_preedit, true)
+  assert.equals(ime.BackspacePending(), false)
+  assert.equals(ime.ShowCompletion(1), false)
+  const results = ime.StartConversion({}, null_object)
+  for result in results
+    assert.equals(result.registration_requested, false)
+  endfor
+  assert.equals(ime.GetSnapshot().in_preedit, true)
+  ime.Feed('k')
+  ime.Feed('a')
+  assert.equals(ime.GetSnapshot().reading, 'か')
+  assert.equals(ime.GetSnapshot().in_preedit, true)
+}

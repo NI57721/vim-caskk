@@ -452,3 +452,11 @@ suite.unavailable_backspace_action_cancels_commandline_conversion_without_learni
   assert.equals(captured, '前')
   assert.equals(user_runtime.Get().GetSnapshot().mru, {})
 }
+
+
+suite.empty_preedit_backspace_preserves_confirmed_prefix = (): void => {
+  Setup()
+  defer Cleanup()
+  feedkeys(":前\<F2>Ka\<BS>\<BS>ka\<F3>\<C-C>", 'xt')
+  assert.equals(captured, '前か')
+}

@@ -65,10 +65,10 @@ export class Session
       initial_reading: string = '', small_tsu_okuri_as_t: bool = true, keyboard_layout: string = '',
       keyboard_layout_overrides: dict<string> = {}, input_mode_name: string = input_mode.HIRAGANA,
       register_mode_conversions: bool = true, dictionary_index: dict_index.Database = null_object,
-      initial_okuri: string = '')
+      initial_okuri: string = '', keep_preedit_on_backspace: bool = true)
     this._normalizer = normalize.Normalizer.new(sticky_key, keyboard_layout, keyboard_layout_overrides)
     this._composer = composer.Composer.new(compiled)
-    this._state = state_types.State.new()
+    this._state = state_types.State.new(keep_preedit_on_backspace)
     this._entries = copy(entries)
     this._dictionary_index = dictionary_index
     this._preferences = preferences is null_object ? user_state.State.new() : preferences

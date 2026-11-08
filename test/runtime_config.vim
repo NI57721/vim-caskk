@@ -705,3 +705,59 @@ suite.numeric_conversion_offers_roman_numerals_with_the_standard_dictionary_temp
   assert.equals(getline(1), '前XII後')
   assert.equals(readfile(path), source)
 }
+
+
+suite.keep_preedit_configuration_defaults_resets_and_rejects_nonbool_atomically = (): void => {
+  Caskk.Config({})
+  assert.equals(configuration.GetInput().keep_preedit_on_backspace, true)
+  Caskk.Config({keep_preedit_on_backspace: false})
+  for invalid in [0, 1, 'true', [], {}, v:none]
+    try
+      Caskk.Config({keep_preedit_on_backspace: invalid})
+      assert.fail('accepted nonbool')
+    catch /keep_preedit_on_backspace must be a bool/
+    endtry
+    assert.equals(configuration.GetInput().keep_preedit_on_backspace, false)
+  endfor
+  Caskk.Config({})
+  assert.equals(configuration.GetInput().keep_preedit_on_backspace, true)
+}
+
+suite.empty_preedit_backspace_consumes_only_one_extra_key = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  Caskk.Enable('configured')
+  feedkeys("akaKa\<BS>\<BS>ka\<Esc>", 'xt')
+  assert.equals(getline(1), '前かか後')
+}
+
+
+suite.disabled_retention_restores_native_backspace_after_last_character = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  Caskk.Config({keep_preedit_on_backspace: false})
+  Caskk.Enable('configured')
+  feedkeys("akaKa\<BS>\<BS>ka\<Esc>", 'xt')
+  assert.equals(getline(1), '前か後')
+}
+
+suite.retention_changes_reset_input_bindings_and_identical_settings_do_not = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  assert.equals(configuration.ConfigureIncrementally({keep_preedit_on_backspace: false}), true)
+  assert.equals(configuration.ConfigureIncrementally({keep_preedit_on_backspace: false}), false)
+  assert.equals(configuration.ConfigureIncrementally({keep_preedit_on_backspace: true}), true)
+}
+
+suite.reconfigured_retention_applies_when_input_is_enabled_again = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  Caskk.Enable('configured')
+  feedkeys("akaKa\<BS>\<Esc>", 'xt')
+  assert.equals(getline(1), '前か後')
+  Caskk.Config({keep_preedit_on_backspace: false})
+  Caskk.Enable('configured')
+  cursor(1, 1)
+  feedkeys("aKa\<BS>\<BS>\<Esc>", 'xt')
+  assert.equals(getline(1), 'か後')
+}

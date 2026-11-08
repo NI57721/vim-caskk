@@ -480,3 +480,11 @@ suite.available_inline_backspace_action_keeps_candidate_navigation = (): void =>
   feedkeys("aKus\<F6>Kas\<BS>\<Cmd>call CaskkTestInlineCapture()\<CR>\<Esc>\<Esc>", 'xt')
   assert.equals(popup_lines[1], '登録語: 科│')
 }
+
+
+suite.empty_preedit_backspace_preserves_the_registration_draft = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  feedkeys("aKas\<F6>zKa\<BS>\<BS>\<Cmd>call CaskkTestInlineCapture()\<CR>\<Esc>", 'xt')
+  assert.equals(popup_lines[1], '登録語: 漢字│')
+}

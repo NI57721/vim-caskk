@@ -20,7 +20,10 @@ export class State
   var okuri: string = ''
   var okuri_started: bool = false
 
-  def new()
+  const _keep_preedit_on_backspace: bool
+
+  def new(keep_preedit_on_backspace: bool = true)
+    this._keep_preedit_on_backspace = keep_preedit_on_backspace
   enddef
 
   def GetSnapshot(): Snapshot
@@ -66,10 +69,13 @@ export class State
       this.okuri_started = false
     elseif this.reading != ''
       this.reading = strcharpart(this.reading, 0, strchars(this.reading) - 1)
+    elseif this._keep_preedit_on_backspace
+      this.Commit()
+      return true
     else
       return false
     endif
-    if this.reading ==# '' && this.okuri ==# '' && !this.okuri_started
+    if !this._keep_preedit_on_backspace && this.reading ==# '' && this.okuri ==# '' && !this.okuri_started
       this.Commit()
     endif
     return true

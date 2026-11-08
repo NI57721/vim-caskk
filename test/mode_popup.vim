@@ -260,3 +260,12 @@ suite.mode_popup_returns_after_cursor_movement_and_stays_visible = (): void => {
   feedkeys("aKa\<F12>ka\<F12>\<Esc>", 'xt')
   assert.equals(captures, [[['▽あ']], [['▽あ']]])
 }
+
+
+suite.empty_preedit_keeps_modified_marker_and_accepts_normal_input = (): void => {
+  Setup({mode_popup_time: 0})
+  defer Cleanup()
+  feedkeys("aKa\<BS>\<F12>ka\<F12>\<BS>\<BS>\<F12>\<Esc>", 'xt')
+  assert.equals(captures, [[['▽あ']], [['▽あ']], [['あ']]])
+  assert.equals(getline(1), '前後')
+}

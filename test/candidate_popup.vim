@@ -72,7 +72,8 @@ class Fixture
   enddef
 endclass
 
-def Setup(candidate_popup: bool = true, extra_mappings: dict<string> = {}, candidate_count: number = 2): Fixture
+def Setup(candidate_popup: bool = true, extra_mappings: dict<string> = {}, candidate_count: number = 2,
+    keep_preedit_on_backspace: bool = true): Fixture
   const previous = bufnr('%')
   const existing_buffers = mapnew(getbufinfo(), (_, info) => info.bufnr)
   const existing_popups = popup_list()
@@ -101,7 +102,7 @@ def Setup(candidate_popup: bool = true, extra_mappings: dict<string> = {}, candi
     combinations: {a: 'a'}, specials: {d: '漢字', zx: 'い*くらい'}})
   var mappings = {s: 'Convert', n: 'NextCandidate', p: 'PreviousCandidate', c: 'Commit'}
   extend(mappings, extra_mappings)
-  Caskk.Config({candidate_popup: candidate_popup, mode_popup: false, dictionaries: [directory .. '/system'],
+  Caskk.Config({keep_preedit_on_backspace: keep_preedit_on_backspace, candidate_popup: candidate_popup, mode_popup: false, dictionaries: [directory .. '/system'],
     mappings: mappings})
   Caskk.Enable('candidate-popup')
   return Fixture.new(previous, number, window, directory, snapshot, existing_buffers, existing_popups)
@@ -249,7 +250,7 @@ suite.exhaustion_closes_candidate_popup_before_opening_registration = (): void =
 }
 
 suite.cancelling_registration_discards_the_inner_candidate_popup_without_learning = (): void => {
-  const fixture = Setup()
+  const fixture = Setup(true, {}, 2, false)
   defer Cleanup(fixture)
   const before = codec.Encode(user_runtime.Get().GetSnapshot())
   feedkeys('aZX' .. "\<BS>Kas" .. CAPTURE .. "\<Esc>ka\<Esc>", 'xt')

@@ -43,6 +43,7 @@ export class Binding
   const _keyboard_layout: string
   const _keyboard_layout_overrides: dict<string>
   const _persist_input_mode: bool
+  const _keep_preedit_on_backspace: bool
   const _register_mode_conversions: bool
   const _mode_view: mode_popup.View
   const _inline_view: registration_inline.View
@@ -78,7 +79,7 @@ export class Binding
       small_tsu_okuri_as_t: bool = true, keyboard_layout: string = '',
       keyboard_layout_overrides: dict<string> = {}, persist_input_mode: bool = false,
       register_mode_conversions: bool = true, dictionary_index: dict_index.Database = null_object,
-      reconversion_history: reconversion.History = null_object)
+      reconversion_history: reconversion.History = null_object, keep_preedit_on_backspace: bool = true)
     this._buffer = bufnr('%')
     this._compiled = compiled
     this._sticky = sticky_key
@@ -93,6 +94,7 @@ export class Binding
     this._keyboard_layout_overrides = copy(keyboard_layout_overrides)
     this._persist_input_mode = persist_input_mode
     this._register_mode_conversions = register_mode_conversions
+    this._keep_preedit_on_backspace = keep_preedit_on_backspace
     this._mode_view = mode_popup.View.new()
     this._inline_view = registration_inline.View.new()
     this._reconversion_history = reconversion_history is null_object
@@ -441,7 +443,7 @@ export class Binding
       this._inline_editor = registration_editor.Editor.new(session.Session.new(this._compiled, this._sticky, this._entries,
         this._preferences, prefill ? request.reading : '', this._small_tsu_okuri_as_t,
         this._keyboard_layout, this._keyboard_layout_overrides, this._input_mode,
-        this._register_mode_conversions, this._dictionary_index))
+        this._register_mode_conversions, this._dictionary_index, '', this._keep_preedit_on_backspace))
       this._InstallInlineEscape()
       const interrupt_lhs = mapping.Lhs('<C-C>')
       var interrupt_argument = substitute(string('<C-C>'), '<', '<lt>', 'g')
@@ -811,7 +813,7 @@ export class Binding
       this._dictionary_index,
       reconverting ? this._reconversion_record.okuri : '',
       reconverting ? this._reconversion_record.text : '',
-      configuration.GetUndoRevertToReading())
+      configuration.GetUndoRevertToReading(), this._keep_preedit_on_backspace)
     this._initial_reading = ''
     this._mode_marker = ''
     this._mode_view.Show(this._input_mode, this._mode_marker)
@@ -1211,7 +1213,7 @@ export class Binding
       const child = Binding.new(this._compiled, this._sticky, this._entries,
         this._preferences, this._actions, prefill ? request.reading : '', this._registration_auto,
         this._small_tsu_okuri_as_t, this._keyboard_layout, this._keyboard_layout_overrides,
-        false, this._register_mode_conversions, this._dictionary_index)
+        false, this._register_mode_conversions, this._dictionary_index, null_object, this._keep_preedit_on_backspace)
       child.Enable()
       const arguments = this._buffer .. ', ' .. window.buffer
       for command in ['inoremap', 'nnoremap']
@@ -1485,7 +1487,8 @@ export def Enable(compiled: scheme.CompiledScheme, sticky_key: string = '', acti
     entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
     registration_auto: bool = false, small_tsu_okuri_as_t: bool = true, keyboard_layout: string = '',
     keyboard_layout_overrides: dict<string> = {}, persist_input_mode: bool = false,
-    register_mode_conversions: bool = true, dictionary_index: dict_index.Database = null_object)
+    register_mode_conversions: bool = true, dictionary_index: dict_index.Database = null_object,
+    keep_preedit_on_backspace: bool = true)
   const id = string(bufnr('%'))
   if has_key(bindings, id)
     bindings[id].Enable()
@@ -1499,7 +1502,7 @@ export def Enable(compiled: scheme.CompiledScheme, sticky_key: string = '', acti
     const history = previous_owner is null_object ? null_object : previous_owner.GetReconversionHistory()
     const current = Binding.new(compiled, sticky_key, entries, preferences, actions, '', registration_auto,
       small_tsu_okuri_as_t, keyboard_layout, keyboard_layout_overrides, persist_input_mode,
-      register_mode_conversions, dictionary_index, history)
+      register_mode_conversions, dictionary_index, history, keep_preedit_on_backspace)
     current.Enable()
     reconversion_owners[id] = current
   endif

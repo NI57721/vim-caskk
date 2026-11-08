@@ -37,7 +37,8 @@ export class Editor
       initial_reading: string = '', small_tsu_okuri_as_t: bool = true, keyboard_layout: string = '',
       keyboard_layout_overrides: dict<string> = {}, input_mode_name: string = input_mode.HIRAGANA,
       register_mode_conversions: bool = true, dictionary_index: dict_index.Database = null_object,
-      initial_okuri: string = '', initial_text: string = '', revert_to_reading: bool = true)
+      initial_okuri: string = '', initial_text: string = '', revert_to_reading: bool = true,
+      keep_preedit_on_backspace: bool = true)
     if mode(1) !~# '^i'
       throw 'caskk: editor must be started in Insert mode'
     endif
@@ -48,7 +49,7 @@ export class Editor
     this._preferences = preferences is null_object ? user_state.State.new() : preferences
     this._session = session.Session.new(compiled, sticky_key, this._entries, this._preferences,
       initial_reading, small_tsu_okuri_as_t, keyboard_layout, keyboard_layout_overrides, input_mode_name,
-      register_mode_conversions, dictionary_index, initial_okuri)
+      register_mode_conversions, dictionary_index, initial_okuri, keep_preedit_on_backspace)
     this._writer = buffer.Writer.new(this._buffer, line('.'), col('.'), initial_text)
     this._undo = undo.Manager.new(this._writer, revert_to_reading)
     this._view = presentation.Highlighter.new(this._writer)

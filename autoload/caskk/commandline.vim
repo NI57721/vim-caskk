@@ -37,7 +37,8 @@ def Reset()
   const previous_mode = current is null_object ? input_mode.HIRAGANA : current.GetInputMode()
   current = session.Session.new(compiled, options.sticky_key, {}, user_runtime.Get(), '',
     options.small_tsu_okuri_as_t, options.keyboard_layout, options.keyboard_layout_overrides,
-    previous_mode, options.register_mode_conversions, options.dictionary_index)
+    previous_mode, options.register_mode_conversions, options.dictionary_index, '',
+    options.keep_preedit_on_backspace)
   expected = getcmdline()
   position = getcmdpos()
   start = position - 1

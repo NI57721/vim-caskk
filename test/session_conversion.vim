@@ -835,3 +835,19 @@ suite.shifted_punctuation_without_a_consonant_stays_literal_in_preedit = (): voi
   assert.equals(combined.GetSnapshot().reading, 'く')
   assert.equals(combined.GetSnapshot().okuri, 'き')
 }
+
+suite.deleting_the_last_reading_after_candidate_cancel_keeps_empty_preedit = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('か /蚊/')]])
+  const preferences = user_state.State.new()
+  const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries, preferences, 'か')
+  ime.StartConversion(entries, preferences)
+  const result = ime.BackspacePreedit()
+  assert.equals(result.state.in_preedit, true)
+  assert.equals(result.state.reading, '')
+  assert.equals(ime.InCandidate(), false)
+  assert.equals(preferences.GetSnapshot().mru, {})
+  ime.Feed('k')
+  ime.Feed('a')
+  assert.equals(ime.GetSnapshot().reading, 'か')
+  assert.equals(ime.GetSnapshot().in_preedit, true)
+}

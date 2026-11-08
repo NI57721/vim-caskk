@@ -235,7 +235,7 @@ suite.backspace_removes_empty_okuri_boundary_before_the_reading = (): void => {
 }
 
 suite.backspace_keeps_a_boundary_without_reading_until_it_is_deleted = (): void => {
-  const ime = state.State.new()
+  const ime = state.State.new(false)
   ime.Apply(composition.Result.new(true, '', 'る', true))
   assert.equals(ime.Backspace(), true)
   assert.equals(ime.in_preedit, true)
@@ -244,4 +244,42 @@ suite.backspace_keeps_a_boundary_without_reading_until_it_is_deleted = (): void 
   assert.equals(ime.in_preedit, false)
   assert.equals(ime.okuri_started, false)
   assert.equals(ime.Backspace(), false)
+}
+
+
+suite.backspace_keeps_empty_preedit_until_the_next_backspace = (): void => {
+  for text in ['あ', '𠮷']
+    const ime = state.State.new()
+    ime.Apply(composition.Result.new(true, text, '', false))
+    assert.equals(ime.Backspace(), true)
+    assert.equals(ime.in_preedit, true)
+    assert.equals(ime.reading, '')
+    assert.equals(ime.Backspace(), true)
+    assert.equals(ime.in_preedit, false)
+    assert.equals(ime.Backspace(), false)
+  endfor
+}
+
+suite.empty_preedit_accepts_unmodified_reading_and_empty_boundary_deletion = (): void => {
+  const ime = state.State.new()
+  ime.Apply(composition.Result.new(true, '', '', true))
+  assert.equals(ime.Backspace(), true)
+  assert.equals(ime.in_preedit, true)
+  assert.equals(ime.okuri_started, false)
+  assert.equals(ime.Apply(composition.Result.new(false, 'あ', '', false)), '')
+  assert.equals(ime.reading, 'あ')
+}
+
+suite.disabled_retention_closes_on_the_last_reading_character = (): void => {
+  const ime = state.State.new(false)
+  ime.Apply(composition.Result.new(true, 'あ', '', false))
+  assert.equals(ime.Backspace(), true)
+  assert.equals(ime.in_preedit, false)
+}
+
+suite.disabled_retention_preserves_unhandled_backspace_for_initially_empty_state = (): void => {
+  const ime = state.State.new(false)
+  ime.Apply(composition.Result.new(true, '', '', false))
+  assert.equals(ime.Backspace(), false)
+  assert.equals(ime.in_preedit, true)
 }

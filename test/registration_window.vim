@@ -295,7 +295,7 @@ suite.cancelling_does_not_commit_an_unconfirmed_candidate_inside_registration = 
   const path = fixture.directory .. '/system'
   writefile(['か /蚊/科/'], path)
   Caskk.Disable()
-  Caskk.Config({registration_auto: false, dictionaries: [path], mappings: {s: 'Convert'}})
+  Caskk.Config({keep_preedit_on_backspace: false, registration_auto: false, dictionaries: [path], mappings: {s: 'Convert'}})
   Caskk.Enable('registration-window')
   const before = codec.Encode(user_runtime.Get().GetSnapshot())
   feedkeys("aZX\<F3>\<BS>Kas\<F4>\<Esc>ka\<Esc>", 'xt')
@@ -311,7 +311,7 @@ suite.completing_with_an_inner_conversion_learns_and_registers_the_confirmed_bod
   const path = fixture.directory .. '/system'
   writefile(['か /蚊/科/'], path)
   Caskk.Disable()
-  Caskk.Config({registration_auto: false, dictionaries: [path], mappings: {s: 'Convert'}})
+  Caskk.Config({keep_preedit_on_backspace: false, registration_auto: false, dictionaries: [path], mappings: {s: 'Convert'}})
   Caskk.Enable('registration-window')
   feedkeys("aZX\<F3>\<BS>Kas\<CR>\<Esc>", 'xt')
   assert.equals(errors, [])

@@ -47,6 +47,10 @@ def Handle(key: string)
       marker_counts->add(markers)
       return
     endif
+    if key ==# 'delete-preedit'
+      deletions->add(editor.Backspace())
+      return
+    endif
     if key ==# '<BS>'
       deletions->add(editor.BackspacePending())
       return
@@ -314,5 +318,36 @@ suite.insertleave_closes_preedit_without_moving_the_normal_cursor_to_the_suffix 
   assert.equals(editor.IsClosed(), true)
   assert.equals(getline(1), '前か後')
   assert.equals(col('.'), 4)
+  assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
+}
+
+
+suite.empty_preedit_commit_and_leave_close_without_extra_undo = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  inoremap <buffer> <F4> <ScriptCmd>Handle('delete-preedit')<CR>
+  feedkeys("a\<F2>kaCKa\<F4>PCd\<Esc>", 'xt')
+  assert.equals(errors, [])
+  assert.equals(preedit_states, [true])
+  assert.equals(readings, [''])
+  assert.equals(getline(1), '前か。後')
+  assert.equals(editor.IsClosed(), true)
+  assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
+  normal! u
+  assert.equals(getline(1), '前か後')
+  normal! u
+  assert.equals(getline(1), '前後')
+}
+
+
+suite.insertleave_closes_an_empty_preedit_range = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  inoremap <buffer> <F4> <ScriptCmd>Handle('delete-preedit')<CR>
+  feedkeys("a\<F2>Ka\<F4>P\<Esc>", 'xt')
+  assert.equals(errors, [])
+  assert.equals(preedit_states, [true])
+  assert.equals(editor.IsClosed(), true)
+  assert.equals(getline(1), '前後')
   assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
 }
