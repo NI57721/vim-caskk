@@ -761,3 +761,26 @@ suite.modified_fu_special_converts_omofu_with_uppercase_and_sticky_input = (): v
     assert.equals(ime.Commit()[0].text, '思ふ')
   endfor
 }
+
+suite.modified_combination_without_consonant_keeps_the_physical_key = (): void => {
+  const compiled = scheme.Compile({k: 'k'}, {a: 'a', '3': 'a*iN'})
+  for keys in [[';', '3']]
+    const ime = session.Session.new(compiled, ';', {}, null_object, '', true, 'US')
+    for key in keys
+      ime.Feed(key)
+    endfor
+    assert.equals(ime.GetSnapshot().reading, '3')
+    assert.equals(ime.GetSnapshot().in_preedit, true)
+    assert.equals(ime.GetSnapshot().okuri, '')
+  endfor
+  const preedit = session.Session.new(compiled, ';')
+  for key in ['K', 'a', ';', '3']
+    preedit.Feed(key)
+  endfor
+  assert.equals(preedit.GetSnapshot().reading, 'か3')
+  assert.equals(preedit.GetSnapshot().okuri, '')
+  const combined = session.Session.new(compiled, ';')
+  combined.Feed('K')
+  combined.Feed('3')
+  assert.equals(combined.GetSnapshot().reading, 'かいん')
+}

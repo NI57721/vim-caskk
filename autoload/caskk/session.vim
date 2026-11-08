@@ -166,12 +166,11 @@ export class Session
         const standalone_vowel = matched.output.boundary == -1
           && index(['あ', 'い', 'う', 'え', 'お'], matched.output.text) >= 0
         # Standalone vowel combinations are kana; other combination-only keys
-        # remain literal in Direct input instead of producing an isolated output.
-        if !this._state.in_preedit && !matched.is_special && !matched.is_symbol
+        # remain literal, retaining Modified semantics without a consonant.
+        if !matched.is_special && !matched.is_symbol
             && len(matched.events) == 1 && !standalone_vowel
-            && !matched.events[0].modified
-          results->add(this._ApplyOutput(composition.Result.new(false,
-            matched.events[0].key, '', false), auto_convert))
+          results->add(this._ApplyOutput(composition.Result.new(
+            !this._state.in_preedit && matched.events[0].modified, matched.events[0].key, '', false), auto_convert))
           continue
         endif
         var composed = composer.Compose(matched, this._state.in_preedit)
