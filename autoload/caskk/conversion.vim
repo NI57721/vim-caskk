@@ -6,22 +6,25 @@ import autoload 'caskk/dictionary/numeric.vim' as numeric
 import autoload 'caskk/dictionary/index.vim' as dict_index
 import autoload 'caskk/user_state.vim' as user_state
 
+import autoload 'caskk/dictionary/verb.vim' as verb
 import autoload 'caskk/dictionary/adjective.vim' as adjective
 
 # Candidate text stays separate from the full okuri used for presentation.
 export class Candidates
   const query: dictionary.Query
   const okuri: string
+  const markers: list<string>
   const experimental_count: number
   const candidates: list<dictionary.Candidate>
 
-  def new(this.query, this.okuri, candidates: list<dictionary.Candidate>, experimental_count: number = 0)
+  def new(this.query, this.okuri, candidates: list<dictionary.Candidate>, experimental_count: number = 0, markers: list<string> = [])
+    this.markers = copy(markers)
     this.experimental_count = experimental_count
     this.candidates = copy(candidates)
   enddef
 
   def DisplayAt(index: number): string
-    return this.TextAt(index) .. (index < this.experimental_count ? "［adj］" : "")
+    return this.TextAt(index) .. (index < this.experimental_count ? (empty(this.markers) ? "［adj］" : this.markers[index]) : "")
   enddef
 
   def TextAt(index: number): string
@@ -189,6 +192,16 @@ export def Prepare(entries: dict<dictionary.Entry>, preferences: user_state.Stat
     system_candidates->add(dictionary.Candidate.new('#6', []))
   endif
   const ranked = preferences.Rank(query, system_candidates)
-  const experimental = adjective.Lookup(entries, preferences, reading, okuri, database)
-  return Candidates.new(query, okuri, experimental + ranked, len(experimental))
+  final experimental = adjective.Lookup(entries, preferences, reading, okuri, database)
+  final markers = repeat(['［adj］'], len(experimental))
+  for candidate in verb.Lookup(entries, preferences, reading, okuri, database)
+    const position = index(mapnew(experimental, (_, item) => item.text), candidate.text)
+    if position >= 0
+      markers[position] = '［adj,verb］'
+    else
+      experimental->add(candidate)
+      markers->add('［verb］')
+    endif
+  endfor
+  return Candidates.new(query, okuri, experimental + ranked, len(experimental), markers)
 enddef
