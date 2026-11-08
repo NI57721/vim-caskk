@@ -1,11 +1,15 @@
 vim9script
 
+import 'caskk/verb_tags.vim' as tags
+
 export class Candidate
   const text: string
   const annotations: list<string>
+  const has_plain_source: bool
 
-  def new(this.text, annotations: list<string>)
+  def new(this.text, annotations: list<string>, plain_source: number = -1)
     this.annotations = copy(annotations)
+    this.has_plain_source = plain_source < 0 ? !tags.HasVerb(annotations) : plain_source != 0
   enddef
 endclass
 

@@ -187,7 +187,8 @@ export class Search
         const reading = has_okuri ? strpart(this._key, 0, strlen(this._key) - 1) : this._key
         this._query = dictionary.Query.new(reading, strcharpart(suffix, 0, 1), this._key)
         this._learnable = !has_okuri || suffix != ''
-        const candidates = this._found[this._key].candidates
+        const candidates = filter(copy(this._found[this._key].candidates),
+          (_, candidate) => has_okuri || candidate.has_plain_source)
         this._ranked = this._learnable ? this._preferences.RankCandidates(this._query, candidates) : candidates
         this._candidate = 0
         this._phase = 'emit'
