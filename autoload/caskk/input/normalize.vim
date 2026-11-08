@@ -16,13 +16,18 @@ export class Normalizer
     this._keyboard_layout_overrides = copy(keyboard_layout_overrides)
   enddef
 
+  # Inspect layout normalization without consuming a pending sticky modifier.
+  def NormalizeKey(key: string): input.Event
+    return layout.Normalize(this._keyboard_layout, key, this._keyboard_layout_overrides)
+  enddef
+
   def Feed(key: string): list<input.Event>
     if this._sticky_key != '' && key == this._sticky_key
       this._modified = true
       return []
     endif
 
-    const shifted = layout.Normalize(this._keyboard_layout, key, this._keyboard_layout_overrides)
+    const shifted = this.NormalizeKey(key)
     const uppercase = key =~# '^[A-Z]$'
     const event = input.Event.new(uppercase ? tolower(key) : shifted.key,
       this._modified || uppercase || shifted.modified)

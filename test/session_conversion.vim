@@ -784,3 +784,17 @@ suite.modified_combination_without_consonant_keeps_the_physical_key = (): void =
   combined.Feed('3')
   assert.equals(combined.GetSnapshot().reading, 'かいん')
 }
+
+suite.shifted_symbol_specials_yield_to_a_pending_consonant_combination = (): void => {
+  const compiled = scheme.Compile({k: 'k'}, {'1': 'e*Tte', '/': 'e*ki'},
+    [scheme.SpecialDefinition.new(['!'], '！'), scheme.SpecialDefinition.new(['?'], '？')])
+  for [key, okuri] in [['!', 'って'], ['?', 'き']]
+    const ime = session.Session.new(compiled, ';', {}, null_object, '', true, 'US')
+    ime.Feed('K')
+    ime.Feed(key)
+    assert.equals(ime.GetSnapshot().reading, 'け')
+    assert.equals(ime.GetSnapshot().okuri, okuri)
+    const direct = session.Session.new(compiled, ';', {}, null_object, '', true, 'US')
+    assert.equals(direct.Feed(key)[0].text, key == '!' ? '！' : '？')
+  endfor
+}

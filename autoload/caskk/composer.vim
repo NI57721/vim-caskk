@@ -297,7 +297,7 @@ export class Composer
     return false
   enddef
 
-  def _CompletesPendingCombination(event: input.Event): bool
+  def CompletesPendingCombination(event: input.Event): bool
     if empty(this._consonant) || !empty(this._special_pending)
         || !has_key(this._table.combinations, event.key)
       return false
@@ -331,7 +331,7 @@ export class Composer
       endif
       if match.output is null_object
         var pending = copy(match.pending)
-        if !empty(pending) && this._CompletesPendingCombination(pending[0])
+        if !empty(pending) && this.CompletesPendingCombination(pending[0])
           this._Replay(pending[0], results)
           pending = pending[1 :]
           remaining = pending
@@ -358,7 +358,7 @@ export class Composer
   # A feed may resolve several normal combinations after a failed special.
   # Results are returned in input order, before any still-pending suffix.
   def Feed(event: input.Event): list<Result>
-    if this._CompletesPendingCombination(event)
+    if this.CompletesPendingCombination(event)
       final results: list<Result> = []
       this._Replay(event, results)
       return results

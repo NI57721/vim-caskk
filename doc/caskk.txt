@@ -1182,3 +1182,10 @@ for standalone vowels.  Modified input preserves that literal key as the reading
 with {3: "a*iN"}, ;3 starts reading "3", while K3 produces "かいん".
 In an existing reading, the same standalone key is appended literally without
 creating an okuri boundary.  Explicit specials retain their priority.
+
+When a consonant is pending, shifted punctuation is normalized through the
+keyboard layout if its base key completes a combination, even if the physical
+symbol has a special mapping.  With US layout, {1: "e*Tte", /: "e*ki"},
+and specials {!: "！", ?: "？"}, K! produces け*って and K? produces け*き.
+Standalone ! and ? still use their special mappings.  A pending multi-key
+special retains its matching priority.
