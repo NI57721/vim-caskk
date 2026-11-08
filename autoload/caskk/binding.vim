@@ -950,6 +950,10 @@ export class Binding
         this._ShowAutomaticCompletion()
         this._SyncInputMode()
         return
+      elseif strchars(key) == 1 && !has_key(this._native, key)
+          && (completion_action == '' || !this._CanRunAction(completion_action))
+          && this._editor.GetDisplayCandidatesInfo().selected_index >= 0
+        this._Record(this._editor.Commit())
       else
         this._editor.CancelCompletion()
       endif

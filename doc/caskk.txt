@@ -425,8 +425,8 @@ follows undo_revert_to_reading, as for other committed conversions.
 
 CancelCompletion closes the list and restores the original reading and does not
 immediately reopen it.  Backspace deletes a reading character and refreshes
-the matching completions; it does not accept the focused word.  Ordinary input
-continues editing and refreshes the list, hiding it during unfinished input or
+the matching completions; it does not accept the focused word.  Ordinary input with a selected completion commits that word before processing
+the new input.  With no selection it continues editing and refreshes the list, hiding it during unfinished input or
 when no match remains.  Convert closes the list and starts normal conversion
 of the reading.  Leaving Insert mode, disabling the IME, or
 native movement does not accept the focused completion.
@@ -1193,3 +1193,8 @@ special retains its matching priority.
 This also applies when the consonant is temporarily held as a special prefix:
 with {ds: "です"}, d! can still use the shifted 1 combination.  A physical
 key that continues the pending special keeps its special matching priority.
+
+Typing ordinary input while a completion is selected accepts and learns that
+completion, then processes the typed key as new input.  An unselected list
+continues editing the reading.  CancelCompletion, Backspace, Convert and native
+movement keep their existing cancellation behavior.

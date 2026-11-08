@@ -433,3 +433,13 @@ suite.multiline_preview_cancellation_restores_surrounding_buffer_text = (): void
   assert.equals(buffer_captures, [['前複', '数行後'], ['前かな後']])
   assert.equals(user_runtime.Get().GetSnapshot().mru, {})
 }
+
+suite.typing_after_a_selected_completion_commits_then_starts_new_input = (): void => {
+  Setup()
+  defer Cleanup()
+  feedkeys("aKana\<F12>\<Tab>ki\<F12>\<Esc>", 'xt')
+  assert.equals(captures, ['前かな後', '前仮名き後'])
+  assert.equals(user_runtime.Get().GetSnapshot().mru[json_encode(['かな', ''])], ['仮名'])
+  normal! u
+  assert.equals(getline(1), '前仮名後')
+}
