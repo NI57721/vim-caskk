@@ -798,3 +798,20 @@ suite.shifted_symbol_specials_yield_to_a_pending_consonant_combination = (): voi
     assert.equals(direct.Feed(key)[0].text, key == '!' ? '！' : '？')
   endfor
 }
+
+suite.shifted_combination_replays_a_failed_special_consonant_prefix = (): void => {
+  const compiled = scheme.Compile({d: 'd'}, {'1': 'e*Tte'}, [
+    scheme.SpecialDefinition.new(['d', 's'], 'です'),
+    scheme.SpecialDefinition.new(['d', '?'], '特別'),
+    scheme.SpecialDefinition.new(['!'], '！')])
+  for first in ['d', 'D']
+    const ime = session.Session.new(compiled, ';', {}, null_object, '', true, 'US')
+    ime.Feed(first)
+    ime.Feed('!')
+    assert.equals(ime.GetSnapshot().reading, 'で')
+    assert.equals(ime.GetSnapshot().okuri, 'って')
+  endfor
+  const special_ime = session.Session.new(compiled, ';', {}, null_object, '', true, 'US')
+  special_ime.Feed('d')
+  assert.equals(special_ime.Feed('?')[0].text, '特別')
+}

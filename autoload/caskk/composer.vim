@@ -297,6 +297,27 @@ export class Composer
     return false
   enddef
 
+  # A failed special prefix may still be a complete consonant.  Inspect its
+  # replay without changing pending events or resolving an exact special.
+  def CanNormalizeShiftedCombination(event: input.Event, physical_key: string): bool
+    if this.IsSpecialContinuation(physical_key)
+      return false
+    endif
+    if this.CompletesPendingCombination(event)
+      return true
+    endif
+    if empty(this._special_pending) || !has_key(this._table.combinations, event.key)
+      return false
+    endif
+    const resolved = special.MatchEvents(this._rules, this._special_pending, true)
+    if resolved.output isnot null_object || !empty(resolved.pending)
+      return false
+    endif
+    const consonant = this._consonant + resolved.replay
+    return this._ConsonantKey(consonant) != ''
+      && !this._HasConsonantPrefix(consonant + [event])
+  enddef
+
   def CompletesPendingCombination(event: input.Event): bool
     if empty(this._consonant) || !empty(this._special_pending)
         || !has_key(this._table.combinations, event.key)

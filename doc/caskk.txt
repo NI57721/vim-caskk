@@ -1189,3 +1189,7 @@ symbol has a special mapping.  With US layout, {1: "e*Tte", /: "e*ki"},
 and specials {!: "！", ?: "？"}, K! produces け*って and K? produces け*き.
 Standalone ! and ? still use their special mappings.  A pending multi-key
 special retains its matching priority.
+
+This also applies when the consonant is temporarily held as a special prefix:
+with {ds: "です"}, d! can still use the shifted 1 combination.  A physical
+key that continues the pending special keeps its special matching priority.

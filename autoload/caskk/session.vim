@@ -214,8 +214,10 @@ export class Session
       return results
     endif
     const shifted_combination = this._normalizer.IsShiftedSymbol(key)
-      && this._composer.CompletesPendingCombination(this._normalizer.NormalizeKey(key))
-    const input_events = this._composer.IsSpecialStart(key) && !shifted_combination
+      && this._composer.CanNormalizeShiftedCombination(this._normalizer.NormalizeKey(key), key)
+    const input_events = (this._composer.IsSpecialStart(key)
+      || (this._normalizer.IsShiftedSymbol(key) && this._composer.IsSpecialContinuation(key)))
+      && !shifted_combination
       ? this._normalizer.FeedSpecial(key) : this._normalizer.Feed(key)
     for event in input_events
       if event.modified
