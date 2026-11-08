@@ -471,3 +471,15 @@ suite.experimental_verb_marker_is_removed_on_commit_and_undo = (): void => {
   normal! u
   assert.equals(getline(1), '前かなき後')
 }
+
+suite.verb_only_stem_does_not_open_automatic_completion = (): void => {
+  const source = tempname()
+  defer delete(source)
+  writefile([';; okuri-ari entries.', ';; okuri-nasi entries.', 'かな /仮名;@verb-5-k/'], source)
+  Setup({dictionaries: [source]})
+  defer Cleanup()
+  feedkeys("aKana\<F12>Ki\<F12>\<Esc>", 'xt')
+  assert.equals(captures, ['前かな後', '前仮名き［verb］後'])
+  assert.equals(stridx(string(popup_lines[0]), '仮名') < 0, true)
+  assert.equals(selected_rows[0], 0)
+}

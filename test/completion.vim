@@ -169,3 +169,13 @@ suite.small_tsu_okuri_uses_the_configured_dictionary_consonant = (): void => {
   preferences.AddEntry(lookup.CreateQuery('か', 'っ', false), dictionary.Candidate.new('買', []))
   assert.equals(completion.Prepare({}, preferences, 'か', '', null_object, false)[0].text, '買っ')
 }
+
+suite.verb_stems_are_not_completed_without_a_plain_source = (): void => {
+  const tagged = parser.ParseLine('かな /仮名;@verb-5-k/')
+  const plain = parser.ParseLine('かな /仮名;普通/')
+  const preferences = user_state.State.new()
+  for entries in [merger.Merge([[tagged]]), merger.Merge([[tagged], [plain]])]
+    const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries, preferences, 'かな')
+    assert.equals(ime.ShowCompletion(2), entries['かな'].candidates[0].has_plain_source)
+  endfor
+}

@@ -1364,7 +1364,7 @@ export class Binding
     endif
     this._editor.PrepareRegistrationResume()
     this._registration_reply = candidate is null_object ? null_object
-      : dictionary.Candidate.new(candidate.text, candidate.annotations)
+      : dictionary.Candidate.new(candidate.text, candidate.annotations, candidate.has_plain_source ? 1 : 0)
     next_registration_ticket += 1
     this._registration_ticket = next_registration_ticket
     feedkeys("\<Cmd>call caskk#binding#ResumeRegistrationResult(" .. this._buffer

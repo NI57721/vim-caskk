@@ -3,6 +3,7 @@ import autoload 'caskk/dictionary/loader.vim' as loader
 import autoload 'caskk/dictionary/lookup.vim' as lookup
 import autoload 'caskk/conversion.vim' as conversion
 import autoload 'caskk/dictionary/parser.vim' as parser
+import autoload 'caskk/dictionary/merge.vim' as merger
 import autoload 'caskk/user_state.vim' as state
 final suite = themis#suite('experimental verbs')
 const assert = themis#helper('assert')
@@ -174,4 +175,33 @@ suite.all_78_types_accept_their_terminal_connection_and_reject_unrelated_kana = 
     assert.equals(prepared.TextAt(0), '語' .. ending, tag)
     assert.equals(conversion.Prepare(entries, preferences, 'よ', 'ぱ').candidates, [], tag)
   endfor
+}
+
+suite.bare_stems_are_hidden_but_independent_plain_sources_survive = (): void => {
+  const tagged = parser.ParseLine('たべ /食べ;@verb-1-shimo-b/')
+  const preferences = state.State.new()
+  assert.equals(conversion.Prepare({'たべ': tagged}, preferences, 'たべ').candidates, [])
+  const plain = parser.ParseLine('たべ /食べ;通常/')
+  for sources in [[[tagged], [plain]], [[plain], [tagged]]]
+    const combined = merger.Merge(sources)
+    assert.equals(len(conversion.Prepare(combined, preferences, 'たべ').candidates), 1)
+  endfor
+}
+
+suite.plain_user_and_indexed_sources_survive_snapshot_copying = (): void => {
+  const path = tempname()
+  defer delete(path)
+  writefile(mapnew([';; okuri-ari entries.', ';; okuri-nasi entries.',
+    'たべ /食べ;@verb-1-shimo-b/'], (_, line) => iconv(line, 'utf-8', 'euc-jp')), path)
+  const database = loader.Open([loader.Source.new(path, 'euc-jp')])
+  const preferences = state.State.new()
+  assert.equals(conversion.Prepare({}, preferences, 'たべ', '', true, database).candidates, [])
+  preferences.AddEntry(lookup.CreateQuery('たべ', ''), parser.ParseLine('たべ /食べ/').candidates[0])
+  const copied = state.State.new()
+  copied.Restore(preferences.GetSnapshot())
+  assert.equals(len(conversion.Prepare({}, copied, 'たべ', '', true, database).candidates), 1)
+  const unknown = parser.ParseLine('たべ /食べ;@verb-unknown/')
+  assert.equals(len(conversion.Prepare({'たべ': unknown}, state.State.new(), 'たべ').candidates), 1)
+  const both = parser.ParseLine('たべ /食べ;@adj @verb-1-shimo-b/')
+  assert.equals(conversion.Prepare({'たべ': both}, state.State.new(), 'たべ').candidates, [])
 }

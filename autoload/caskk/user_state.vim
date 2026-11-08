@@ -17,7 +17,7 @@ def CopyEntries(entries: dict<list<dictionary.Candidate>>): dict<list<dictionary
   for [key, candidates] in items(entries)
     copied[key] = []
     for candidate in candidates
-      copied[key]->add(dictionary.Candidate.new(candidate.text, candidate.annotations))
+      copied[key]->add(dictionary.Candidate.new(candidate.text, candidate.annotations, candidate.has_plain_source ? 1 : 0))
     endfor
   endfor
   return copied
@@ -284,7 +284,8 @@ export class State
       endif
     endfor
     const merged = merger.Merge([[dictionary.Entry.new(query.lookup_key, candidates)], registered])
-    const combined = get(merged, query.lookup_key, dictionary.Entry.new(query.lookup_key, [])).candidates
-    return this.RankCandidates(query, combined)
+    final combined: list<dictionary.Candidate> = get(merged, query.lookup_key, dictionary.Entry.new(query.lookup_key, [])).candidates
+    return this.RankCandidates(query, query.exact_okuri == ''
+      ? filter(copy(combined), (_, candidate) => candidate.has_plain_source) : combined)
   enddef
 endclass

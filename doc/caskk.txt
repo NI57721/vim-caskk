@@ -451,3 +451,9 @@ Recognized tags and accepted first okuri characters:
   @verb-classical-irregular-z  ざじずぜるれよ
   @verb-classical-irregular-n  なにぬね
   @verb-classical-irregular-r  らりるれ
+
+Verb-tagged stems are excluded from conversion without okuri and from plain
+reading completion.  An independent untagged source for the same reading and
+text keeps that ordinary candidate available.  This also applies to user
+entries.  Unknown tags do not trigger exclusion.  A source bearing both @adj
+and a recognized verb tag is still excluded without okuri.
