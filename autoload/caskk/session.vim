@@ -215,6 +215,13 @@ export class Session
     endif
     const shifted_combination = this._normalizer.IsShiftedSymbol(key)
       && this._composer.CanNormalizeShiftedCombination(this._normalizer.NormalizeKey(key), key)
+    if this._normalizer.IsShiftedSymbol(key) && !shifted_combination
+        && empty(this._composer.Pending()) && !this._composer.IsSpecialStart(key)
+      const literal = this._normalizer.FeedSpecial(key)[0]
+      results->add(this._ApplyOutput(composition.Result.new(
+        !this._state.in_preedit && literal.modified, literal.key, '', false), false))
+      return results
+    endif
     const input_events = (this._composer.IsSpecialStart(key)
       || (this._normalizer.IsShiftedSymbol(key) && this._composer.IsSpecialContinuation(key)))
       && !shifted_combination

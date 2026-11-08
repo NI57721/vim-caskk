@@ -815,3 +815,23 @@ suite.shifted_combination_replays_a_failed_special_consonant_prefix = (): void =
   special_ime.Feed('d')
   assert.equals(special_ime.Feed('?')[0].text, '特別')
 }
+
+suite.shifted_punctuation_without_a_consonant_stays_literal_in_preedit = (): void => {
+  const compiled = scheme.Compile({k: 'k'}, {a: 'a', '.': 'u*ki'},
+    [scheme.SpecialDefinition.new(['.'], '。')])
+  const ime = session.Session.new(compiled, ';', {}, null_object, 'かな', true, 'US')
+  ime.Feed('>')
+  assert.equals(ime.GetSnapshot().reading, 'かな>')
+  assert.equals(ime.GetSnapshot().okuri, '')
+  const modified = session.Session.new(compiled, ';', {}, null_object, '', true, 'US')
+  modified.Feed(';')
+  modified.Feed('>')
+  assert.equals(modified.GetSnapshot().reading, '>')
+  assert.equals(modified.GetSnapshot().in_preedit, true)
+  assert.equals(modified.HasPendingModifier(), false)
+  const combined = session.Session.new(compiled, ';', {}, null_object, '', true, 'US')
+  combined.Feed('K')
+  combined.Feed('>')
+  assert.equals(combined.GetSnapshot().reading, 'く')
+  assert.equals(combined.GetSnapshot().okuri, 'き')
+}

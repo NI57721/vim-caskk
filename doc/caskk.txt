@@ -1198,3 +1198,9 @@ Typing ordinary input while a completion is selected accepts and learns that
 completion, then processes the typed key as new input.  An unselected list
 continues editing the reading.  CancelCompletion, Backspace, Convert and native
 movement keep their existing cancellation behavior.
+
+Shifted punctuation with no pending consonant or special remains literal in
+preedit too: Shift-. appends > instead of interpreting the base . combination.
+Sticky ; followed by > starts a reading containing >.  After a consonant,
+Shift-. still uses the . combination.  Explicit physical-symbol specials retain
+their priority unless a consonant combination takes precedence.
