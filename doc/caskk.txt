@@ -165,7 +165,8 @@ Completion                                            *caskk-completion*
 
 Registration                                        *caskk-registration*
     Missing words open registration by default.  Enter registers the candidate
-    body; Escape cancels.  With inline registration, Escape during candidate
+    body; Escape cancels.  Enter '本文;注釈' to register an annotation; only
+    the first ';' separates fields.  Input modes are unchanged.  With inline registration, Escape during candidate
     selection first commits that candidate into the draft.
 
 Command-line input                                   *caskk-commandline*

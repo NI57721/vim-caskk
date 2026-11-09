@@ -15,6 +15,7 @@ import autoload 'caskk/dictionary/index.vim' as dict_index
 import 'caskk/registration.vim' as registration
 import autoload 'caskk/registration/window.vim' as registration_window
 import autoload 'caskk/registration/editor.vim' as registration_editor
+import autoload 'caskk/registration/text.vim' as registration_text
 import autoload 'caskk/config.vim' as configuration
 import autoload 'caskk/user_state/runtime.vim' as user_runtime
 import autoload 'caskk/conversion.vim' as conversion
@@ -473,11 +474,11 @@ export class Binding
     if this._inline_editor.input.InCandidate() || this._inline_editor.input.GetSnapshot().in_preedit
       this._AppendInlineResults(this._inline_editor.input.Commit())
     endif
-    if this._inline_editor.GetText() ==# ''
+    const candidate = registration_text.Parse(this._inline_editor.GetText())
+    if candidate.text ==# ''
       this._RefreshInlinePopup('登録語を入力してください')
       return
     endif
-    const candidate = dictionary.Candidate.new(this._inline_editor.GetText(), [])
     this._CloseInlineInput()
     this._editor.ResumeRegistration()
     this._Record([this._editor.Register(candidate)])
@@ -1258,11 +1259,12 @@ export class Binding
         bindings[string(child)].Leave()
       endif
       const text = join(getbufline(child, 1, '$'), "\n")
-      if text == ''
+      const candidate = registration_text.Parse(text)
+      if candidate.text == ''
         window.Message('登録語を入力してください  [Enter:登録 Esc:取消]')
         return
       endif
-      this._window_result = dictionary.Candidate.new(text, [])
+      this._window_result = candidate
     endif
     this._window_closing = true
     feedkeys("\<Cmd>call caskk#binding#ReturnRegistrationWindow(" .. this._buffer

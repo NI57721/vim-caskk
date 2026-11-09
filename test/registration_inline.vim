@@ -413,10 +413,10 @@ suite.terminal_paste_goes_to_the_registration_draft_without_editing_the_source =
     assert.equals(pasted.popups, [['辞書登録: か  [Enter:登録 Esc:取消]', '登録語: 漢字Ka;sn│']])
     term_sendkeys(terminal, "\<CR>")
     term_wait(terminal, 150)
-    assert.equals(json_decode(readfile(report)[-1]).text, '前漢字Ka;sn後')
+    assert.equals(json_decode(readfile(report)[-1]).text, '前漢字Ka後')
     term_sendkeys(terminal, "\e[200~外\e[201~")
     term_wait(terminal, 150)
-    assert.equals(json_decode(readfile(report)[-1]).text, '前漢字Ka;sn外後')
+    assert.equals(json_decode(readfile(report)[-1]).text, '前漢字Ka外後')
   finally
     job_stop(term_getjob(terminal), 'kill')
     execute 'silent! bwipeout! ' .. terminal
@@ -428,7 +428,8 @@ suite.paste_inserts_literal_text_at_the_registration_caret = (): void => {
   defer Cleanup(context)
   feedkeys("aKas\<F6>z\<Left>\<PasteStart>Ka;sn\<PasteEnd>\<Cmd>call CaskkTestInlineCapture()\<CR>\<CR>\<Esc>", 'xt')
   assert.equals(popup_lines, ['辞書登録: か  [Enter:登録 Esc:取消]', '登録語: 漢Ka;sn│字'])
-  assert.equals(getline(1), '前漢Ka;sn字後')
+  assert.equals(getline(1), '前漢Ka後')
+  assert.equals(user_runtime.Get().GetSnapshot().entries[json_encode(['か', ''])][0].annotations, ['sn字'])
 }
 
 suite.paste_preserves_prefill_and_can_be_cancelled_after_disabling_ime = (): void => {
@@ -487,4 +488,12 @@ suite.empty_preedit_backspace_preserves_the_registration_draft = (): void => {
   defer Cleanup(context)
   feedkeys("aKas\<F6>zKa\<BS>\<BS>\<Cmd>call CaskkTestInlineCapture()\<CR>\<Esc>", 'xt')
   assert.equals(popup_lines[1], '登録語: 漢字│')
+}
+
+suite.annotation_is_saved_without_inserting_it = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  feedkeys("aKas\<F6>z;説明;タグ\<CR>\<Esc>", 'xt')
+  assert.equals(getline(1), '前漢字後')
+  assert.equals(user_runtime.Get().GetSnapshot().entries[json_encode(['か', ''])][0].annotations, ['説明;タグ'])
 }

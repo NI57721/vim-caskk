@@ -489,7 +489,7 @@ export class Session
       throw 'caskk: registered candidate text must not be empty'
     endif
     const text = this._Render(candidate.text .. this._prepared.okuri)
-    if candidate.text !=# this._prepared.query.reading
+    if candidate.text !=# this._prepared.query.reading || !empty(candidate.annotations)
       this._request_preferences.AddEntry(this._prepared.query, candidate)
       this._request_preferences.Learn(this._prepared.query, candidate.text)
     endif

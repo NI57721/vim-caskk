@@ -338,3 +338,15 @@ suite.configured_open_action_starts_the_window_and_honors_prefill_setting = (): 
     assert.equals(info.bufnr == fixture.buffer || index(fixture.existing_buffers, info.bufnr) >= 0, true)
   endfor
 }
+
+suite.annotation_is_saved_without_inserting_it = (): void => {
+  const fixture = Setup(false)
+  defer Cleanup(fixture)
+  feedkeys("aKas\<F3>d;説明;タグ\<CR>\<Esc>", 'xt')
+  assert.equals(errors, [])
+  assert.equals(getline(1), '前漢字後')
+  assert.equals(user_runtime.Get().GetSnapshot().entries[json_encode(['か', ''])][0].annotations, ['説明;タグ'])
+  Caskk.SaveState()
+  Caskk.LoadState()
+  assert.equals(user_runtime.Get().GetSnapshot().entries[json_encode(['か', ''])][0].annotations, ['説明;タグ'])
+}

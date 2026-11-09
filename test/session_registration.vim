@@ -214,3 +214,11 @@ suite.registration_requires_a_current_request_and_cannot_be_applied_twice = (): 
     assert.equals(ime.GetSnapshot().reading, reading)
   endfor
 }
+
+suite.same_reading_with_annotation_is_registered = (): void => {
+  const preferences = user_state.State.new()
+  const ime = session.Session.new(scheme.Compile({}, {}), '', {}, preferences, 'か')
+  ime.StartConversion({}, preferences)
+  ime.Register(dictionary.Candidate.new('か', ['説明']))
+  assert.equals(preferences.GetSnapshot().entries[json_encode(['か', ''])][0].annotations, ['説明'])
+}
