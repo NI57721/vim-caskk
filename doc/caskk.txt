@@ -341,7 +341,8 @@ ToggleDemote                                *caskk-action-toggle-demote*
 
 DeleteUserEntry                          *caskk-action-delete-user-entry*
     Removes a selected user entry after y/N confirmation.  System dictionary
-    candidates remain available.  Not available in command-line or completion.
+    candidates remain available.  For stem candidates, removes matching annotated
+    user registrations across endings.  Not available in command-line or completion.
 
 AbbreviationMode                        *caskk-action-abbreviation-mode*
     Uses literal input as the dictionary reading.

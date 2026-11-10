@@ -554,3 +554,17 @@ suite.fuzzy_annotation_query_inserts_the_complete_label = (): void => {
   assert.equals(user_runtime.Get().GetSnapshot().entries[json_encode(['か', ''])][0].annotations,
     ['@verb-5-k'])
 }
+
+suite.backspace_delete_actions_remove_annotated_user_stems_inline = (): void => {
+  for key in ["\<BS>", "\<C-H>"]
+    const context = Setup(false, false, {"\<BS>": 'DeleteUserEntry', "\<C-H>": 'DeleteUserEntry'})
+    try
+      user_runtime.Get().AddEntry(lookup.CreateQuery('か', ''), dictionary.Candidate.new('書', ['@verb-5-k']))
+      feedkeys("aKas\<F6>KaKu" .. key .. "\<Cmd>call CaskkTestInlineCapture()\<CR>y\<Esc>\<Esc>", 'xt')
+      assert.equals(index(popup_lines, 'ユーザー辞書から削除しますか？ y:削除 n/Esc:取消') >= 0, true)
+      assert.equals(user_runtime.Get().HasEntryForLookup(lookup.CreateQuery('か', ''), '書'), false)
+    finally
+      Cleanup(context)
+    endtry
+  endfor
+}

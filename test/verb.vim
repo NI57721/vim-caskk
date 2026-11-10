@@ -347,3 +347,46 @@ suite.modified_i_then_l_selects_itta_without_marking_buffer_text = (): void => {
   assert.equals(results[-1].text, '言っ')
   assert.equals(ime.GetCandidatesInfo().candidates[0].text, '言っ［verb］')
 }
+
+suite.user_stem_can_be_deleted_from_a_different_ending = (): void => {
+  for tag in ['@verb-5-k', '@adj']
+    const preferences = state.State.new()
+    for suffix in ['', 'か', 'け']
+      preferences.AddEntry(lookup.CreateQuery('か', suffix),
+        registration_text.Parse('書;' .. tag))
+    endfor
+    preferences.AddEntry(lookup.CreateQuery('か', 'こ'), registration_text.Parse('書'))
+    preferences.AddEntry(lookup.CreateQuery('べつ', ''), registration_text.Parse('書;' .. tag))
+    const compiled = scheme.Compile({}, {}, [scheme.SpecialDefinition.new(['x'], 'く')])
+    const ime = session.Session.new(compiled, '', {}, preferences, 'か')
+    ime.Feed('X')
+    assert.equals(ime.InCandidate(), true)
+    ime.SelectCandidate(index(ime.GetCandidates().experimental_flags, true))
+    assert.equals(ime.CanDeleteUserEntry(), true)
+    ime.DeleteUserEntry()
+    assert.equals(ime.InCandidate(), true)
+    assert.equals(ime.GetCandidatesInfo().candidates[0].text, '書く')
+    assert.equals(ime.GetSnapshot().reading, 'か')
+    assert.equals(ime.GetSnapshot().okuri, 'く')
+    const entries = preferences.GetSnapshot().entries
+    assert.equals(len(entries), 2)
+    assert.equals(entries[json_encode(['か', 'こ'])][0].annotations, [])
+    assert.equals(entries[json_encode(['べつ', ''])][0].text, '書')
+  endfor
+}
+
+suite.deleting_a_registered_stem_preserves_its_system_source = (): void => {
+  const preferences = state.State.new()
+  const entries = {'か': parser.ParseLine('か /書;@verb-5-k/')}
+  const compiled = scheme.Compile({}, {}, [scheme.SpecialDefinition.new(['x'], 'く')])
+  const ime = session.Session.new(compiled, '', entries, preferences, 'か')
+  ime.Feed('X')
+  assert.equals(ime.CanDeleteUserEntry(), false)
+  preferences.AddEntry(lookup.CreateQuery('か', 'け'), entries['か'].candidates[0])
+  assert.equals(ime.CanDeleteUserEntry(), true)
+  const removed = ime.DeleteUserEntry()
+  assert.equals(preferences.GetSnapshot().entries, {})
+  assert.equals(removed.text, '書く')
+  assert.equals(ime.InCandidate(), true)
+  assert.equals(ime.CanDeleteUserEntry(), false)
+}

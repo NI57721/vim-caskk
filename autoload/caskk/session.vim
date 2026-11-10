@@ -6,6 +6,7 @@ import 'caskk/composition.vim' as composition
 import autoload 'caskk/conversion.vim' as conversion
 import autoload 'caskk/completion.vim' as completion
 import autoload 'caskk/dictionary/lookup.vim' as lookup
+import autoload 'caskk/dictionary/stem.vim' as stem
 import autoload 'caskk/dictionary/index.vim' as dict_index
 import autoload 'caskk/user_state.vim' as user_state
 import autoload 'caskk/input/normalize.vim' as normalize
@@ -418,8 +419,13 @@ export class Session
   enddef
 
   def CanDeleteUserEntry(): bool
-    return this.InCandidate() && !this._selection.IsExperimental() && this._preferences.HasEntryForLookup(
-      this._prepared.query, this._selection.CurrentCandidateText())
+    if !this.InCandidate()
+      return false
+    endif
+    const text = this._selection.CurrentCandidateText()
+    return this._selection.IsExperimental()
+      ? !empty(stem.RegisteredQueries(this._preferences, this._prepared.query.reading, text))
+      : this._preferences.HasEntryForLookup(this._prepared.query, text)
   enddef
 
   def DeleteUserEntry(): Result
@@ -428,7 +434,13 @@ export class Session
     endif
     const info = this._selection.GetInfo()
     const candidate_text = this._selection.CurrentCandidateText()
-    this._preferences.DeleteEntryForLookup(this._prepared.query, candidate_text)
+    if this._selection.IsExperimental()
+      for query in stem.RegisteredQueries(this._preferences, this._prepared.query.reading, candidate_text)
+        this._preferences.DeleteEntry(query, candidate_text)
+      endfor
+    else
+      this._preferences.DeleteEntryForLookup(this._prepared.query, candidate_text)
+    endif
     const prepared = conversion.Prepare(this._entries, this._preferences,
       this._prepared.query.reading, this._prepared.okuri, this._small_tsu_okuri_as_t,
       this._dictionary_index)
