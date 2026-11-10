@@ -22,7 +22,7 @@ import autoload 'caskk/conversion.vim' as conversion
 import autoload 'caskk/completion.vim' as completion
 import 'caskk/reconversion.vim' as reconversion
 
-const NATIVE_KEYS = ['<Left>', '<Right>', '<Up>', '<Down>', '<Home>', '<End>', '<CR>', '<Tab>', '<BS>', '<Del>', '<Nul>']
+const NATIVE_KEYS = ['<Left>', '<Right>', '<Up>', '<Down>', '<Home>', '<End>', '<CR>', '<Tab>', '<BS>', '<C-H>', '<Del>', '<Nul>']
 const INLINE_GUARD_KEYS = ['<C-A>', '<C-B>', '<C-D>', '<C-E>', '<C-F>', '<C-G>', '<C-H>', '<C-I>',
   '<C-J>', '<C-K>', '<C-L>', '<C-M>', '<C-N>', '<C-O>', '<C-P>', '<C-Q>', '<C-R>', '<C-S>',
   '<C-T>', '<C-U>', '<C-V>', '<C-W>', '<C-X>', '<C-Y>', '<C-Z>', '<S-Tab>', '<PageUp>',
@@ -542,7 +542,7 @@ export class Binding
       endif
       feedkeys(keycode.Encode(key), 'in')
       return
-    elseif key ==# '<BS>'
+    elseif (key ==# '<BS>' || key ==# '<C-H>')
         && (!this._inline_editor.input.InCandidate() || has_key(this._native, key)
           || (has_key(this._actions, key) && !this._CanRunInlineCandidateAction(this._actions[key])))
       if this._inline_editor.input.BackspacePending()
@@ -946,7 +946,7 @@ export class Binding
         this._editor.CancelCompletion()
         this._SyncInputMode()
         return
-      elseif key ==# '<BS>'
+      elseif (key ==# '<BS>' || key ==# '<C-H>')
         this._editor.CancelCompletion()
         this._editor.Backspace()
         this._reconversion_pending = null_object
@@ -969,7 +969,7 @@ export class Binding
       this._editor.RestorePreeditCursor()
     endif
     if has_key(this._native, key)
-      if key ==# '<BS>' && this._editor isnot null_object && this._editor.Backspace()
+      if (key ==# '<BS>' || key ==# '<C-H>') && this._editor isnot null_object && this._editor.Backspace()
         this._reconversion_pending = null_object
         this._ShowAutomaticCompletion()
         this._SyncInputMode()
@@ -990,7 +990,7 @@ export class Binding
       this._FeedEditor(key)
       return
     endif
-    if key ==# '<BS>' && action !=# '' && !this._CanRunAction(action)
+    if (key ==# '<BS>' || key ==# '<C-H>') && action !=# '' && !this._CanRunAction(action)
       if this._editor.Backspace()
         this._reconversion_pending = null_object
         this._ShowAutomaticCompletion()

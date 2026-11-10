@@ -269,3 +269,14 @@ suite.empty_preedit_keeps_modified_marker_and_accepts_normal_input = (): void =>
   assert.equals(captures, [[['▽あ']], [['▽あ']], [['あ']]])
   assert.equals(getline(1), '前後')
 }
+
+suite.control_h_preserves_modified_label_and_following_reading = (): void => {
+  Setup({sticky_key: ';', mode_popup_time: 0})
+  defer Cleanup()
+  Caskk.RegisterInputScheme({name: 'vowel-bs', consonants: {},
+    combinations: {a: 'a', i: 'i', u: 'u'}})
+  Caskk.Enable('vowel-bs')
+  feedkeys("a;aiu\<C-H>\<F12>a\<F12>\<Esc>", 'xt')
+  assert.equals(captures, [[['▽あ']], [['▽あ']]])
+  assert.equals(getline(1), '前あいあ後')
+}

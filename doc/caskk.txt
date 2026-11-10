@@ -151,7 +151,7 @@ Uppercase or sticky input starts an editable reading (Modified input).
 A further Modified syllable starts okuri: KaKu gives か*く and converts it.
 The displayed '*' marks the okuri boundary and is not inserted into the text.
 
-BS removes pending keys, then okuri, its empty boundary, and reading characters.
+BS (including CTRL-H) removes pending keys, then okuri, its empty boundary, and reading characters.
 By default, deleting the last item keeps Modified input; another BS cancels it.
 See |caskk-config-keep-preedit-on-backspace|.  With a selected candidate, BS
 returns to the reading and deletes one item.  Enter commits preedit; leaving

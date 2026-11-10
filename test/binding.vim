@@ -55,12 +55,13 @@ def CaptureBindingState()
 enddef
 
 suite.backspace_deletes_pending_key_then_modifier_then_native_text = (): void => {
-  for prefix in ['K', ';k']
+  for [prefix, backspace] in [['K', "\<BS>"], [';k', "\<BS>"],
+      ['K', "\<C-H>"], [';k', "\<C-H>"]]
     const context = Setup()
     try
       const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), ';')
       keys.Enable()
-      feedkeys("afoo" .. prefix .. "\<BS>\<BS>\<BS>\<Esc>", 'xt')
+      feedkeys("afoo" .. prefix .. repeat(backspace, 3) .. "\<Esc>", 'xt')
       assert.equals(getline(1), '前fo後')
       assert.equals(keys.GetEditor() is null_object, true)
       keys.Disable()
@@ -945,4 +946,29 @@ suite.backspace_deletes_okuri_then_its_boundary_before_editing_reading = (): voi
   assert.equals(captured_okuri_boundaries, [true, false, false])
   assert.equals(getline(1), '前かえい後')
   keys.Disable()
+}
+
+suite.backspace_control_h_keeps_the_reading_modified = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const entries = merger.Merge([[parser.ParseLine('あいあ /読み/')]])
+  const keys = binding.Binding.new(scheme.Compile({}, {a: 'a', i: 'i', u: 'u'}), ';', entries,
+    null_object, {c: 'Convert'})
+  keys.Enable()
+  feedkeys("a;aiu\<C-H>ac\<Esc>", 'xt')
+  assert.equals(getline(1), '前読み後')
+  keys.Disable()
+}
+
+suite.control_h_restores_the_previous_local_mapping_when_disabled = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  inoremap <buffer> <C-H> !
+  const previous = maparg('<C-H>', 'i', false, true)
+  const keys = binding.Binding.new(scheme.Compile({}, {a: 'a'}), ';')
+  keys.Enable()
+  feedkeys("a;aa\<C-H>a\<Esc>", 'xt')
+  assert.equals(getline(1), '前ああ後')
+  keys.Disable()
+  assert.equals(maparg('<C-H>', 'i', false, true), previous)
 }

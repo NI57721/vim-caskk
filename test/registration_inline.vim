@@ -497,3 +497,10 @@ suite.annotation_is_saved_without_inserting_it = (): void => {
   assert.equals(getline(1), '前漢字後')
   assert.equals(user_runtime.Get().GetSnapshot().entries[json_encode(['か', ''])][0].annotations, ['説明;タグ'])
 }
+
+suite.control_h_edits_preedit_then_the_registration_draft = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  feedkeys("aKas\<F6>zKa\<C-H>\<C-H>\<C-H>\<CR>\<Esc>", 'xt')
+  assert.equals(getline(1), '前漢後')
+}
