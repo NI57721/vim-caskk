@@ -377,3 +377,13 @@ suite.annotation_completion_window_is_removed_on_insert_leave = (): void => {
   feedkeys("aKas\<F3>d;@\<C-O>:stopinsert\<CR>\<Esc>", 'xt')
   assert.equals(len(popup_list()) <= before, true)
 }
+
+suite.fuzzy_annotation_query_inserts_the_complete_label = (): void => {
+  const fixture = Setup(false)
+  defer Cleanup(fixture)
+  feedkeys("aKas\<F3>d;@v5k\<CR>\<CR>\<Esc>", 'xt')
+  assert.equals(errors, [])
+  assert.equals(getline(1), '前漢字後')
+  assert.equals(user_runtime.Get().GetSnapshot().entries[json_encode(['か', ''])][0].annotations,
+    ['@verb-5-k'])
+}

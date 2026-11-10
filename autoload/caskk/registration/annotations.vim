@@ -34,10 +34,23 @@ def Describe(tag: string): string
   return join(parts, '')
 enddef
 
+# Match literal characters in order, allowing gaps without regex semantics.
+def MatchesInOrder(word: string, query: string): bool
+  var remaining = word
+  for character in split(query, '\zs')
+    const position = stridx(remaining, character)
+    if position < 0
+      return false
+    endif
+    remaining = strpart(remaining, position + strlen(character))
+  endfor
+  return true
+enddef
+
 export def Matches(prefix: string): list<Item>
   final result: list<Item> = []
   for tag in ['@adj'] + sort(keys(tags.ENDINGS))
-    if stridx(tag, prefix) == 0
+    if MatchesInOrder(tag, prefix)
       result->add(Item.new(tag, Describe(tag)))
     endif
   endfor

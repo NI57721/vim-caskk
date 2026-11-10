@@ -27,3 +27,14 @@ suite.selection_wraps_and_prefix_changes_reset_focus = (): void => {
   assert.equals(model.items, [])
   assert.equals(model.Lines(), [])
 }
+
+suite.fuzzy_matching_keeps_input_order_and_catalog_order = (): void => {
+  const words = mapnew(annotations.Matches('@v5'), (_, item) => item.word)
+  assert.equals(words, filter(sort(keys(tags.ENDINGS)), (_, word) => word =~# '^@verb-5-'))
+  assert.equals(mapnew(annotations.Matches('@v5k'), (_, item) => item.word),
+    ['@verb-5-k', '@verb-5-k-iku', '@verb-5-k-yuku'])
+  assert.equals(annotations.Matches('@5v'), [])
+  assert.equals(annotations.Matches('@vv5'), [])
+  assert.equals(annotations.Matches('@v.5'), [])
+  assert.equals(annotations.Matches('@V5'), [])
+}
