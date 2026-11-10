@@ -195,8 +195,8 @@ Verb stems                                            *caskk-experimental-verb*
     Add a tagged stem dictionary through dictionaries.  For example,
     'たべ /食べ;@verb-1-shimo-b/' converts たべ*る to 食べる.
     Its popup row shows ［verb］.
-    Verb-only stems are omitted from reading completion and usually require
-    okuri; registered complete finite forms can also convert without it.
+    Ichidan stems and certain complete forms also convert without okuri.
+    Verb-only stems are omitted from reading completion.
 
 In registration annotations, type @ to complete a label with a Japanese
 explanation.  Type characters in order to filter (e.g. @v5 matches @verb-5-*).
