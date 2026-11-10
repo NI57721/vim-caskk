@@ -13,7 +13,7 @@ export const ENDINGS: dict<string> = {
   '@verb-5-r': 'らりるれろっ',
   '@verb-5-r-aru': 'らりるれろっい',
   '@verb-5-wa': 'わいうえおっ',
-  '@verb-5-wa-iu': 'わいうえお',
+  '@verb-5-wa-iu': 'わいうえおっ',
   '@verb-5-wa-yuu': 'わいうえお',
   '@verb-1-kami-a': 'るれろよなまさてたらずぬん',
   '@verb-1-kami-k': 'るれろよなまさてたらずぬん',
