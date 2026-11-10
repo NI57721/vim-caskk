@@ -545,3 +545,12 @@ suite.annotation_completion_preserves_text_after_the_caret = (): void => {
   assert.equals(user_runtime.Get().GetSnapshot().entries[json_encode(['か', ''])][0].annotations,
     ['@adj説明'])
 }
+
+suite.fuzzy_annotation_query_inserts_the_complete_label = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  feedkeys("aKas\<F6>z;@v5k\<CR>\<CR>\<Esc>", 'xt')
+  assert.equals(getline(1), '前漢字後')
+  assert.equals(user_runtime.Get().GetSnapshot().entries[json_encode(['か', ''])][0].annotations,
+    ['@verb-5-k'])
+}
