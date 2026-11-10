@@ -183,13 +183,13 @@ suite.all_78_types_accept_their_terminal_connection_and_reject_unrelated_kana = 
 }
 
 suite.bare_stems_are_hidden_but_independent_plain_sources_survive = (): void => {
-  const tagged = parser.ParseLine('たべ /食べ;@verb-1-shimo-b/')
+  const tagged = parser.ParseLine('か /書;@verb-5-k/')
   const preferences = state.State.new()
-  assert.equals(conversion.Prepare({'たべ': tagged}, preferences, 'たべ').candidates, [])
-  const plain = parser.ParseLine('たべ /食べ;通常/')
+  assert.equals(conversion.Prepare({'か': tagged}, preferences, 'か').candidates, [])
+  const plain = parser.ParseLine('か /書;通常/')
   for sources in [[[tagged], [plain]], [[plain], [tagged]]]
     const combined = merger.Merge(sources)
-    assert.equals(len(conversion.Prepare(combined, preferences, 'たべ').candidates), 1)
+    assert.equals(len(conversion.Prepare(combined, preferences, 'か').candidates), 1)
   endfor
 }
 
@@ -197,18 +197,18 @@ suite.plain_user_and_indexed_sources_survive_snapshot_copying = (): void => {
   const path = tempname()
   defer delete(path)
   writefile(mapnew([';; okuri-ari entries.', ';; okuri-nasi entries.',
-    'たべ /食べ;@verb-1-shimo-b/'], (_, line) => iconv(line, 'utf-8', 'euc-jp')), path)
+    'か /書;@verb-5-k/'], (_, line) => iconv(line, 'utf-8', 'euc-jp')), path)
   const database = loader.Open([loader.Source.new(path, 'euc-jp')])
   const preferences = state.State.new()
-  assert.equals(conversion.Prepare({}, preferences, 'たべ', '', true, database).candidates, [])
-  preferences.AddEntry(lookup.CreateQuery('たべ', ''), parser.ParseLine('たべ /食べ/').candidates[0])
+  assert.equals(conversion.Prepare({}, preferences, 'か', '', true, database).candidates, [])
+  preferences.AddEntry(lookup.CreateQuery('か', ''), parser.ParseLine('か /書/').candidates[0])
   const copied = state.State.new()
   copied.Restore(preferences.GetSnapshot())
-  assert.equals(len(conversion.Prepare({}, copied, 'たべ', '', true, database).candidates), 1)
-  const unknown = parser.ParseLine('たべ /食べ;@verb-unknown/')
-  assert.equals(len(conversion.Prepare({'たべ': unknown}, state.State.new(), 'たべ').candidates), 1)
-  const both = parser.ParseLine('たべ /食べ;@adj @verb-1-shimo-b/')
-  assert.equals(conversion.Prepare({'たべ': both}, state.State.new(), 'たべ').candidates, [])
+  assert.equals(len(conversion.Prepare({}, copied, 'か', '', true, database).candidates), 1)
+  const unknown = parser.ParseLine('か /書;@verb-unknown/')
+  assert.equals(len(conversion.Prepare({'か': unknown}, state.State.new(), 'か').candidates), 1)
+  const both = parser.ParseLine('か /書;@adj @verb-5-k/')
+  assert.equals(conversion.Prepare({'か': both}, state.State.new(), 'か').candidates, [])
 }
 
 suite.experimental_ranking_tracks_markers_and_explicit_choices = (): void => {
@@ -269,8 +269,7 @@ suite.standalone_complete_forms_are_exceptions_to_bare_stem_suppression = (): vo
     assert.equals(selected.CurrentText(), text .. '')
     assert.equals(selected.Commit(), text)
   endfor
-  for [reading, tag] in [['たべ', '1-shimo-b'], ['くれ', '1-shimo-r'],
-    ['か', '5-k'], ['こ', 'irregular-k'], ['し', 'classical-irregular-n']]
+  for [reading, tag] in [['か', '5-k'], ['こ', 'irregular-k'], ['し', 'classical-irregular-n']]
     const entry = parser.ParseLine(reading .. ' /語;@verb-' .. tag .. '/')
     assert.equals(conversion.Prepare({[reading]: entry}, state.State.new(), reading).candidates, [], reading)
   endfor
@@ -417,4 +416,18 @@ suite.yu_sokuon_input_selects_itta = (): void => {
   assert.equals(results[-1].in_candidate, true)
   assert.equals(results[-1].text, '言っ')
   assert.equals(ime.GetCandidatesInfo().candidates[0].text, '言っ［verb］')
+}
+
+
+suite.ichidan_stems_convert_without_okuri = (): void => {
+  for [reading, text, tag] in [
+    ['あけ', '開け', '1-shimo-k'], ['たべ', '食べ', '1-shimo-b'], ['み', '見', '1-kami-m']]
+    const entry = parser.ParseLine(reading .. ' /' .. text .. ';@verb-' .. tag .. '/')
+    const preferences = state.State.new()
+    const ime = session.Session.new(scheme.Compile({}, {}), '', {}, preferences, reading)
+    const result = ime.StartConversion({[reading]: entry}, preferences)[0]
+    assert.equals(result.in_candidate, true, reading)
+    assert.equals(result.text, text, reading)
+    assert.equals(ime.GetCandidatesInfo().candidates[0].text, text .. '［verb］', reading)
+  endfor
 }

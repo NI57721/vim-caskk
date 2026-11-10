@@ -6,11 +6,10 @@ import autoload 'caskk/dictionary/stem.vim' as stem
 
 import 'caskk/verb_tags.vim' as tags
 
-# Zero added okuri is allowed only for complete finite forms.  A reading
-# guard matters for suppletive stems: classical 来(こ) / 来(く), not 来(き).
+# Ichidan stems can stand alone. Other tags need a complete form,
+# such as classical 来(こ) / 来(く).
 export def IsStandalone(reading: string, candidate: dictionary.Candidate): bool
   const forms: dict<string> = {
-    '@verb-1-shimo-r-kureru': 'くれ$',
     '@verb-irregular-s': 'す$',
     '@verb-irregular-z': 'ず$',
     '@verb-classical-irregular-k': '[こく]$',
@@ -21,6 +20,9 @@ export def IsStandalone(reading: string, candidate: dictionary.Candidate): bool
   }
   for annotation in candidate.annotations
     for tag in split(annotation, '[[:space:];]\+')
+      if has_key(tags.ENDINGS, tag) && tag =~# '^@verb-1-\%(kami\|shimo\)-'
+        return true
+      endif
       if has_key(forms, tag) && reading =~# forms[tag]
         return true
       endif
