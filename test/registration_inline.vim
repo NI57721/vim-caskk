@@ -504,3 +504,44 @@ suite.control_h_edits_preedit_then_the_registration_draft = (): void => {
   feedkeys("aKas\<F6>zKa\<C-H>\<C-H>\<C-H>\<CR>\<Esc>", 'xt')
   assert.equals(getline(1), '前漢後')
 }
+
+suite.annotation_completion_accepts_a_label_before_registering = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  feedkeys("aKas\<F6>z;@\<CR>\<Cmd>call CaskkTestInlineCapture()\<CR>\<CR>\<Esc>", 'xt')
+  assert.equals(popup_lines[1], '登録語: 漢字;@adj│')
+  assert.equals(getline(1), '前漢字後')
+  assert.equals(user_runtime.Get().GetSnapshot().entries[json_encode(['か', ''])][0].annotations, ['@adj'])
+}
+
+suite.annotation_completion_navigation_escape_and_unknown_labels_preserve_text = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  feedkeys("aKas\<F6>z;@verb-5-k\<Tab>\<S-Tab>\<Down>\<CR> ;@unknown\<CR>\<CR>\<Esc>", 'xt')
+  assert.equals(getline(1), '前漢字後')
+  assert.equals(user_runtime.Get().GetSnapshot().entries[json_encode(['か', ''])][0].annotations,
+    ['@verb-5-k-iku ;@unknown'])
+}
+
+suite.annotation_completion_escape_does_not_cancel_registration = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  feedkeys("aKas\<F6>z;@verb-5-kx\<C-H>\<Esc>\<Cmd>call CaskkTestInlineCapture()\<CR>\<CR>\<Esc>", 'xt')
+  assert.equals(popup_lines[1], '登録語: 漢字;@verb-5-k│')
+  assert.equals(getline(1), '前漢字後')
+}
+
+suite.annotation_completion_does_not_trigger_in_the_candidate_body = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  feedkeys("aKas\<F6>z@\<CR>\<Esc>", 'xt')
+  assert.equals(getline(1), '前漢字@後')
+}
+
+suite.annotation_completion_preserves_text_after_the_caret = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  feedkeys("aKas\<F6>z;説明\<Left>\<Left>@\<CR>\<CR>\<Esc>", 'xt')
+  assert.equals(user_runtime.Get().GetSnapshot().entries[json_encode(['か', ''])][0].annotations,
+    ['@adj説明'])
+}

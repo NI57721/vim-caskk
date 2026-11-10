@@ -197,6 +197,12 @@ Verb stems                                            *caskk-experimental-verb*
     Verb-only stems are omitted from reading completion and usually require
     okuri; registered complete finite forms can also convert without it.
 
+In registration annotations, type @ to complete a label with a Japanese
+explanation.  Type its prefix to filter, use Up/Down or Tab/Shift-Tab to select,
+and Enter to insert it; another Enter registers the word.  Esc closes only
+label completion.  Requires candidate_popup.  This works in both registration
+windows and inline registration.
+
 Tags also apply to user entries registered with okuri.
 These entries append the entered okuri unchanged.  Pin, demotion, and learning
 are shared across the stem's conjugations.  Markers are not committed as text.
