@@ -90,7 +90,7 @@ export class Selection
 
   def CurrentText(): string
     this._CheckActive()
-    return this._prepared.DisplayAt(this._index)
+    return this._prepared.TextAt(this._index)
   enddef
 
   def GetInfo(): CandidateInfo
@@ -136,7 +136,7 @@ export class Selection
 
   def Select(index: number): string
     this._CheckActive()
-    const text = this._prepared.DisplayAt(index)
+    const text = this._prepared.TextAt(index)
     this._index = index
     return text
   enddef

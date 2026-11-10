@@ -451,7 +451,7 @@ suite.experimental_adjective_marker_is_removed_on_commit_and_undo = (): void => 
   Setup({dictionaries: [source], completion_min_length: 20, mappings: {"\<F10>": "Commit"}})
   defer Cleanup()
   feedkeys("aKanaI\<F12>\<F10>\<F12>\<Esc>", 'xt')
-  assert.equals(captures, ['前仮名い［adj］後', '前仮名い後'])
+  assert.equals(captures, ['前仮名い後', '前仮名い後'])
   assert.equals(stridx(string(popup_lines[0]), '仮名い［adj］') >= 0, true)
   assert.equals(empty(user_runtime.Get().GetSnapshot().mru), false)
   normal! u
@@ -465,7 +465,7 @@ suite.experimental_verb_marker_is_removed_on_commit_and_undo = (): void => {
   Setup({dictionaries: [source], completion_min_length: 20, mappings: {"\<F10>": 'Commit'}})
   defer Cleanup()
   feedkeys("aKanaKi\<F12>\<F10>\<F12>\<Esc>", 'xt')
-  assert.equals(captures, ['前仮名き［verb］後', '前仮名き後'])
+  assert.equals(captures, ['前仮名き後', '前仮名き後'])
   assert.equals(stridx(string(popup_lines[0]), '仮名き［verb］') >= 0, true)
   assert.equals(empty(user_runtime.Get().GetSnapshot().mru), false)
   normal! u
@@ -479,7 +479,7 @@ suite.verb_only_stem_does_not_open_automatic_completion = (): void => {
   Setup({dictionaries: [source]})
   defer Cleanup()
   feedkeys("aKana\<F12>Ki\<F12>\<Esc>", 'xt')
-  assert.equals(captures, ['前かな後', '前仮名き［verb］後'])
+  assert.equals(captures, ['前かな後', '前仮名き後'])
   assert.equals(stridx(string(popup_lines[0]), '仮名') < 0, true)
   assert.equals(selected_rows[0], 0)
 }
@@ -495,6 +495,6 @@ suite.zero_okuri_imperative_converts_with_a_verb_marker = (): void => {
   Caskk.RegisterInputScheme({name: 'bare-imperative', consonants: {}, combinations: {}, specials: {x: 'くれ'}})
   Caskk.Enable('bare-imperative')
   feedkeys("aX \<F12>\<F10>\<F12>\<Esc>", 'xt')
-  assert.equals(captures, ['前呉れ［verb］後', '前呉れ後'])
+  assert.equals(captures, ['前呉れ後', '前呉れ後'])
   assert.equals(stridx(string(popup_lines[0]), '呉れ［verb］') >= 0, true)
 }

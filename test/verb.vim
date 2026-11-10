@@ -18,7 +18,7 @@ suite.ichidan_stem_is_not_rewritten = (): void => {
     const prepared = conversion.Prepare({'たべ': entry}, preferences, 'たべ', suffix)
     assert.equals(len(prepared.candidates), 1)
     const selection = conversion.Selection.new(prepared, preferences)
-    assert.equals(selection.CurrentText(), '食べ' .. suffix .. '［verb］')
+    assert.equals(selection.CurrentText(), '食べ' .. suffix .. '')
     assert.equals(selection.Commit(), '食べ' .. suffix)
   endfor
   assert.equals(empty(preferences.GetSnapshot().mru), false)
@@ -66,7 +66,7 @@ suite.adjective_and_verb_markers_merge_without_changing_stems = (): void => {
   const prepared = conversion.Prepare({'よ': entry}, state.State.new(), 'よ', 'み')
   assert.equals(len(prepared.candidates), 1)
   const selected = conversion.Selection.new(prepared, state.State.new())
-  assert.equals(selected.CurrentText(), '良み［adj,verb］')
+  assert.equals(selected.CurrentText(), '良み')
   assert.equals(selected.Commit(), '良み')
 }
 
@@ -266,7 +266,7 @@ suite.standalone_complete_forms_are_exceptions_to_bare_stem_suppression = (): vo
     const prepared = conversion.Prepare({[reading]: entry}, state.State.new(), reading)
     assert.equals(prepared.experimental_count, 1, reading)
     const selected = conversion.Selection.new(prepared, state.State.new())
-    assert.equals(selected.CurrentText(), text .. '［verb］')
+    assert.equals(selected.CurrentText(), text .. '')
     assert.equals(selected.Commit(), text)
   endfor
   for [reading, tag] in [['たべ', '1-shimo-b'], ['くれ', '1-shimo-r'],
@@ -307,4 +307,15 @@ suite.annotated_okuri_registration_is_available_as_a_verb_stem = (): void => {
   assert.equals(prepared.DisplayAt(0), '食べな［verb］')
   assert.equals(preferences.GetSnapshot().entries[json_encode(['たべ', 'る'])][0].annotations,
     ['@verb-1-shimo-b'])
+}
+
+suite.selection_returns_plain_text_but_popup_info_keeps_the_marker = (): void => {
+  const entries = {'か': parser.ParseLine('か /書;@verb-5-k/描;@verb-5-k/')}
+  const preferences = state.State.new()
+  const prepared = conversion.Prepare(entries, preferences, 'か', 'く')
+  const selected = conversion.Selection.new(prepared, preferences)
+  assert.equals(selected.CurrentText(), '書く')
+  assert.equals(selected.Select(1), '描く')
+  assert.equals(selected.GetInfo().text, '描く［verb］')
+  assert.equals(selected.GetCandidatesInfo().candidates[0].text, '書く［verb］')
 }

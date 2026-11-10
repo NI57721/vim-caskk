@@ -83,7 +83,8 @@ export class Editor
   def Insertion(): string
     if this.input.InCandidate()
       const info = this.Candidates()
-      return empty(info.candidates) ? '' : info.candidates[info.selected_index].text
+      return empty(info.candidates) ? ''
+        : this.input.RenderText(this.input.GetCandidates().TextAt(info.selected_index))
     endif
     const snapshot = this.input.GetSnapshot()
     var insertion = snapshot.in_preedit

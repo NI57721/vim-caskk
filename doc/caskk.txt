@@ -189,11 +189,12 @@ Experimental dictionary entries ~
 
 Adjective stems                                        *caskk-experimental-adj*
     An SKK entry such as 'うつくし /美し;@adj/' supplies okuri candidates:
-    うつくし*く becomes 美しく.  Candidates display ［adj］ while selecting.
+    うつくし*く becomes 美しく.  The candidate popup shows ［adj］.
 
 Verb stems                                            *caskk-experimental-verb*
     Add a tagged stem dictionary through dictionaries.  For example,
-    'たべ /食べ;@verb-1-shimo-b/' converts たべ*る to 食べる, marked ［verb］.
+    'たべ /食べ;@verb-1-shimo-b/' converts たべ*る to 食べる.
+    Its popup row shows ［verb］.
     Verb-only stems are omitted from reading completion and usually require
     okuri; registered complete finite forms can also convert without it.
 
@@ -205,7 +206,7 @@ windows and inline registration.
 
 Tags also apply to user entries registered with okuri.
 These entries append the entered okuri unchanged.  Pin, demotion, and learning
-are shared across the stem's conjugations.  Markers are not committed as text.
+are shared across the stem's conjugations.  Markers appear only in candidate popups.
 
 SETTINGS                                                *caskk-settings*
 
