@@ -29,6 +29,11 @@ export class Editor
     return strcharpart(this._text, this._cursor)
   enddef
 
+  def ReplaceBeforeCursor(count: number, text: string)
+    this._text = strcharpart(this._text, 0, this._cursor - count) .. text .. this.Suffix()
+    this._cursor += strchars(text) - count
+  enddef
+
   def InsertLiteral(text: string)
     this._text = this.Prefix() .. text .. this.Suffix()
     this._cursor += strchars(text)

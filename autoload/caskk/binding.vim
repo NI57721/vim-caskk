@@ -16,13 +16,14 @@ import 'caskk/registration.vim' as registration
 import autoload 'caskk/registration/window.vim' as registration_window
 import autoload 'caskk/registration/editor.vim' as registration_editor
 import autoload 'caskk/registration/text.vim' as registration_text
+import autoload 'caskk/registration/annotations.vim' as annotation_types
 import autoload 'caskk/config.vim' as configuration
 import autoload 'caskk/user_state/runtime.vim' as user_runtime
 import autoload 'caskk/conversion.vim' as conversion
 import autoload 'caskk/completion.vim' as completion
 import 'caskk/reconversion.vim' as reconversion
 
-const NATIVE_KEYS = ['<Left>', '<Right>', '<Up>', '<Down>', '<Home>', '<End>', '<CR>', '<Tab>', '<BS>', '<C-H>', '<Del>', '<Nul>']
+const NATIVE_KEYS = ['<Left>', '<Right>', '<Up>', '<Down>', '<Home>', '<End>', '<CR>', '<Tab>', '<S-Tab>', '<BS>', '<C-H>', '<Del>', '<Nul>']
 const INLINE_GUARD_KEYS = ['<C-A>', '<C-B>', '<C-D>', '<C-E>', '<C-F>', '<C-G>', '<C-H>', '<C-I>',
   '<C-J>', '<C-K>', '<C-L>', '<C-M>', '<C-N>', '<C-O>', '<C-P>', '<C-Q>', '<C-R>', '<C-S>',
   '<C-T>', '<C-U>', '<C-V>', '<C-W>', '<C-X>', '<C-Y>', '<C-Z>', '<S-Tab>', '<PageUp>',
@@ -66,6 +67,13 @@ export class Binding
   var _window_result: dictionary.Candidate = null_object
   var _window_closing: bool = false
   var _input_mode: string = input_mode.HIRAGANA
+  var _registration_input: bool = false
+  const _annotation: annotation_types.Completion = annotation_types.Completion.new()
+  var _annotation_window: number = 0
+  var _annotation_line: number = 0
+  var _annotation_before: string = ''
+  var _annotation_after: string = ''
+  var _annotation_column: number = 0
   var _mode_marker: string = ''
   var _inline_editor: registration_editor.Editor = null_object
   var _disabled_during_inline_registration: bool = false
@@ -394,6 +402,7 @@ export class Binding
   enddef
 
   def _CloseInlineInput(restore_escape: bool = true)
+    this._CloseAnnotation()
     this._delete_user_entry_pending = false
     this._inline_view.Close()
     this._mode_view.Close()
@@ -487,6 +496,7 @@ export class Binding
 
   def PasteInline()
     this._CheckTarget()
+    this._CloseAnnotation()
     var text = ''
     while true
       const key = getcharstr()
@@ -858,6 +868,7 @@ export class Binding
   enddef
 
   def _LeaveInternal(force: bool)
+    this._CloseAnnotation()
     this._delete_user_entry_pending = false
     this._RestoreDeleteEscape()
     if this._editor is null_object
@@ -899,8 +910,108 @@ export class Binding
     endtry
   enddef
 
+  def _CloseAnnotation()
+    this._annotation.SetActive(false)
+    if this._annotation_window != 0
+      popup_close(this._annotation_window)
+      this._annotation_window = 0
+    endif
+  enddef
+
+  def _RenderAnnotation()
+    const lines = this._annotation.Lines()
+    if this._inline_editor isnot null_object
+      this._inline_view.ShowEditor(this.GetRegistrationRequest(), this._inline_editor, '', lines)
+    elseif empty(lines)
+      if this._annotation_window != 0
+        popup_close(this._annotation_window)
+        this._annotation_window = 0
+      endif
+    elseif this._annotation_window == 0
+      this._annotation_window = popup_create(lines, {line: 'cursor+1', col: 'cursor',
+        pos: 'topleft', posinvert: true, padding: [0, 1, 0, 1], highlight: 'Pmenu'})
+    else
+      popup_settext(this._annotation_window, lines)
+    endif
+  enddef
+
+  def _ReplaceAnnotation(text: string)
+    if this._inline_editor isnot null_object
+      this._inline_editor.ReplaceBeforeCursor(strchars(this._annotation.prefix), text)
+    else
+      if getline(this._annotation_line) !=# this._annotation_before .. this._annotation.prefix .. this._annotation_after
+        this._CloseAnnotation()
+        throw 'caskk: registration text changed during annotation completion'
+      endif
+      setline(this._annotation_line, this._annotation_before .. text .. this._annotation_after)
+      cursor(this._annotation_line, this._annotation_column + strlen(text))
+    endif
+    this._annotation.Update(text)
+  enddef
+
+  def HandleAnnotation(key: string): bool
+    if !this._annotation.active
+      if key !=# '@' || !configuration.GetCandidatePopup()
+          || (!this._registration_input && this._inline_editor is null_object)
+        return false
+      endif
+      const prefix = this._inline_editor isnot null_object
+        ? this._inline_editor.Prefix() .. this._inline_editor.Insertion()
+        : strpart(getline('.'), 0, col('.') - 1)
+      if stridx(prefix, ';') < 0 || prefix !~# '[;[:space:]]$'
+        return false
+      endif
+      if this._inline_editor isnot null_object
+        this._inline_editor.Commit()
+      else
+        this.Leave()
+        this._annotation_before = strpart(getline('.'), 0, col('.') - 1)
+        this._annotation_after = strpart(getline('.'), col('.') - 1)
+        this._annotation_line = line('.')
+        this._annotation_column = col('.')
+      endif
+      this._annotation.Update('')
+      this._annotation.SetActive(true)
+      this._ReplaceAnnotation('@')
+      this._RenderAnnotation()
+      return true
+    endif
+    if key ==# '<Down>' || key ==# '<Tab>'
+      this._annotation.Move(1)
+    elseif key ==# '<Up>' || key ==# '<S-Tab>'
+      this._annotation.Move(-1)
+    elseif key ==# '<CR>' || key ==# '<Esc>'
+      if key ==# '<CR>' && !empty(this._annotation.items)
+        this._ReplaceAnnotation(this._annotation.items[this._annotation.selected].word)
+      endif
+      this._CloseAnnotation()
+      if this._inline_editor isnot null_object
+        this._RefreshInlinePopup()
+      elseif this._enabled && mode(1) =~# '^i'
+        this.Enter()
+      endif
+      return true
+    elseif key ==# '<BS>' || key ==# '<C-H>'
+      this._ReplaceAnnotation(strcharpart(this._annotation.prefix, 0, strchars(this._annotation.prefix) - 1))
+      if this._annotation.prefix == ''
+        this.HandleAnnotation('<Esc>')
+        return true
+      endif
+    elseif key =~# '^[0-9A-Za-z-]$'
+      this._ReplaceAnnotation(this._annotation.prefix .. key)
+    else
+      this.HandleAnnotation('<Esc>')
+      return false
+    endif
+    this._RenderAnnotation()
+    return true
+  enddef
+
   def _DispatchInput(key: string)
     this._CheckTarget()
+    if this.HandleAnnotation(key)
+      return
+    endif
     if this._reconversion_record isnot null_object && this._editor isnot null_object
         && this._editor.IsInCandidate()
       this._CloseReconversion()
@@ -1150,6 +1261,7 @@ export class Binding
   enddef
 
   def Forget()
+    this._CloseAnnotation()
     this._StopCompletionSearch()
     this._CloseReconversion()
     const id = string(this._buffer)
@@ -1215,6 +1327,7 @@ export class Binding
         this._preferences, this._actions, prefill ? request.reading : '', this._registration_auto,
         this._small_tsu_okuri_as_t, this._keyboard_layout, this._keyboard_layout_overrides,
         false, this._register_mode_conversions, this._dictionary_index, null_object, this._keep_preedit_on_backspace)
+      child._registration_input = true
       child.Enable()
       const arguments = this._buffer .. ', ' .. window.buffer
       for command in ['inoremap', 'nnoremap']
@@ -1247,6 +1360,12 @@ export class Binding
   def SubmitRegistrationWindow(child: number, cancel: bool)
     const window = this._registration_window
     if window is null_object || window.buffer != child || this._window_closing
+      return
+    endif
+    if bufnr('%') == child && bufloaded(child) && mode(1) =~# '^i'
+        && win_id2win(window.window) > 0
+        && has_key(bindings, string(child)) && bindings[string(child)]._annotation.active
+        && bindings[string(child)].HandleAnnotation(cancel ? '<Esc>' : '<CR>')
       return
     endif
     if cancel

@@ -350,3 +350,30 @@ suite.annotation_is_saved_without_inserting_it = (): void => {
   Caskk.LoadState()
   assert.equals(user_runtime.Get().GetSnapshot().entries[json_encode(['か', ''])][0].annotations, ['説明;タグ'])
 }
+
+suite.annotation_completion_accepts_a_label_before_registering = (): void => {
+  const fixture = Setup(false)
+  defer Cleanup(fixture)
+  feedkeys("aKas\<F3>d;@verb-1-shimo-b\<CR>\<CR>\<Esc>", 'xt')
+  assert.equals(errors, [])
+  assert.equals(getline(1), '前漢字後')
+  assert.equals(user_runtime.Get().GetSnapshot().entries[json_encode(['か', ''])][0].annotations,
+    ['@verb-1-shimo-b'])
+}
+
+suite.annotation_completion_escape_and_backspace_preserve_the_window = (): void => {
+  const fixture = Setup(false)
+  defer Cleanup(fixture)
+  feedkeys("aKas\<F3>d;@verb-5-kx\<C-H>\<Esc>\<CR>\<Esc>", 'xt')
+  assert.equals(getline(1), '前漢字後')
+  assert.equals(user_runtime.Get().GetSnapshot().entries[json_encode(['か', ''])][0].annotations,
+    ['@verb-5-k'])
+}
+
+suite.annotation_completion_window_is_removed_on_insert_leave = (): void => {
+  const fixture = Setup(false)
+  defer Cleanup(fixture)
+  const before = len(popup_list())
+  feedkeys("aKas\<F3>d;@\<C-O>:stopinsert\<CR>\<Esc>", 'xt')
+  assert.equals(len(popup_list()) <= before, true)
+}
