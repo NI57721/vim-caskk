@@ -501,6 +501,19 @@ export class Database
     return has_key(merged, query.lookup_key) ? copy(merged[query.lookup_key].candidates) : []
   enddef
 
+  # Retain source boundaries when combining different lookup keys.
+  def LookupSources(queries: list<dictionary.Query>): list<dict<dictionary.Entry>>
+    final result: list<dict<dictionary.Entry>> = []
+    for source in this._sources
+      final entries: list<dictionary.Entry> = []
+      for query in queries
+        entries->extend(source.Lookup(query.lookup_key, query.exact_okuri !=# ''))
+      endfor
+      result->add(merger.Merge([entries]))
+    endfor
+    return result
+  enddef
+
   def IsReady(): bool
     return this._ready
   enddef

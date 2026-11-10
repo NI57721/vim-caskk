@@ -64,6 +64,10 @@ export class State
   enddef
 
   # Candidates already include registered entries; only apply their preferences.
+  def HistoryIndex(query: dictionary.Query, text: string): number
+    return index(get(this._mru, Identity(query), []), text)
+  enddef
+
   def RankCandidates(query: dictionary.Query, candidates: list<dictionary.Candidate>): list<dictionary.Candidate>
     const key = Identity(query)
     return ranking.Rank(candidates, get(this._pinned, key, ''),
