@@ -8,7 +8,8 @@ export def Lookup(entries: dict<dictionary.Entry>, preferences: user_state.State
   final sources = copy(lookup.Lookup(entries, lookup.CreateQuery(reading, ''), database))
   for identity in sort(preferences.RegisteredIdentities())
     const pair: list<string> = json_decode(identity)
-    if pair == [reading, '']
+    # User registration retains exact okuri; tagged stems apply across endings.
+    if pair[0] ==# reading
       sources->extend(preferences.RegisteredCandidates(identity))
     endif
   endfor

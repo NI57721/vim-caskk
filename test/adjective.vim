@@ -71,3 +71,18 @@ suite.adjective_preferences_survive_reload_and_are_shared_across_endings = (): v
   selection.ToggleDemote()
   assert.equals(conversion.Prepare(entries, restored, 'うつくし', 'さ').DisplayAt(1), '麗しさ［adj］')
 }
+
+suite.annotated_user_stems_registered_with_okuri_apply_to_other_endings = (): void => {
+  const preferences = state.State.new()
+  const candidate = parser.ParseLine('うつくし /美し;説明;@adj/').candidates[0]
+  preferences.AddEntry(lookup.CreateQuery('うつくし', 'い'), candidate)
+  const restored = state.State.new()
+  restored.Restore(codec.Decode(codec.Encode(preferences.GetSnapshot())))
+  for suffix in ['い', 'く', 'さ']
+    const prepared = conversion.Prepare({}, restored, 'うつくし', suffix)
+    assert.equals(prepared.experimental_count, 1)
+    assert.equals(prepared.DisplayAt(0), '美し' .. suffix .. '［adj］')
+    assert.equals(prepared.candidates[0].annotations, ['説明;@adj'])
+  endfor
+  assert.equals(conversion.Prepare({}, restored, 'べつ', 'く').experimental_count, 0)
+}

@@ -5,6 +5,10 @@ import autoload 'caskk/conversion.vim' as conversion
 import autoload 'caskk/dictionary/parser.vim' as parser
 import autoload 'caskk/dictionary/merge.vim' as merger
 import autoload 'caskk/user_state.vim' as state
+import autoload 'caskk/user_state/codec.vim' as codec
+import autoload 'caskk/session.vim' as session
+import autoload 'caskk/scheme.vim' as scheme
+import autoload 'caskk/registration/text.vim' as registration_text
 final suite = themis#suite('experimental verbs')
 const assert = themis#helper('assert')
 suite.ichidan_stem_is_not_rewritten = (): void => {
@@ -270,4 +274,37 @@ suite.standalone_complete_forms_are_exceptions_to_bare_stem_suppression = (): vo
     const entry = parser.ParseLine(reading .. ' /語;@verb-' .. tag .. '/')
     assert.equals(conversion.Prepare({[reading]: entry}, state.State.new(), reading).candidates, [], reading)
   endfor
+}
+
+suite.annotated_user_stems_registered_with_okuri_apply_to_other_endings = (): void => {
+  const preferences = state.State.new()
+  preferences.AddEntry(lookup.CreateQuery('たべ', 'る'),
+    parser.ParseLine('たべ /食べ;説明 @verb-1-shimo-b/').candidates[0])
+  const restored = state.State.new()
+  restored.Restore(codec.Decode(codec.Encode(preferences.GetSnapshot())))
+  for suffix in ['る', 'な', 'た']
+    const prepared = conversion.Prepare({}, restored, 'たべ', suffix)
+    assert.equals(prepared.experimental_count, 1)
+    assert.equals(prepared.DisplayAt(0), '食べ' .. suffix .. '［verb］')
+  endfor
+  assert.equals(conversion.Prepare({}, restored, 'たべ', 'あ').experimental_count, 0)
+}
+
+
+suite.annotated_okuri_registration_is_available_as_a_verb_stem = (): void => {
+  const preferences = state.State.new()
+  const compiled = scheme.Compile({}, {}, [
+    scheme.SpecialDefinition.new(['x'], 'たべ'),
+    scheme.SpecialDefinition.new(['y'], 'る'),
+  ])
+  const ime = session.Session.new(compiled, '', {}, preferences)
+  ime.Feed('X')
+  const requested = ime.Feed('Y')
+  assert.equals(requested[-1].registration_requested, true)
+  const registered = ime.Register(registration_text.Parse('食べ;@verb-1-shimo-b'))
+  assert.equals(registered.text, '食べる')
+  const prepared = conversion.Prepare({}, preferences, 'たべ', 'な')
+  assert.equals(prepared.DisplayAt(0), '食べな［verb］')
+  assert.equals(preferences.GetSnapshot().entries[json_encode(['たべ', 'る'])][0].annotations,
+    ['@verb-1-shimo-b'])
 }
