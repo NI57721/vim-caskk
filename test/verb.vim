@@ -49,7 +49,7 @@ suite.godan_sound_changes_and_irregular_types_are_distinct = (): void => {
   for [tag, allowed, rejected] in [
     ['5-k', 'い', 'っ'], ['5-k-iku', 'っ', 'い'], ['5-k-yuku', 'っ', 'い'],
     ['5-g', 'い', 'っ'], ['5-m', 'ん', 'っ'], ['5-r-aru', 'い', 'ん'],
-    ['5-wa', 'っ', 'ん'], ['5-wa-iu', 'う', 'っ'], ['5-wa-yuu', 'う', 'っ'],
+    ['5-wa', 'っ', 'ん'], ['5-wa-iu', 'う', 'ん'], ['5-wa-yuu', 'う', 'っ'],
     ['1-shimo-r-kureru', 'れ', 'ろ'], ['1-shimo-r', 'ろ', 'ぱ'],
     ['irregular-k', 'こ', 'せ'], ['irregular-k', 'る', 'ぱ'], ['irregular-k', 'た', 'ぱ'], ['irregular-s', 'せ', 'こ'], ['irregular-z', 'じ', 'し'],
     ['classical-2-kami-k', 'き', 'け'], ['classical-2-shimo-k', 'け', 'き'],
@@ -318,4 +318,32 @@ suite.selection_returns_plain_text_but_popup_info_keeps_the_marker = (): void =>
   assert.equals(selected.Select(1), '描く')
   assert.equals(selected.GetInfo().text, '描く［verb］')
   assert.equals(selected.GetCandidatesInfo().candidates[0].text, '書く［verb］')
+}
+
+
+suite.iu_stem_accepts_sokuon_from_system_and_user_entries = (): void => {
+  const entry = parser.ParseLine('い /言;@verb-5-wa-iu/')
+  for from_user in [false, true]
+    const preferences = state.State.new()
+    if from_user
+      preferences.AddEntry(lookup.CreateQuery('い', 'う'), entry.candidates[0])
+    endif
+    for suffix in ['っ', 'った', 'って', 'う', 'うて']
+      const prepared = conversion.Prepare(from_user ? {} : {'い': entry}, preferences, 'い', suffix)
+      assert.equals(prepared.experimental_count, 1)
+      assert.equals(prepared.TextAt(0), '言' .. suffix)
+      assert.equals(prepared.DisplayAt(0), '言' .. suffix .. '［verb］')
+    endfor
+  endfor
+}
+
+suite.modified_i_then_l_selects_itta_without_marking_buffer_text = (): void => {
+  const compiled = scheme.Compile({l: 'T'}, {i: 'i'})
+  const entries = {'い': parser.ParseLine('い /言;@verb-5-wa-iu/')}
+  const ime = session.Session.new(compiled, '', entries)
+  ime.Feed('I')
+  const results = ime.Feed('L')
+  assert.equals(results[-1].in_candidate, true)
+  assert.equals(results[-1].text, '言っ')
+  assert.equals(ime.GetCandidatesInfo().candidates[0].text, '言っ［verb］')
 }
