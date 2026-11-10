@@ -55,3 +55,14 @@ suite.candidate_is_inserted_once_at_the_cursor_when_committed = (): void => {
   editor.Commit()
   assert.equals(editor.GetText(), '前科後')
 }
+
+suite.experimental_preview_omits_marker_while_candidate_rows_keep_it = (): void => {
+  const entries = {'か': parser.ParseLine('か /書;@verb-5-k/')}
+  const preferences = user_state.State.new()
+  const compiled = scheme.Compile({}, {}, [scheme.SpecialDefinition.new(['x'], 'く')])
+  const input = session.Session.new(compiled, '', entries, preferences, 'か')
+  const editor = registration_editor.Editor.new(input)
+  editor.Append(input.Feed('X'))
+  assert.equals(editor.Insertion(), '書く')
+  assert.equals(editor.Candidates().candidates[0].text, '書く［verb］')
+}

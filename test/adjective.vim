@@ -13,7 +13,7 @@ suite.stem_conversion_is_marked_but_commit_is_plain = (): void => {
     const prepared = conversion.Prepare({'うつくし': entry}, preferences, 'うつくし', suffix)
     assert.equals(len(prepared.candidates), 1)
     const selection = conversion.Selection.new(prepared, preferences)
-    assert.equals(selection.CurrentText(), '美し' .. suffix .. '［adj］')
+    assert.equals(selection.CurrentText(), '美し' .. suffix .. '')
     assert.equals(selection.Commit(), '美し' .. suffix)
   endfor
   assert.equals(empty(preferences.GetSnapshot().mru), false)
