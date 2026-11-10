@@ -217,7 +217,7 @@ suite.experimental_ranking_tracks_markers_and_explicit_choices = (): void => {
   const preferences = state.State.new()
   const initial = conversion.Prepare(entries, preferences, 'かな', 'い')
   const selected = conversion.Selection.new(initial, preferences)
-  selected.Select(2)
+  selected.Select(1)
   selected.Commit()
   const learned = conversion.Prepare(entries, preferences, 'かな', 'い')
   assert.equals(learned.DisplayAt(0), '叶い［verb］')
@@ -240,12 +240,12 @@ suite.stem_preferences_are_shared_across_okuri_but_not_ordinary_candidates = ():
   const preferences = state.State.new()
   const first = conversion.Prepare(entries, preferences, 'か', 'く')
   const selected = conversion.Selection.new(first, preferences)
-  selected.Select(1)
+  selected.Select(3)
   selected.Commit()
   const other = conversion.Prepare(entries, preferences, 'か', 'い')
   assert.equals(other.DisplayAt(0), '描い［verb］')
   const ordinary = conversion.Selection.new(conversion.Prepare(entries, preferences, 'か', 'く'), preferences)
-  ordinary.Select(2)
+  ordinary.Select(1)
   assert.equals(ordinary.CurrentText(), '書く')
   const pin = conversion.Selection.new(other, preferences)
   pin.TogglePin()
@@ -253,7 +253,7 @@ suite.stem_preferences_are_shared_across_okuri_but_not_ordinary_candidates = ():
   assert.equals(conversion.Selection.new(negative, preferences).GetInfo().tier, 'pinned')
   pin.ToggleDemote()
   const demoted = conversion.Prepare(entries, preferences, 'か', 'け')
-  assert.equals(demoted.DisplayAt(1), '描け［verb］')
+  assert.equals(demoted.DisplayAt(len(demoted.candidates) - 1), '描け［verb］')
 }
 
 suite.standalone_complete_forms_are_exceptions_to_bare_stem_suppression = (): void => {
@@ -285,7 +285,7 @@ suite.annotated_user_stems_registered_with_okuri_apply_to_other_endings = (): vo
   for suffix in ['る', 'な', 'た']
     const prepared = conversion.Prepare({}, restored, 'たべ', suffix)
     assert.equals(prepared.experimental_count, 1)
-    assert.equals(prepared.DisplayAt(0), '食べ' .. suffix .. '［verb］')
+    assert.equals(prepared.DisplayAt(index(prepared.experimental_flags, true)), '食べ' .. suffix .. '［verb］')
   endfor
   assert.equals(conversion.Prepare({}, restored, 'たべ', 'あ').experimental_count, 0)
 }
@@ -332,7 +332,7 @@ suite.iu_stem_accepts_sokuon_from_system_and_user_entries = (): void => {
       const prepared = conversion.Prepare(from_user ? {} : {'い': entry}, preferences, 'い', suffix)
       assert.equals(prepared.experimental_count, 1)
       assert.equals(prepared.TextAt(0), '言' .. suffix)
-      assert.equals(prepared.DisplayAt(0), '言' .. suffix .. '［verb］')
+      assert.equals(prepared.DisplayAt(index(prepared.experimental_flags, true)), '言' .. suffix .. '［verb］')
     endfor
   endfor
 }

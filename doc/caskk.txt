@@ -204,7 +204,8 @@ and Enter to insert it; another Enter registers the word.  Esc closes only
 label completion.  Requires candidate_popup.  This works in both registration
 windows and inline registration.
 
-Tags also apply to user entries registered with okuri.
+Tags also apply to user entries registered with okuri.  Tagged candidates
+follow dictionary configuration order, just like ordinary candidates.
 These entries append the entered okuri unchanged.  Pin, demotion, and learning
 are shared across the stem's conjugations.  Markers appear only in candidate popups.
 

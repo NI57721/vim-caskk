@@ -14,21 +14,27 @@ export class Candidates
   const query: dictionary.Query
   const okuri: string
   const markers: list<string>
+  const experimental_flags: list<bool>
   const experimental_count: number
   const candidates: list<dictionary.Candidate>
 
-  def new(this.query, this.okuri, candidates: list<dictionary.Candidate>, experimental_count: number = 0, markers: list<string> = [])
+  def new(this.query, this.okuri, candidates: list<dictionary.Candidate>, experimental_count: number = 0, markers: list<string> = [], experimental_flags: list<bool> = [])
+    this.experimental_flags = copy(experimental_flags)
     this.markers = copy(markers)
     this.experimental_count = experimental_count
     this.candidates = copy(candidates)
   enddef
 
   def PreferenceQuery(index: number): dictionary.Query
-    return index < this.experimental_count ? lookup.CreateQuery(this.query.reading, '') : this.query
+    return this.IsExperimental(index) ? lookup.CreateQuery(this.query.reading, '') : this.query
+  enddef
+
+  def IsExperimental(index: number): bool
+    return empty(this.experimental_flags) ? index < this.experimental_count : this.experimental_flags[index]
   enddef
 
   def DisplayAt(index: number): string
-    return this.TextAt(index) .. (index < this.experimental_count ? (empty(this.markers) ? "［adj］" : this.markers[index]) : "")
+    return this.TextAt(index) .. (this.IsExperimental(index) ? (empty(this.markers) ? "［adj］" : this.markers[index]) : "")
   enddef
 
   def TextAt(index: number): string
@@ -119,7 +125,7 @@ export class Selection
   enddef
 
   def IsExperimental(): bool
-    return this._index < this._prepared.experimental_count
+    return this._prepared.IsExperimental(this._index)
   enddef
 
   def TogglePin(): string
@@ -176,6 +182,28 @@ export class Selection
   enddef
 endclass
 
+# Each row keeps its own preference identity and marker when sources interleave.
+class RankedRow
+  const candidate: dictionary.Candidate
+  const marker: string
+  const tier: number
+  const history: number
+  const source: number
+  const position: number
+  def new(this.candidate, this.marker, this.tier, this.history, this.source, this.position)
+  enddef
+endclass
+
+def CompareRows(left: RankedRow, right: RankedRow): number
+  for pair in [[left.tier, right.tier], [left.history, right.history],
+      [left.source, right.source], [left.position, right.position]]
+    if pair[0] != pair[1]
+      return pair[0] < pair[1] ? -1 : 1
+    endif
+  endfor
+  return 0
+enddef
+
 # Prepare one conversion request without committing, learning, or buffer I/O.
 export def Prepare(entries: dict<dictionary.Entry>, preferences: user_state.State, reading: string,
     okuri: string = '', small_tsu_okuri_as_t: bool = true,
@@ -199,10 +227,55 @@ export def Prepare(entries: dict<dictionary.Entry>, preferences: user_state.Stat
       markers->add('［verb］')
     endif
   endfor
-  const ordered = preferences.RankCandidates(lookup.CreateQuery(reading, ''), experimental)
-  final ordered_markers: list<string> = []
-  for candidate in ordered
-    ordered_markers->add(markers[index(experimental, candidate)])
+  if empty(experimental)
+    return Candidates.new(query, okuri, ranked)
+  endif
+  const stem_query = lookup.CreateQuery(reading, '')
+  const sources = database is null_object ? [entries] : database.LookupSources([query, stem_query])
+  final source_ranks: dict<number> = {}
+  final source_positions: dict<number> = {}
+  const empty_preferences = user_state.State.new()
+  for source_index in range(len(sources))
+    const source = sources[source_index]
+    var source_position = 0
+    for candidate in lookup.Lookup(source, query)
+      const identity = json_encode([false, candidate.text])
+      if !has_key(source_ranks, identity)
+        source_ranks[identity] = source_index
+        source_positions[identity] = source_position
+      endif
+      source_position += 1
+    endfor
+    const eligible = adjective.Lookup(source, empty_preferences, reading, okuri, null_object)
+        + verb.Lookup(source, empty_preferences, reading, okuri, null_object)
+    const eligible_texts = mapnew(eligible, (_, candidate) => candidate.text)
+    for candidate in lookup.Lookup(source, stem_query)
+      if index(eligible_texts, candidate.text) < 0
+        continue
+      endif
+      const identity = json_encode([true, candidate.text])
+      if !has_key(source_ranks, identity)
+        source_ranks[identity] = source_index
+        source_positions[identity] = source_position
+      endif
+      source_position += 1
+    endfor
   endfor
-  return Candidates.new(query, okuri, ordered + ranked, len(ordered), ordered_markers)
+  final rows: list<RankedRow> = []
+  # Within one dictionary ordinary headwords precede generated stem candidates.
+  for candidate in ranked + experimental
+    const position = len(rows)
+    const is_stem = position >= len(ranked)
+    const preference_query = is_stem ? stem_query : query
+    const tier_name = preferences.GetCandidateTier(preference_query, candidate.text)
+    const tier = tier_name ==# 'pinned' ? 0 : tier_name ==# 'demoted' ? 2 : 1
+    const learned = preferences.HistoryIndex(preference_query, candidate.text)
+    const history = tier == 1 && learned >= 0 ? learned : 2147483647
+    rows->add(RankedRow.new(candidate, is_stem ? markers[position - len(ranked)] : '',
+      tier, history, get(source_ranks, json_encode([is_stem, candidate.text]), len(sources)),
+      get(source_positions, json_encode([is_stem, candidate.text]), position)))
+  endfor
+  sort(rows, CompareRows)
+  return Candidates.new(query, okuri, mapnew(rows, (_, row) => row.candidate), len(experimental),
+    mapnew(rows, (_, row) => row.marker), mapnew(rows, (_, row) => row.marker != ''))
 enddef
