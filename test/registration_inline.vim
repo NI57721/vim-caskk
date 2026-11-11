@@ -568,3 +568,11 @@ suite.backspace_delete_actions_remove_annotated_user_stems_inline = (): void => 
     endtry
   endfor
 }
+
+suite.annotation_selection_uses_highlight_and_tracks_navigation = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  feedkeys("aKas\<F6>z;@v5k\<Down>\<Cmd>call CaskkTestInlineCapture()\<CR>\<Esc>\<Esc>\<Esc>", 'xt')
+  assert.equals(popup_lines[2], '@verb-5-k — 五段カ行')
+  assert.equals(selected_candidate_rows, [4])
+}

@@ -8,6 +8,7 @@ import autoload 'caskk/input/keycode.vim' as keycode
 import autoload 'caskk/input/mapping.vim' as mapping
 import autoload 'caskk/input/mapping_state.vim' as mapping_state
 import autoload 'caskk/input/mode.vim' as input_mode
+import autoload 'caskk/presentation/candidate.vim' as candidate_view
 import autoload 'caskk/presentation/mode_popup.vim' as mode_popup
 import autoload 'caskk/presentation/registration_inline.vim' as registration_inline
 import 'caskk/dictionary.vim' as dictionary
@@ -921,7 +922,7 @@ export class Binding
   def _RenderAnnotation()
     const lines = this._annotation.Lines()
     if this._inline_editor isnot null_object
-      this._inline_view.ShowEditor(this.GetRegistrationRequest(), this._inline_editor, '', lines)
+      this._inline_view.ShowEditor(this.GetRegistrationRequest(), this._inline_editor, '', lines, this._annotation.SelectedLine())
     elseif empty(lines)
       if this._annotation_window != 0
         popup_close(this._annotation_window)
@@ -932,6 +933,9 @@ export class Binding
         pos: 'topleft', posinvert: true, padding: [0, 1, 0, 1], highlight: 'Pmenu'})
     else
       popup_settext(this._annotation_window, lines)
+    endif
+    if this._annotation_window != 0
+      candidate_view.HighlightSelection(this._annotation_window, this._annotation.SelectedLine())
     endif
   enddef
 

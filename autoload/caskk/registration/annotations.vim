@@ -77,11 +77,14 @@ export class Completion
       this.selected = (this.selected + this.items->len() + delta) % this.items->len()
     endif
   enddef
+  def SelectedLine(): number
+    return empty(this.items) ? 0 : this.selected - max([0, this.selected - 3]) + 1
+  enddef
   def Lines(): list<string>
     final lines: list<string> = []
     const first = max([0, this.selected - 3])
     for index in range(first, min([len(this.items) - 1, first + 5]))
-      lines->add((index == this.selected ? '> ' : '  ') .. this.items[index].word
+      lines->add(this.items[index].word
         .. ' — ' .. this.items[index].description)
     endfor
     return lines

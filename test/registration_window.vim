@@ -387,3 +387,31 @@ suite.fuzzy_annotation_query_inserts_the_complete_label = (): void => {
   assert.equals(user_runtime.Get().GetSnapshot().entries[json_encode(['か', ''])][0].annotations,
     ['@verb-5-k'])
 }
+
+var annotation_rows: list<number> = []
+var annotation_lines: list<string> = []
+var annotation_group: string = ''
+def g:CaskkTestAnnotationCapture()
+  annotation_rows = []
+  for window in popup_list()
+    const buffer = winbufnr(window)
+    const lines = getbufline(buffer, 1, '$')
+    if !empty(lines) && lines[0] =~# '@verb'
+      annotation_lines = lines
+      for row in range(1, len(lines))
+        if !empty(prop_list(row, {bufnr: buffer, types: ['caskk_candidate_selected']}))
+          annotation_rows->add(row)
+        endif
+      endfor
+      annotation_group = get(prop_type_get('caskk_candidate_selected', {bufnr: buffer}), 'highlight', '')
+    endif
+  endfor
+enddef
+suite.annotation_selection_highlights_the_visible_row_after_scrolling = (): void => {
+  const fixture = Setup(false)
+  defer Cleanup(fixture)
+  feedkeys("aKas\<F3>d;@v5\<Down>\<Down>\<Down>\<Down>\<Cmd>call CaskkTestAnnotationCapture()\<CR>\<Esc>\<Esc>\<Esc>", 'xt')
+  assert.equals(annotation_rows, [4])
+  assert.equals(annotation_group, 'PmenuSel')
+  assert.equals(annotation_lines[0] =~# '^@verb', true)
+}

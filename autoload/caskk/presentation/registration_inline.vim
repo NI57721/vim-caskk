@@ -15,7 +15,7 @@ export class View
   def new()
   enddef
 
-  def ShowEditor(request: registration.Request, editor: registration_editor.Editor, message: string = '', annotation_lines: list<string> = [])
+  def ShowEditor(request: registration.Request, editor: registration_editor.Editor, message: string = '', annotation_lines: list<string> = [], annotation_selected_line: number = 0)
     const header = request is null_object ? '辞書登録'
       : '辞書登録: ' .. request.reading .. (request.okuri == '' ? '' : '*' .. request.okuri)
     final lines = [header .. '  [Enter:登録 Esc:取消]']
@@ -24,6 +24,7 @@ export class View
     const insertion = editor.Insertion()
     lines->add('登録語: ' .. prefix .. insertion .. '│' .. editor.Suffix())
     if !empty(annotation_lines)
+      selected_line = len(lines) + annotation_selected_line
       lines->extend(annotation_lines)
     elseif message !=# ''
       lines->add(message)
