@@ -194,6 +194,9 @@ Adjective stems                                        *caskk-experimental-adj*
 Verb stems                                            *caskk-experimental-verb*
     Add a tagged stem dictionary through dictionaries.  For example,
     'たべ /食べ;@verb-1-shimo-b/' converts たべ*る to 食べる.
+    Modern ichidan, kuru, suru and zuru tags accept ち for contractions such as
+    たべ*ちゃう → 食べちゃう and たべ*ちゃった → 食べちゃった.
+    'き /来;@verb-irregular-k/' similarly converts き*ちゃう to 来ちゃう.
     Its popup row shows ［verb］.
     Ichidan stems and certain complete forms also convert without okuri.
     Verb-only stems are omitted from reading completion.

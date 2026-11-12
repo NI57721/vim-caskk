@@ -431,3 +431,69 @@ suite.ichidan_stems_convert_without_okuri = (): void => {
     assert.equals(ime.GetCandidatesInfo().candidates[0].text, text .. '［verb］', reading)
   endfor
 }
+
+import 'caskk/verb_tags.vim' as verb_tags
+
+suite.ichidan_stems_accept_chau_contractions = (): void => {
+  for tag in keys(verb_tags.ENDINGS)
+    if tag !~# '^@verb-1-'
+      continue
+    endif
+    const entries = {'たべ': parser.ParseLine('たべ /食べ;' .. tag .. '/')}
+    for okuri in ['ちゃう', 'ちゃった', 'ちゃって', 'ちゃわない']
+      const prepared = conversion.Prepare(entries, state.State.new(), 'たべ', okuri)
+      assert.equals(len(prepared.candidates), 1, tag .. ': ' .. okuri)
+      assert.equals(prepared.DisplayAt(0), '食べ' .. okuri .. '［verb］')
+    endfor
+  endfor
+}
+
+suite.modified_chau_input_converts_the_registered_stem = (): void => {
+  const compiled = scheme.Compile({}, {}, [
+    scheme.SpecialDefinition.new(['x'], 'たべ'),
+    scheme.SpecialDefinition.new(['y'], 'ちゃう'),
+  ])
+  const ime = session.Session.new(compiled, '', {'たべ': parser.ParseLine('たべ /食べ;@verb-1-shimo-b/')})
+  ime.Feed('X')
+  const results = ime.Feed('Y')
+  assert.equals(results[-1].in_candidate, true)
+  assert.equals(results[-1].text, '食べちゃう')
+}
+
+suite.miru_and_kuru_accept_chau_contractions = (): void => {
+  for [reading, text, tag] in [['み', '見', '1-kami-m'], ['き', '来', 'irregular-k']]
+    const entries = {[reading]: parser.ParseLine(reading .. ' /' .. text .. ';@verb-' .. tag .. '/')}
+    for okuri in ['ちゃう', 'ちゃった', 'ちゃって', 'ちゃわない']
+      const prepared = conversion.Prepare(entries, state.State.new(), reading, okuri)
+      assert.equals(len(prepared.candidates), 1, text .. okuri)
+      assert.equals(prepared.TextAt(0), text .. okuri)
+    endfor
+  endfor
+}
+
+const GODAN_CONTRACTIONS: dict<string> = {
+  '5-k': 'いちゃう', '5-k-iku': 'っちゃう', '5-k-yuku': 'っちゃう',
+  '5-g': 'いじゃう', '5-s': 'しちゃう', '5-t': 'っちゃう',
+  '5-n': 'んじゃう', '5-b': 'んじゃう', '5-m': 'んじゃう',
+  '5-r': 'っちゃう', '5-r-aru': 'っちゃう',
+  '5-wa': 'っちゃう', '5-wa-iu': 'っちゃう', '5-wa-yuu': 'っちゃう',
+}
+
+suite.all_modern_verb_types_accept_shimau_contractions = (): void => {
+  var tested = 0
+  for tag in keys(verb_tags.ENDINGS)
+    if tag =~# '^@verb-classical-'
+      continue
+    endif
+    const short_tag = strpart(tag, strlen('@verb-'))
+    const ending = get(GODAN_CONTRACTIONS, short_tag, 'ちゃう')
+    const entries = {'よ': parser.ParseLine('よ /語;' .. tag .. '/')}
+    for okuri in [ending, substitute(ending, 'う$', 'った', ''), substitute(ending, 'う$', 'わない', '')]
+      const prepared = conversion.Prepare(entries, state.State.new(), 'よ', okuri)
+      assert.equals(len(prepared.candidates), 1, tag .. ': ' .. okuri)
+      assert.equals(prepared.TextAt(0), '語' .. okuri)
+    endfor
+    tested += 1
+  endfor
+  assert.equals(tested, 40)
+}
