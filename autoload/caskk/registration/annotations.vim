@@ -22,7 +22,7 @@ def Describe(tag: string): string
   name = substitute(name, '\<4-', '四段 ', '')
   name = substitute(name, 'irregular-', '変格 ', '')
   const rows = {a: 'ア行', k: 'カ行', g: 'ガ行', s: 'サ行', z: 'ザ行', t: 'タ行',
-    d: 'ダ行', n: 'ナ行', h: 'ハ行', b: 'バ行', m: 'マ行', r: 'ラ行', y: 'ヤ行', w: 'ワ行', wa: 'ワ行'}
+    d: 'ダ行', n: 'ナ行', h: 'ハ行', b: 'バ行', m: 'マ行', r: 'ラ行', y: 'ヤ行', w: 'ワ行'}
   final parts = split(name, ' ')
   const ending = split(parts[-1], '-')
   parts[-1] = get(rows, ending[0], ending[0])
