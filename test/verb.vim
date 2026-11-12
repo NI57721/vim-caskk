@@ -49,7 +49,7 @@ suite.godan_sound_changes_and_irregular_types_are_distinct = (): void => {
   for [tag, allowed, rejected] in [
     ['5-k', 'い', 'っ'], ['5-k-iku', 'っ', 'い'], ['5-k-yuku', 'っ', 'い'],
     ['5-g', 'い', 'っ'], ['5-m', 'ん', 'っ'], ['5-r-aru', 'い', 'ん'],
-    ['5-wa', 'っ', 'ん'], ['5-wa-iu', 'う', 'ん'], ['5-wa-yuu', 'う', 'ん'],
+    ['5-w', 'っ', 'ん'], ['5-w-iu', 'う', 'ん'], ['5-w-yuu', 'う', 'ん'],
     ['1-shimo-r-kureru', 'れ', 'ろ'], ['1-shimo-r', 'ろ', 'ぱ'],
     ['irregular-k', 'こ', 'せ'], ['irregular-k', 'る', 'ぱ'], ['irregular-k', 'た', 'ぱ'], ['irregular-s', 'せ', 'こ'], ['irregular-z', 'じ', 'し'],
     ['classical-2-kami-k', 'き', 'け'], ['classical-2-shimo-k', 'け', 'き'],
@@ -102,9 +102,9 @@ suite.all_78_types_accept_their_terminal_connection_and_reject_unrelated_kana = 
     ['5-m', 'む'],
     ['5-r', 'る'],
     ['5-r-aru', 'る'],
-    ['5-wa', 'う'],
-    ['5-wa-iu', 'う'],
-    ['5-wa-yuu', 'う'],
+    ['5-w', 'う'],
+    ['5-w-iu', 'う'],
+    ['5-w-yuu', 'う'],
     ['1-kami-a', 'る'],
     ['1-kami-k', 'る'],
     ['1-kami-g', 'る'],
@@ -212,7 +212,7 @@ suite.plain_user_and_indexed_sources_survive_snapshot_copying = (): void => {
 }
 
 suite.experimental_ranking_tracks_markers_and_explicit_choices = (): void => {
-  const entry = parser.ParseLine('かな /仮名;@adj/叶;@verb-5-wa/適;@adj @verb-5-wa/')
+  const entry = parser.ParseLine('かな /仮名;@adj/叶;@verb-5-w/適;@adj @verb-5-w/')
   const entries = {'かな': entry}
   const preferences = state.State.new()
   const initial = conversion.Prepare(entries, preferences, 'かな', 'い')
@@ -321,7 +321,7 @@ suite.selection_returns_plain_text_but_popup_info_keeps_the_marker = (): void =>
 
 
 suite.iu_stem_accepts_sokuon_from_system_and_user_entries = (): void => {
-  const entry = parser.ParseLine('い /言;@verb-5-wa-iu/')
+  const entry = parser.ParseLine('い /言;@verb-5-w-iu/')
   for from_user in [false, true]
     const preferences = state.State.new()
     if from_user
@@ -338,7 +338,7 @@ suite.iu_stem_accepts_sokuon_from_system_and_user_entries = (): void => {
 
 suite.modified_i_then_l_selects_itta_without_marking_buffer_text = (): void => {
   const compiled = scheme.Compile({l: 'T'}, {i: 'i'})
-  const entries = {'い': parser.ParseLine('い /言;@verb-5-wa-iu/')}
+  const entries = {'い': parser.ParseLine('い /言;@verb-5-w-iu/')}
   const ime = session.Session.new(compiled, '', entries)
   ime.Feed('I')
   const results = ime.Feed('L')
@@ -392,7 +392,7 @@ suite.deleting_a_registered_stem_preserves_its_system_source = (): void => {
 
 
 suite.yuu_stem_accepts_sokuon_from_system_and_user_entries = (): void => {
-  const entry = parser.ParseLine('ゆ /言;@verb-5-wa-yuu/')
+  const entry = parser.ParseLine('ゆ /言;@verb-5-w-yuu/')
   for from_user in [false, true]
     const preferences = state.State.new()
     if from_user
@@ -409,7 +409,7 @@ suite.yuu_stem_accepts_sokuon_from_system_and_user_entries = (): void => {
 
 suite.yu_sokuon_input_selects_itta = (): void => {
   const compiled = scheme.Compile({l: 'T'}, {}, [scheme.SpecialDefinition.new(['y'], 'ゆ')])
-  const entries = {'ゆ': parser.ParseLine('ゆ /言;@verb-5-wa-yuu/')}
+  const entries = {'ゆ': parser.ParseLine('ゆ /言;@verb-5-w-yuu/')}
   const ime = session.Session.new(compiled, '', entries)
   ime.Feed('Y')
   const results = ime.Feed('L')
@@ -476,7 +476,7 @@ const GODAN_CONTRACTIONS: dict<string> = {
   '5-g': 'いじゃう', '5-s': 'しちゃう', '5-t': 'っちゃう',
   '5-n': 'んじゃう', '5-b': 'んじゃう', '5-m': 'んじゃう',
   '5-r': 'っちゃう', '5-r-aru': 'っちゃう',
-  '5-wa': 'っちゃう', '5-wa-iu': 'っちゃう', '5-wa-yuu': 'っちゃう',
+  '5-w': 'っちゃう', '5-w-iu': 'っちゃう', '5-w-yuu': 'っちゃう',
 }
 
 suite.all_modern_verb_types_accept_shimau_contractions = (): void => {

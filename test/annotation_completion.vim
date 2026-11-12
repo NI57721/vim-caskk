@@ -38,3 +38,11 @@ suite.fuzzy_matching_keeps_input_order_and_catalog_order = (): void => {
   assert.equals(annotations.Matches('@v.5'), [])
   assert.equals(annotations.Matches('@V5'), [])
 }
+
+suite.w_row_tags_use_w_and_describe_their_variants = (): void => {
+  const items = annotations.Matches('@verb-5-w')
+  assert.equals(mapnew(items, (_, item) => item.word),
+    ['@verb-5-w', '@verb-5-w-iu', '@verb-5-w-yuu'])
+  assert.equals(mapnew(items, (_, item) => item.description),
+    ['五段ワ行', '五段ワ行（言う）', '五段ワ行（言う（ゆう））'])
+}

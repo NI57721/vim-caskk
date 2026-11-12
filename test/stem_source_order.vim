@@ -34,7 +34,7 @@ suite.tiers_and_learning_apply_across_candidate_kinds = (): void => {
 }
 
 suite.annotated_candidates_keep_their_order_within_a_dictionary = (): void => {
-  const database = index.Database.new([index.SourceFromLines(['かな /叶;@verb-5-wa/仮名;@adj/'])])
+  const database = index.Database.new([index.SourceFromLines(['かな /叶;@verb-5-w/仮名;@adj/'])])
   const prepared = conversion.Prepare({}, state.State.new(), 'かな', 'い', true, database)
   assert.equals(mapnew(prepared.candidates, (_, candidate) => candidate.text), ['叶', '仮名'])
 }
