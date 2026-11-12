@@ -444,7 +444,7 @@ suite.typing_after_a_selected_completion_commits_then_starts_new_input = (): voi
   assert.equals(getline(1), '前仮名後')
 }
 
-suite.experimental_adjective_marker_is_removed_on_commit_and_undo = (): void => {
+suite.adjective_label_stays_in_popup_while_commit_and_undo_keep_plain_text = (): void => {
   const source = tempname()
   defer delete(source)
   writefile(['かな /仮名;@adj/'], source)
@@ -458,7 +458,7 @@ suite.experimental_adjective_marker_is_removed_on_commit_and_undo = (): void => 
   assert.equals(getline(1), '前かない後')
 }
 
-suite.experimental_verb_marker_is_removed_on_commit_and_undo = (): void => {
+suite.verb_label_stays_in_popup_while_commit_and_undo_keep_plain_text = (): void => {
   const source = tempname()
   defer delete(source)
   writefile([';; okuri-ari entries.', ';; okuri-nasi entries.', 'かな /仮名;@verb-5-k/'], source)

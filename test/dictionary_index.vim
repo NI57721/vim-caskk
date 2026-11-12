@@ -67,7 +67,7 @@ suite.sectionless_dictionary_uses_the_existing_unsorted_lookup_behavior = (): vo
   assert.equals(CandidateTexts(database.Lookup(lookup.CreateQuery('か', ''))), ['蚊'])
 }
 
-suite.incremental_builder_matches_the_synchronous_index_across_small_steps = (): void => {
+suite.small_step_builder_preserves_okuri_and_plain_section_entries = (): void => {
   const lines = [';; okuri-ari entries.', 'こk /濃/', 'malformed row', 'かk /書/', 'あk /明/',
     ';; okuri-nasi entries.', 'あ /亜/', 'か /蚊/', 'こ /個/']
   const builder = dict_index.Builder.new(lines)
@@ -76,9 +76,7 @@ suite.incremental_builder_matches_the_synchronous_index_across_small_steps = ():
     builder.Step(2)
   endwhile
   const database = dict_index.Database.new([builder.Result()])
-  const synchronous = dict_index.Database.new([dict_index.SourceFromLines(lines)])
-  assert.equals(CandidateTexts(database.Lookup(lookup.CreateQuery('か', 'く'))),
-    CandidateTexts(synchronous.Lookup(lookup.CreateQuery('か', 'く'))))
+  assert.equals(CandidateTexts(database.Lookup(lookup.CreateQuery('か', 'く'))), ['書'])
   assert.equals(CandidateTexts(database.Lookup(lookup.CreateQuery('か', ''))), ['蚊'])
 }
 
@@ -111,7 +109,7 @@ suite.duplicates_across_ignored_rows_preserve_candidates_in_both_sections = (): 
   endfor
 }
 
-suite.section_boundaries_are_ready_after_one_scan = (): void => {
+suite.small_dictionary_section_boundaries_finish_within_one_step = (): void => {
   const lines = [';; okuri-ari entries.', 'かk /書/', ';; okuri-nasi entries.', 'か /蚊/']
   const builder = dict_index.Builder.new(lines)
   builder.Step(len(lines))

@@ -72,7 +72,7 @@ suite.explicit_source_encoding_is_used_by_public_conversion = (): void => {
   assert.equals(getline(1), '前仮名後')
 }
 
-suite.configuration_loads_eagerly_and_does_not_retain_source_containers = (): void => {
+suite.small_dictionary_is_ready_after_config_and_does_not_retain_source_containers = (): void => {
   const context = Setup()
   defer Cleanup(context)
   const path = tempname()

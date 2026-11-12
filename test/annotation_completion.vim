@@ -15,7 +15,7 @@ suite.catalog_covers_recognized_tags = (): void => {
   assert.equals(annotations.Matches('@unknown'), [])
 }
 
-suite.selection_wraps_and_prefix_changes_reset_focus = (): void => {
+suite.selection_wraps_and_query_changes_reset_focus = (): void => {
   const model = annotations.Completion.new()
   model.Update('@verb-5-k')
   model.Move(-1)
