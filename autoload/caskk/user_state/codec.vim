@@ -3,7 +3,8 @@ vim9script
 import 'caskk/dictionary.vim' as dictionary
 import autoload 'caskk/user_state.vim' as user_state
 
-# JSON lines of string arrays. Header: ["caskk-user-state", "1"].
+# JSON lines of string arrays. Version 2 adds ordered recent selections;
+# version 1 remains readable without inferring order between its histories.
 # Records: [kind, reading, exact_okuri, ...values]. Entry values are text,
 # then annotations; mru/demoted values are ordered texts; pin has one text.
 def Strings(line: string): list<string>
@@ -32,9 +33,11 @@ def CheckUnique(texts: list<string>)
 enddef
 
 export def Decode(lines: list<string>): user_state.Snapshot
-  if empty(lines) || Strings(lines[0]) !=# ['caskk-user-state', '1']
+  if empty(lines) || index([['caskk-user-state', '1'], ['caskk-user-state', '2']], Strings(lines[0])) < 0
     throw 'caskk: invalid user state: missing or unsupported schema header'
   endif
+  const version = str2nr(Strings(lines[0])[1])
+  final recent: dict<list<string>> = {}
   final entries: dict<list<dictionary.Candidate>> = {}
   final mru: dict<list<string>> = {}
   final pinned: dict<string> = {}
@@ -49,7 +52,19 @@ export def Decode(lines: list<string>): user_state.Snapshot
     const key = json_encode(pair)
     const kind = record[0]
     const values = record[3 :]
-    if kind ==# 'entry'
+    if kind ==# 'recent' && version == 2
+      if len(values) != 1
+        throw 'caskk: invalid user state: recent record needs one candidate'
+      endif
+      if !has_key(recent, pair[0])
+        recent[pair[0]] = []
+      endif
+      const identity = json_encode([pair[1], values[0]])
+      if index(recent[pair[0]], identity) >= 0
+        throw 'caskk: invalid user state: repeated recent selection'
+      endif
+      recent[pair[0]]->add(identity)
+    elseif kind ==# 'entry'
       if empty(values)
         throw 'caskk: invalid user state: entry has no candidate text'
       endif
@@ -89,7 +104,7 @@ export def Decode(lines: list<string>): user_state.Snapshot
       throw 'caskk: invalid user state: candidate is both pinned and demoted'
     endif
   endfor
-  return user_state.Snapshot.new(1, entries, mru, pinned, demoted)
+  return user_state.Snapshot.new(version, entries, mru, pinned, demoted, recent)
 enddef
 
 def AddOrderedRecords(lines: list<string>, kind: string, groups: dict<list<string>>)
@@ -101,10 +116,10 @@ def AddOrderedRecords(lines: list<string>, kind: string, groups: dict<list<strin
 enddef
 
 export def Encode(snapshot: user_state.Snapshot): list<string>
-  if snapshot.version != 1
+  if snapshot.version != 1 && snapshot.version != 2
     throw 'caskk: invalid user state: unsupported schema version: ' .. snapshot.version
   endif
-  final lines: list<string> = [json_encode(['caskk-user-state', '1'])]
+  final lines: list<string> = [json_encode(['caskk-user-state', string(snapshot.version)])]
   for key in sort(keys(snapshot.entries))
     const pair = Strings(key)
     CheckIdentity(pair)
@@ -119,6 +134,18 @@ export def Encode(snapshot: user_state.Snapshot): list<string>
     lines->add(json_encode(['pin'] + pair + [snapshot.pinned[key]]))
   endfor
   AddOrderedRecords(lines, 'demoted', snapshot.demoted)
+  if snapshot.version == 1 && !empty(snapshot.recent)
+    throw 'caskk: invalid user state: recent selections require schema version 2'
+  endif
+  for reading in sort(keys(snapshot.recent))
+    for identity in snapshot.recent[reading]
+      const pair = Strings(identity)
+      if len(pair) != 2
+        throw 'caskk: invalid user state: invalid recent selection'
+      endif
+      lines->add(json_encode(['recent', reading, pair[0], pair[1]]))
+    endfor
+  endfor
   # Apply the same structural validation to snapshots supplied by callers.
   Decode(lines)
   return lines

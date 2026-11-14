@@ -83,6 +83,11 @@ SaveState()                                            *caskk-save-state*
     Saves user entries and preferences to state_path.  Both LoadState() and
     SaveState() require a nonempty path.  The state file is internal data;
     use ExportUserDictionary() for an SKK dictionary.
+    Saves schema v2 and accepts v1 files.  V2 retains a reading-wide selection
+    order across ordinary and tagged stem candidates, while ordinary learning
+    stays scoped to exact okuri and stem learning is shared across endings.
+    Legacy histories retain their former tie-breaking until new selections.
+    Pinned and demoted tiers always take precedence over automatic learning.
 
 ExportUserDictionary(path)                  *caskk-export-user-dictionary*
     Exports registered user entries as a UTF-8 SKK dictionary.  Learning and

@@ -187,15 +187,16 @@ class RankedRow
   const candidate: dictionary.Candidate
   const marker: string
   const tier: number
+  const recent: number
   const history: number
   const source: number
   const position: number
-  def new(this.candidate, this.marker, this.tier, this.history, this.source, this.position)
+  def new(this.candidate, this.marker, this.tier, this.recent, this.history, this.source, this.position)
   enddef
 endclass
 
 def CompareRows(left: RankedRow, right: RankedRow): number
-  for pair in [[left.tier, right.tier], [left.history, right.history],
+  for pair in [[left.tier, right.tier], [left.recent, right.recent], [left.history, right.history],
       [left.source, right.source], [left.position, right.position]]
     if pair[0] != pair[1]
       return pair[0] < pair[1] ? -1 : 1
@@ -269,10 +270,12 @@ export def Prepare(entries: dict<dictionary.Entry>, preferences: user_state.Stat
     const preference_query = is_stem ? stem_query : query
     const tier_name = preferences.GetCandidateTier(preference_query, candidate.text)
     const tier = tier_name ==# 'pinned' ? 0 : tier_name ==# 'demoted' ? 2 : 1
+    const recent_index = preferences.RecentIndex(preference_query, candidate.text)
+    const recent = tier == 1 && recent_index >= 0 ? recent_index : 2147483647
     const learned = preferences.HistoryIndex(preference_query, candidate.text)
     const history = tier == 1 && learned >= 0 ? learned : 2147483647
     rows->add(RankedRow.new(candidate, is_stem ? markers[position - len(ranked)] : '',
-      tier, history, get(source_ranks, json_encode([is_stem, candidate.text]), len(sources)),
+      tier, recent, history, get(source_ranks, json_encode([is_stem, candidate.text]), len(sources)),
       get(source_positions, json_encode([is_stem, candidate.text]), position)))
   endfor
   sort(rows, CompareRows)

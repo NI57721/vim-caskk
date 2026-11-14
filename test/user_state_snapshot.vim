@@ -17,7 +17,7 @@ enddef
 
 suite.empty_snapshot_has_a_schema_version_and_clears_existing_state = (): void => {
   const empty = user_state.State.new().GetSnapshot()
-  assert.equals(empty.version, 1)
+  assert.equals(empty.version, 2)
   assert.equals(empty.entries, {})
   assert.equals(empty.mru, {})
   assert.equals(empty.pinned, {})
@@ -93,7 +93,7 @@ suite.unsupported_schema_version_is_rejected_without_changing_state = (): void =
   state.Pin(query, '漢字')
   state.Demote(query, '幹事')
   const before = state.GetSnapshot()
-  for version in [0, 2]
+  for version in [0, 99]
     var caught = ''
     try
       state.Restore(user_state.Snapshot.new(version, {}, {}, {}, {}))

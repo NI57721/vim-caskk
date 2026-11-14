@@ -44,7 +44,7 @@ suite.successive_saves_replace_the_whole_file = (): void => {
   source.AddEntry(lookup.CreateQuery('かんじ', ''), dictionary.Candidate.new('漢字', []))
   store.Save(path, source.GetSnapshot())
   store.Save(path, user_state.State.new().GetSnapshot())
-  assert.equals(codec.Encode(store.Load(path)), ['["caskk-user-state","1"]'])
+  assert.equals(codec.Encode(store.Load(path)), ['["caskk-user-state","2"]'])
   assert.equals(readdir(directory), ['state.jsonl'])
 }
 
@@ -83,7 +83,7 @@ suite.invalid_snapshot_does_not_replace_existing_file_or_leave_temporary_files =
   writefile(['original'], path)
   var caught = ''
   try
-    store.Save(path, user_state.Snapshot.new(2, {}, {}, {}, {}))
+    store.Save(path, user_state.Snapshot.new(99, {}, {}, {}, {}))
   catch
     caught = v:exception
   endtry

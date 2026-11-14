@@ -163,7 +163,7 @@ suite.empty_registration_is_rejected_without_consuming_the_request = (): void =>
     caught = v:exception
   endtry
   assert.equals(caught, 'caskk: registered candidate text must not be empty')
-  assert.equals(codec.Encode(preferences.GetSnapshot()), ['["caskk-user-state","1"]'])
+  assert.equals(codec.Encode(preferences.GetSnapshot()), ['["caskk-user-state","2"]'])
   assert.equals(ime.GetSnapshot().reading, 'か')
   assert.equals(ime.Register(dictionary.Candidate.new('蚊', [])).text, '蚊')
 }
