@@ -167,5 +167,5 @@ suite.empty_candidates_cannot_start_selection = (): void => {
   endtry
   assert.equals(caught, 'caskk: cannot select from empty conversion candidates')
   assert.equals(prepared.query.reading, 'みとうろく')
-  assert.equals(codec.Encode(preferences.GetSnapshot()), ['["caskk-user-state","1"]'])
+  assert.equals(codec.Encode(preferences.GetSnapshot()), ['["caskk-user-state","2"]'])
 }

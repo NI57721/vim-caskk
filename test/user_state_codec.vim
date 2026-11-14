@@ -7,7 +7,7 @@ import autoload 'caskk/user_state/codec.vim' as codec
 
 final suite = themis#suite('user state codec')
 const assert = themis#helper('assert')
-const HEADER = '["caskk-user-state","1"]'
+const HEADER = '["caskk-user-state","2"]'
 
 def Reject(lines: list<string>)
   var caught = ''
@@ -22,7 +22,7 @@ enddef
 suite.empty_state_has_an_explicit_header = (): void => {
   assert.equals(codec.Encode(user_state.State.new().GetSnapshot()), [HEADER])
   const snapshot = codec.Decode([HEADER])
-  assert.equals(snapshot.version, 1)
+  assert.equals(snapshot.version, 2)
   assert.equals(snapshot.entries, {})
   assert.equals(snapshot.mru, {})
   assert.equals(snapshot.pinned, {})
@@ -88,11 +88,11 @@ suite.missing_or_unsupported_header_is_rejected = (): void => {
   Reject([])
   Reject(['["other","1"]'])
   Reject(['["caskk-user-state","0"]'])
-  Reject(['["caskk-user-state","2"]'])
+  Reject(['["caskk-user-state","99"]'])
   Reject(['["caskk-user-state",1]'])
   var caught = ''
   try
-    codec.Encode(user_state.Snapshot.new(2, {}, {}, {}, {}))
+    codec.Encode(user_state.Snapshot.new(99, {}, {}, {}, {}))
   catch
     caught = v:exception
   endtry
@@ -117,4 +117,32 @@ suite.duplicate_records_and_conflicting_tiers_are_rejected = (): void => {
   Reject([HEADER, '["demoted","い","く","行","行"]'])
   Reject([HEADER, '["pin","い","く","行"]', '["demoted","い","く","行"]'])
   Reject([HEADER, '["demoted","い","く","行"]', '["pin","い","く","行"]'])
+}
+
+
+suite.version_one_keeps_legacy_history_until_new_selections = (): void => {
+  const old = codec.Decode(['["caskk-user-state","1"]', '["mru","ぎ","っ","切"]'])
+  const state = user_state.State.new()
+  state.Restore(old)
+  const query = lookup.CreateQuery('ぎ', 'っ')
+  assert.equals(state.HistoryIndex(query, '切'), 0)
+  assert.equals(state.RecentIndex(query, '切'), -1)
+  state.Learn(lookup.CreateQuery('ぎ', ''), '登録')
+  state.Learn(query, '切')
+  assert.equals(state.RecentIndex(query, '切'), 0)
+  assert.equals(state.RecentIndex(lookup.CreateQuery('ぎ', ''), '登録'), 1)
+  const restored = user_state.State.new()
+  restored.Restore(codec.Decode(codec.Encode(state.GetSnapshot())))
+  assert.equals(restored.GetSnapshot().recent, state.GetSnapshot().recent)
+}
+
+suite.recent_records_validate_identity_and_preserve_selection_order = (): void => {
+  const records = [HEADER, '["recent","ぎ","","登録"]', '["recent","ぎ","っ","切"]']
+  assert.equals(codec.Encode(codec.Decode(records)), records)
+  for bad in ['["recent","ぎ","っ"]', '["recent","ぎ","っ","切","登録"]',
+      '["recent","ぎ","った","切"]', '["recent","ぎ","",1]']
+    Reject([HEADER, bad])
+  endfor
+  Reject([HEADER, records[1], records[1]])
+  Reject(['["caskk-user-state","1"]', records[1]])
 }

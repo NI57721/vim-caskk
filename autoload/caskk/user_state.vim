@@ -10,7 +10,7 @@ def Identity(query: dictionary.Query): string
   return json_encode([query.reading, query.exact_okuri])
 enddef
 
-const SCHEMA_VERSION = 1
+const SCHEMA_VERSION = 2
 
 def CopyEntries(entries: dict<list<dictionary.Candidate>>): dict<list<dictionary.Candidate>>
   final copied: dict<list<dictionary.Candidate>> = {}
@@ -29,9 +29,11 @@ export class Snapshot
   const entries: dict<list<dictionary.Candidate>>
   const mru: dict<list<string>>
   const pinned: dict<string>
+  const recent: dict<list<string>>
   const demoted: dict<list<string>>
 
-  def new(this.version, entries: dict<list<dictionary.Candidate>>, mru: dict<list<string>>, pinned: dict<string>, demoted: dict<list<string>>)
+  def new(this.version, entries: dict<list<dictionary.Candidate>>, mru: dict<list<string>>, pinned: dict<string>, demoted: dict<list<string>>, recent: dict<list<string>> = {})
+    this.recent = deepcopy(recent)
     this.entries = CopyEntries(entries)
     this.mru = deepcopy(mru)
     this.pinned = copy(pinned)
@@ -45,13 +47,14 @@ export class State
   var _mru: dict<list<string>> = {}
   var _pinned: dict<string> = {}
   var _demoted: dict<list<string>> = {}
+  var _recent: dict<list<string>> = {}
   var _revision: number = 0
 
   def new()
   enddef
 
   def GetSnapshot(): Snapshot
-    return Snapshot.new(SCHEMA_VERSION, this._entries, this._mru, this._pinned, this._demoted)
+    return Snapshot.new(SCHEMA_VERSION, this._entries, this._mru, this._pinned, this._demoted, this._recent)
   enddef
 
   # Completion reads one registered identity at a time, guarded by Revision().
@@ -68,6 +71,11 @@ export class State
     return index(get(this._mru, Identity(query), []), text)
   enddef
 
+  # A reading-wide order compares selections across exact-okuri histories.
+  def RecentIndex(query: dictionary.Query, text: string): number
+    return index(get(this._recent, query.reading, []), json_encode([query.exact_okuri, text]))
+  enddef
+
   def RankCandidates(query: dictionary.Query, candidates: list<dictionary.Candidate>): list<dictionary.Candidate>
     const key = Identity(query)
     return ranking.Rank(candidates, get(this._pinned, key, ''),
@@ -79,7 +87,7 @@ export class State
   enddef
 
   def Restore(snapshot: Snapshot)
-    if snapshot.version != SCHEMA_VERSION
+    if snapshot.version != 1 && snapshot.version != SCHEMA_VERSION
       throw 'caskk: unsupported user state schema version: ' .. snapshot.version
     endif
     # Copy everything before replacing the current state.
@@ -87,6 +95,8 @@ export class State
     final mru = deepcopy(snapshot.mru)
     final pinned = copy(snapshot.pinned)
     final demoted = deepcopy(snapshot.demoted)
+    final recent = snapshot.version == 1 ? {} : deepcopy(snapshot.recent)
+    this._recent = recent
     this._entries = entries
     this._mru = mru
     this._pinned = pinned
@@ -185,9 +195,17 @@ export class State
         history->add(previous)
       endif
     endfor
-    if get(this._mru, key, []) ==# history
+    const identity = json_encode([query.exact_okuri, text])
+    final recent = [identity]
+    for previous in get(this._recent, query.reading, [])
+      if previous !=# identity
+        recent->add(previous)
+      endif
+    endfor
+    if get(this._mru, key, []) ==# history && get(this._recent, query.reading, []) ==# recent
       return
     endif
+    this._recent[query.reading] = recent
     this._mru[key] = history
     this._Changed()
   enddef
