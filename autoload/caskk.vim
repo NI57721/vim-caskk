@@ -151,7 +151,20 @@ def SaveAutomaticState()
   endif
 enddef
 
+def ReloadWrittenState(path: string)
+  if configuration.GetStateAuto() && fnamemodify(path, ':p') ==# configuration.GetStatePath()
+    try
+      user_runtime.Load(configuration.GetStatePath())
+    catch
+      echohl ErrorMsg
+      echomsg v:exception
+      echohl None
+    endtry
+  endif
+enddef
+
 augroup caskk_user_state
   autocmd!
   autocmd VimLeavePre * SaveAutomaticState()
+  autocmd BufWritePost * ReloadWrittenState(expand('<afile>:p'))
 augroup END
