@@ -256,7 +256,14 @@ dictionaries                                *caskk-config-dictionaries*
 
 state_path                                     *caskk-config-state-path*
     string, ''.  User-state file for LoadState(), SaveState(), and state_auto.
-    Parent directories are created when saving.
+    Parent directories are created when saving.  With state_auto enabled,
+    writing this file in Vim reloads its contents.  Manual edits must retain
+    the JSON Lines format; a final newline is accepted.
+    Before automatic saves (including exit), external content changes are
+    loaded instead of overwritten.  Manual edits replace the whole in-memory
+    state and take precedence over unsaved learning.  Invalid edits preserve
+    memory and stop automatic saving until a successful reload.  SaveState()
+    still explicitly writes the in-memory state.
 
 state_auto                                     *caskk-config-state-auto*
                                                       *caskk-state-auto*

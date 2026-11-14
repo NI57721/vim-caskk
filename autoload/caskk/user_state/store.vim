@@ -6,7 +6,11 @@ import autoload 'caskk/user_state/codec.vim' as codec
 # Decode fully before the caller can replace its current state with Restore().
 export def Load(path: string): user_state.Snapshot
   try
-    const lines = blob2str(readblob(path), {encoding: 'utf-8'})
+    final lines = blob2str(readblob(path), {encoding: 'utf-8'})
+    # Text editors normally terminate the last record with a newline.
+    if !empty(lines) && lines[-1] == ''
+      lines->remove(-1)
+    endif
     return codec.Decode(lines)
   catch
     throw 'caskk: cannot load user state: ' .. path .. ': ' .. v:exception
