@@ -453,3 +453,19 @@ suite.empty_preedit_is_reading_state_without_modifier_or_conversion = (): void =
   assert.equals(ime.GetSnapshot().reading, 'か')
   assert.equals(ime.GetSnapshot().in_preedit, true)
 }
+
+suite.modified_input_restarts_reading_in_retained_empty_preedit = (): void => {
+  for [next_keys, expected] in [[[';', 'a'], 'あ'], [['A'], 'あ'], [[';', 'k', 'a'], 'か'], [['K', 'a'], 'か']]
+    const ime = session.Session.new(scheme.Compile({k: 'k'}, {a: 'a'}), ';')
+    ime.Feed(';')
+    ime.Feed('a')
+    ime.BackspacePreedit()
+    for key in next_keys
+      ime.Feed(key)
+    endfor
+    assert.equals(ime.GetSnapshot().reading, expected)
+    assert.equals(ime.GetSnapshot().okuri, '')
+    assert.equals(ime.GetSnapshot().okuri_started, false)
+    assert.equals(ime.GetSnapshot().in_preedit, true)
+  endfor
+}

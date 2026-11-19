@@ -972,3 +972,21 @@ suite.control_h_restores_the_previous_local_mapping_when_disabled = (): void => 
   keys.Disable()
   assert.equals(maparg('<C-H>', 'i', false, true), previous)
 }
+
+suite.sticky_vowel_after_deleting_the_last_reading_has_no_okuri_marker = (): void => {
+  for backspace in ["\<BS>", "\<C-H>"]
+    const context = Setup()
+    const keys = binding.Binding.new(scheme.Compile({}, {a: 'a'}), ';')
+    try
+      keys.Enable()
+      inoremap <buffer> <F12> <ScriptCmd>CapturePendingBuffer()<CR>
+      feedkeys("a;a" .. backspace .. ";a\<F12>\<Esc>", 'xt')
+      assert.equals(g:caskk_pending_snapshot, '前あ後')
+      assert.equals(g:caskk_pending_has_okuri_marker, false)
+      assert.equals(empty(g:caskk_pending_properties), false)
+    finally
+      keys.Disable()
+      Cleanup(context)
+    endtry
+  endfor
+}

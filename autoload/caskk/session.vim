@@ -173,7 +173,10 @@ export class Session
             !this._state.in_preedit && matched.events[0].modified, matched.events[0].key, '', false), auto_convert))
           continue
         endif
-        var composed = composer.Compose(matched, this._state.in_preedit)
+        # Retained empty Preedit starts a fresh reading, not an okuri suffix.
+        const has_reading_context = this._state.in_preedit
+          && (this._state.reading != '' || this._state.okuri_started)
+        var composed = composer.Compose(matched, has_reading_context)
         if this._direct_input_continuation && !this._state.in_preedit
           composed = composition.Result.new(false, composed.reading, composed.okuri,
             composed.okuri_started)

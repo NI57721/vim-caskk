@@ -213,6 +213,8 @@ keep_preedit_on_backspace       *caskk-config-keep-preedit-on-backspace*
     bool, true.  BS deleting the last reading item keeps empty Modified input.
     Another BS cancels it without deleting confirmed text.  Set false to end
     preedit as soon as the last item is deleted.
+    Modified input in empty preedit starts a new reading, not okuri:
+    ;a<BS>;a produces あ without an okuri boundary.
 
 undo_revert_to_reading              *caskk-config-undo-revert-to-reading*
     bool, true.  Undo after conversion restores the reading; another removes
