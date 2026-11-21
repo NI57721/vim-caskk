@@ -199,3 +199,81 @@ suite.unknown_scheme_name_reports_an_error = (): void => {
   endtry
   assert.equals(caught, 'caskk: unknown input scheme: public-missing')
 }
+
+def TypeText(name: string, keys: string): string
+  const ime = session.Session.new(Caskk.GetInputScheme(name))
+  var text = ''
+  for key in split(keys, '\zs')
+    for result in ime.Feed(key == ' ' ? '<Space>' : key)
+      text ..= result.text
+    endfor
+  endfor
+  for result in ime.Commit()
+    text ..= result.text
+  endfor
+  return text
+enddef
+
+suite.roman_is_available_without_registration = (): void => {
+  for [keys, expected] in [
+    ['aiueo', 'あいうえお'], ['nihongo', 'にほんご'], ['kanji', 'かんじ'],
+    ["kon'nichiha", 'こんにちは'], ['nn', 'ん'], ["n'ya", 'んや'], ['n', 'ん'],
+    ['kya', 'きゃ'], ['ssya', 'っしゃ'], ['kkka', 'っっか'], ['ccha', 'っちゃ'],
+    ['shi', 'し'], ['chi', 'ち'], ['tsu', 'つ'], ['fu', 'ふ'], ['ji', 'じ'],
+    ['kyi', 'き'], ['nyi', 'に'], ['dhi', 'でぃ'], ['tha', 'てゃ'],
+    ['xtu', 'っ'], ['xtsu', 'っ'], ['ltu', 'っ'], ['ltsu', 'っ'],
+    ['lalyalwa', 'ぁゃゎ'], ['xwixwe', 'ぃぇ'], ['whu', 'う'],
+    ['.,-;[]', '。、ー；「」']]
+    assert.equals(TypeText('roman', keys), expected, keys)
+  endfor
+  const ime = session.Session.new(Caskk.GetInputScheme('roman'))
+  assert.equals(ime.Feed('n'), [])
+  assert.equals(ime.Feed('a')[0].text, 'な')
+}
+
+suite.roman_base_merges_each_map_and_deletes_inherited_rules = (): void => {
+  Caskk.RegisterInputScheme({name: 'roman-custom', base: 'roman',
+    consonants: {K: 's', kk: v:null}, combinations: {i: 'a'},
+    specials: {'.': v:null, zh: '左'}})
+  assert.equals(TypeText('roman-custom', 'ka'), 'さ')
+  assert.equals(TypeText('roman-custom', 'ki'), 'さ')
+  assert.equals(TypeText('roman-custom', 'shi'), 'しゃ')
+  assert.equals(TypeText('roman-custom', 'kka'), 'kさ')
+  assert.equals(TypeText('roman-custom', '.zh'), '.左')
+  assert.equals(TypeText('roman', 'kika.'), 'きか。')
+  Caskk.RegisterInputScheme({name: 'roman-custom', base: 'roman', specials: {ka: '蚊'}})
+  assert.equals(TypeText('roman-custom', 'ki.ka'), 'き。蚊')
+  Caskk.RegisterInputScheme({name: 'roman-minimal', base: 'roman'})
+  assert.equals(TypeText('roman-minimal', 'kanji'), 'かんじ')
+}
+
+suite.invalid_roman_customization_preserves_previous_registration = (): void => {
+  Caskk.RegisterInputScheme({name: 'roman-atomic', base: 'roman'})
+  for override in [
+    {base: 1}, {base: 'missing'}, {base: 'roman', consonants: []},
+    {base: 'roman', consonants: {k: 1}}, {base: 'roman', consonants: {k: 'invalid'}},
+    {base: 'roman', consonants: {k: 'k', K: 's'}},
+    {base: 'roman', combinations: {a: 'a', A: 'i'}},
+    {base: 'roman', specials: {ka: 'か*け*る'}},
+    {base: 'roman', combinations: {a: 'ak'}}]
+    var caught = ''
+    try
+      Caskk.RegisterInputScheme(extend({name: 'roman-atomic'}, override))
+    catch
+      caught = v:exception
+    endtry
+    assert.equals(caught != '', true, string(override))
+    assert.equals(TypeText('roman-atomic', 'ka'), 'か')
+  endfor
+}
+
+
+suite.roman_omits_optional_special_spellings_and_symbols = (): void => {
+  const keys = mapnew(Caskk.GetInputScheme('roman').specials, (_, rule) => join(rule.keys, ''))
+  for key in ['kyi', 'gyi', 'syi', 'zyi', 'tyi', 'dyi', 'hyi', 'byi', 'pyi', 'myi', 'ryi', 'jyi', 'cyi',
+      'xka', 'xke', 'lka', 'lke', 'xwi', 'xwe', 'lwi', 'lwe',
+      'z(', 'z)', 'z,', 'z-', 'z.', 'z/', 'z[', 'z]', 'z<Space>', 'zh', 'zj', 'zk', 'zl',
+      'fya', 'fyi', 'fyu', 'fye', 'fyo', 'tha']
+    assert.equals(index(keys, key), -1, key)
+  endfor
+}

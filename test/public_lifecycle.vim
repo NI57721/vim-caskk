@@ -184,3 +184,27 @@ suite.specials_override_normal_rules_and_user_mappings_are_restored = (): void =
   Caskk.Disable()
   assert.equals(maparg('<Space>', 'i'), '旧')
 }
+
+suite.builtin_roman_converts_nasal_and_sokuon_input_without_registration = (): void => {
+  const source = tempname()
+  defer delete(source)
+  writefile(['にほん /日本/', 'いt /行/'], source)
+  for [keys, expected, reading] in [['Nihon ', '日本', 'にほん'], ['ITta', '行った', 'いった']]
+    const context = Setup()
+    try
+      Caskk.Config({dictionaries: [source], candidate_popup: false,
+        mappings: {"\<Space>": 'Convert', "\<F10>": 'Commit'}})
+      Caskk.Enable('roman')
+      feedkeys('a' .. keys .. "\<F10>\<Esc>", 'xt')
+      assert.equals(getline(1), '前' .. expected .. '後')
+      normal! u
+      assert.equals(getline(1), '前' .. reading .. '後')
+      normal! u
+      assert.equals(getline(1), '前後')
+    finally
+      Caskk.Disable()
+      Caskk.Config({})
+      Cleanup(context)
+    endtry
+  endfor
+}

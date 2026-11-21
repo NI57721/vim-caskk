@@ -683,3 +683,16 @@ suite.retained_sokuon_row_extends_and_backspaces_as_physical_input = (): void =>
   assert.equals(engine.Backspace(), true)
   assert.equals(engine.Feed(input.Event.new('a'))[0].output.text, 'か')
 }
+
+suite.special_continuation_does_not_capture_an_action_after_a_shorter_match = (): void => {
+  const compiled = scheme.Compile({}, {}, [scheme.SpecialDefinition.new(['n'], 'ん'),
+    scheme.SpecialDefinition.new(['n', 'a'], 'な'),
+    scheme.SpecialDefinition.new(['z', '<Space>'], '　')])
+  const engine = composer.Composer.new(compiled)
+  engine.Feed(input.Event.new('n'))
+  assert.equals(engine.IsSpecialContinuation('<Space>'), false)
+  assert.equals(engine.IsSpecialContinuation('a'), true)
+  const symbol = composer.Composer.new(compiled)
+  symbol.Feed(input.Event.new('z'))
+  assert.equals(symbol.IsSpecialContinuation('<Space>'), true)
+}

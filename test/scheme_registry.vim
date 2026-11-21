@@ -135,3 +135,11 @@ suite.registration_does_not_retain_source_containers = (): void => {
   assert.equals(compiled.specials[0].keys, ['k', 'a'])
   assert.equals(compiled.specials[0].output.text, '特別')
 }
+
+suite.builtin_roman_is_independent_in_each_registry = (): void => {
+  const first = registry.Registry.new()
+  const second = registry.Registry.new()
+  first.Register('roman', {k: 'n'}, {a: 'a'})
+  assert.equals(ComposeInput(first.Get('roman').table, 'k', 'a').reading, 'な')
+  assert.equals(ComposeInput(second.Get('roman').table, 'k', 'a').reading, 'か')
+}

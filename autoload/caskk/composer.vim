@@ -155,7 +155,8 @@ export class Composer
     endfor
     keys->add(key)
     const match = special.Match(this._rules, keys)
-    return empty(match.replay) && (match.output isnot null_object || !empty(match.pending))
+    return empty(match.replay) && empty(match.rest)
+      && (match.output isnot null_object || !empty(match.pending))
   enddef
 
   def _HasConsonantPrefix(events: list<input.Event>): bool

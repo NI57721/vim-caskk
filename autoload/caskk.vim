@@ -3,6 +3,7 @@ vim9script
 import autoload 'caskk/config.vim' as configuration
 import autoload 'caskk/scheme.vim' as scheme
 import autoload 'caskk/scheme/registry.vim' as registry
+import autoload 'caskk/scheme/roman.vim' as roman
 import autoload 'caskk/binding.vim' as binding
 import autoload 'caskk/commandline.vim' as commandline
 import autoload 'caskk/user_state/runtime.vim' as user_runtime
@@ -11,12 +12,32 @@ import 'caskk/registration.vim' as registration
 
 const schemes = registry.Registry.new()
 
-def ReadSchemeMap(definition: dict<any>, field: string): dict<string>
+def ReadSchemeMap(definition: dict<any>, field: string,
+    defaults: dict<string> = {}, inherit: bool = false): dict<string>
+  if inherit && !has_key(definition, field)
+    return copy(defaults)
+  endif
   if !has_key(definition, field) || type(definition[field]) != v:t_dict
     throw 'caskk: invalid input scheme: ' .. field .. ' must be a dictionary'
   endif
-  final values: dict<string> = {}
+  final values: dict<string> = copy(defaults)
+  final overridden: dict<bool> = {}
   for [key, raw_value] in items(definition[field])
+    if inherit
+      const sequence = json_encode(scheme.InputKeys(key))
+      if has_key(overridden, sequence)
+        throw 'caskk: invalid input scheme: duplicate normalized ' .. field .. ' key'
+      endif
+      overridden[sequence] = true
+      for existing in keys(values)
+        if json_encode(scheme.InputKeys(existing)) ==# sequence
+          remove(values, existing)
+        endif
+      endfor
+      if type(raw_value) == v:t_none && string(raw_value) ==# string(v:null)
+        continue
+      endif
+    endif
     if type(raw_value) != v:t_string
       throw 'caskk: invalid input scheme: ' .. field .. ' values must be strings'
     endif
@@ -28,7 +49,7 @@ enddef
 
 export def RegisterInputScheme(definition: dict<any>)
   for field in keys(definition)
-    if index(['name', 'consonants', 'combinations', 'specials'], field) < 0
+    if index(['name', 'base', 'consonants', 'combinations', 'specials'], field) < 0
       throw 'caskk: invalid input scheme: unknown field: ' .. field
     endif
   endfor
@@ -36,10 +57,23 @@ export def RegisterInputScheme(definition: dict<any>)
     throw 'caskk: invalid input scheme: name must be a string'
   endif
   const name: string = definition.name
-  const consonants = scheme.ValidateConsonants(ReadSchemeMap(definition, 'consonants'))
-  const combinations = scheme.ValidateCombinations(ReadSchemeMap(definition, 'combinations'))
-  final specials: dict<string> = has_key(definition, 'specials')
-    ? ReadSchemeMap(definition, 'specials') : {}
+  const inherit = has_key(definition, 'base')
+  final defaults: dict<dict<string>> = {consonants: {}, combinations: {}, specials: {}}
+  if inherit
+    if type(definition.base) != v:t_string
+      throw 'caskk: invalid input scheme: base must be a string'
+    endif
+    if definition.base !=# 'roman'
+      throw 'caskk: unknown base input scheme: ' .. definition.base
+    endif
+    extend(defaults, roman.Definition(), 'force')
+  endif
+  const consonants = scheme.ValidateConsonants(
+    ReadSchemeMap(definition, 'consonants', defaults.consonants, inherit))
+  const combinations = scheme.ValidateCombinations(
+    ReadSchemeMap(definition, 'combinations', defaults.combinations, inherit))
+  const specials = inherit || has_key(definition, 'specials')
+    ? ReadSchemeMap(definition, 'specials', defaults.specials, inherit) : {}
   schemes.Register(name, consonants, combinations, scheme.SpecialDefinitions(specials))
   commandline.Disable()
   binding.DisableAll()

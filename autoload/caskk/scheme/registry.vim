@@ -1,12 +1,16 @@
 vim9script
 
 import autoload 'caskk/scheme.vim' as scheme
+import autoload 'caskk/scheme/roman.vim' as roman
 
 # Registration belongs to input grammar, independently of ordinary IME settings.
 export class Registry
   var _schemes: dict<scheme.CompiledScheme> = {}
 
   def new()
+    const definition = roman.Definition()
+    this.Register('roman', definition.consonants, definition.combinations,
+      scheme.SpecialDefinitions(definition.specials))
   enddef
 
   # Compile before replacement so failed registration leaves the old entry intact.
