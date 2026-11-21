@@ -16,8 +16,9 @@ export class Result
   const output: pattern_types.OutputPattern
   const is_special: bool = false
   const is_symbol: bool = false
+  const is_prefix: bool = false
 
-  def new(this.events, this.output = v:none, this.is_special = v:none, this.is_symbol = v:none)
+  def new(this.events, this.output = v:none, this.is_special = v:none, this.is_symbol = v:none, this.is_prefix = v:none)
   enddef
 endclass
 
@@ -44,6 +45,7 @@ export class Composer
   const _rules: list<special.Rule>
   var _special_pending: list<input.Event> = []
   var _consonant: list<input.Event> = []
+  var _carried_row: string = ''
 
   def new(compiled: scheme.CompiledScheme)
     this._table = compiled.table
@@ -51,6 +53,10 @@ export class Composer
   enddef
 
   def _ConsonantKey(events: list<input.Event>): string
+    if this._carried_row != '' && len(events) == 1 && !empty(this._consonant)
+        && events[0].key ==# this._consonant[0].key
+      return events[0].key
+    endif
     var matched = ''
     for key in keys(this._table.consonants)
       const tokens = scheme.ConsonantKeys(key)
@@ -69,6 +75,36 @@ export class Composer
       endif
     endfor
     return matched
+  enddef
+
+  def _ClearConsonant()
+    this._consonant = []
+    this._carried_row = ''
+  enddef
+
+  def _Row(key: string, events: list<input.Event>): string
+    return this._carried_row != '' && len(events) == 1
+      ? this._carried_row : this._table.consonants[key]
+  enddef
+
+  def _IsSokuon(key: string, events: list<input.Event>): bool
+    return has_key(this._table.sokuon, key) && !(this._carried_row != '' && len(events) == 1)
+  enddef
+
+  # Resolve an output prefix only after longer consonant definitions are ruled out.
+  def _EmitSokuon(results: list<Result>, force: bool = false)
+    const key = this._ConsonantKey(this._consonant)
+    if key == '' || !this._IsSokuon(key, this._consonant)
+        || (!force && this._HasLongerConsonantPrefix(this._consonant))
+      return
+    endif
+    const events = this._consonant
+    const row = this._Row(key, events)
+    results->add(Result.new([this._LogicalConsonant(key, events)],
+      pattern_types.OutputPattern.new('っ', -1), false, true, true))
+    # Modified input has already been consumed by the prefix output.
+    this._consonant = [input.Event.new(events[-1].key)]
+    this._carried_row = row
   enddef
 
   def _SymbolKey(events: list<input.Event>): string
@@ -184,13 +220,14 @@ export class Composer
       const extended = this._consonant + [event]
       const extended_symbol = this._SymbolKey(extended)
       if extended_symbol != '' && !this._HasLongerConsonantPrefix(extended)
-        this._consonant = []
+        this._ClearConsonant()
         const pattern = pattern_types.OutputPattern.new(this._table.symbols[extended_symbol], -1)
         results->add(Result.new(extended, pattern, false, true))
         return
       endif
       if this._HasConsonantPrefix(extended)
-        this._consonant = extended
+        this._consonant = copy(extended)
+        this._EmitSokuon(results)
         return
       endif
 
@@ -208,9 +245,18 @@ export class Composer
       endfor
       if matched_key != '' || matched_symbol != ''
         const matched_events = this._consonant[0 : matched_length - 1]
+        const matched_row = matched_key == '' ? '' : this._Row(matched_key, matched_events)
         const buffered_events = copy(this._consonant) + [event]
         const remainder = this._consonant[matched_length : ] + [event]
-        this._consonant = []
+        if this._IsSokuon(matched_key, matched_events)
+          this._consonant = copy(matched_events)
+          this._EmitSokuon(results, true)
+          for replayed in remainder
+            this._Replay(replayed, results)
+          endfor
+          return
+        endif
+        this._ClearConsonant()
         if matched_symbol != ''
           results->add(Result.new(matched_events,
             pattern_types.OutputPattern.new(this._table.symbols[matched_symbol], -1), false, true))
@@ -223,7 +269,7 @@ export class Composer
           const combination_event = remainder[0]
           var pattern: pattern_types.OutputPattern = null_object
           try
-            pattern = kana.Generate(this._table.consonants[matched_key],
+            pattern = kana.Generate(matched_row,
               this._table.combinations[combination_event.key])
           catch
             const reason = v:exception
@@ -253,7 +299,7 @@ export class Composer
 
       const first = this._consonant[0]
       const remainder = this._consonant[1 :] + [event]
-      this._consonant = []
+      this._ClearConsonant()
       results->add(Result.new([first]))
       for replayed in remainder
         this._Replay(replayed, results)
@@ -267,6 +313,7 @@ export class Composer
       results->add(Result.new([event], pattern, false, true))
     elseif has_key(this._table.consonants, event.key)
       this._consonant = [event]
+      this._EmitSokuon(results)
     elseif this._HasConsonantPrefix([event])
       this._consonant = [event]
     elseif has_key(this._table.combinations, event.key)
@@ -368,7 +415,7 @@ export class Composer
         for unmatched in this._consonant
           results->add(Result.new([unmatched]))
         endfor
-        this._consonant = []
+        this._ClearConsonant()
       endif
       results->add(Result.new(match.events, match.output, true))
       remaining = match.rest
@@ -390,11 +437,12 @@ export class Composer
   # Explicit end of input resolves complete specials and returns unfinished keys.
   def Flush(): list<Result>
     final results = this._Process(this._special_pending, true)
+    this._EmitSokuon(results, true)
     if !empty(this._consonant)
       for unmatched in this._consonant
         results->add(Result.new([unmatched]))
       endfor
-      this._consonant = []
+      this._ClearConsonant()
     endif
     return results
   enddef
@@ -407,6 +455,9 @@ export class Composer
     endif
     if !empty(this._consonant)
       remove(this._consonant, -1)
+      if empty(this._consonant)
+        this._carried_row = ''
+      endif
       return true
     endif
     return false

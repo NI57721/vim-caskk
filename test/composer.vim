@@ -617,3 +617,69 @@ suite.combination_completes_before_flush_when_key_starts_a_special = (): void =>
   assert.equals(engine.Flush(), [])
   assert.equals(engine.Pending(), [])
 }
+
+suite.sokuon_prefix_outputs_immediately_and_retains_a_consonant = (): void => {
+  const engine = composer.Composer.new(scheme.Compile({k: 'k', kk: 'Tk'}, {a: 'a'}))
+  assert.equals(engine.Feed(input.Event.new('k')), [])
+  for count in range(1, 3)
+    const results = engine.Feed(input.Event.new('k'))
+    assert.equals(len(results), 1)
+    assert.equals(results[0].output.text, 'っ')
+    assert.equals(mapnew(engine.Pending(), (_, e) => e.key), ['k'])
+  endfor
+  assert.equals(engine.Feed(input.Event.new('a'))[0].output.text, 'か')
+  assert.equals(engine.Pending(), [])
+}
+
+suite.sokuon_prefix_keeps_its_row_without_a_matching_single_key_definition = (): void => {
+  const engine = composer.Composer.new(scheme.Compile({q: 'Tky'}, {a: 'a*iN'}))
+  assert.equals(engine.Feed(input.Event.new('q'))[0].output.text, 'っ')
+  assert.equals(engine.Feed(input.Event.new('a', true))[0].output.text, 'きゃいん')
+  engine.Feed(input.Event.new('q'))
+  assert.equals(engine.Backspace(), true)
+  assert.equals(engine.Pending(), [])
+  assert.equals(engine.Feed(input.Event.new('a'))[0].output.text, 'あいん')
+}
+
+suite.sokuon_prefix_respects_longer_consonants_and_specials = (): void => {
+  const engine = composer.Composer.new(scheme.Compile({k: 'k', kk: 'Tk', kky: 'Tky'}, {a: 'a'}))
+  engine.Feed(input.Event.new('k'))
+  assert.equals(engine.Feed(input.Event.new('k')), [])
+  assert.equals(engine.Feed(input.Event.new('y'))[0].output.text, 'っ')
+  assert.equals(engine.Feed(input.Event.new('a'))[0].output.text, 'きゃ')
+  const overridden = composer.Composer.new(scheme.Compile({k: 'k', kk: 'Tk'}, {a: 'a'},
+    [scheme.SpecialDefinition.new(['k', 'k'], '特')]))
+  overridden.Feed(input.Event.new('k'))
+  assert.equals(overridden.Feed(input.Event.new('k'))[0].output.text, '特')
+  assert.equals(overridden.Pending(), [])
+}
+
+suite.sokuon_prefix_resolves_delayed_matches_and_flushes_the_retained_key = (): void => {
+  for finish in ['a', 'flush']
+    const engine = composer.Composer.new(scheme.Compile({k: 'k', kk: 'Tk', kky: 'Tky'}, {a: 'a'}))
+    engine.Feed(input.Event.new('k'))
+    engine.Feed(input.Event.new('k'))
+    const results = finish == 'flush' ? engine.Flush() : engine.Feed(input.Event.new('a'))
+    assert.equals(results[0].output.text, 'っ')
+    if finish == 'flush'
+      assert.equals(results[1].output is null_object, true)
+      assert.equals(results[1].events[0].key, 'k')
+    else
+      assert.equals(results[1].output.text, 'か')
+    endif
+    assert.equals(engine.Pending(), [])
+  endfor
+}
+
+suite.retained_sokuon_row_extends_and_backspaces_as_physical_input = (): void => {
+  const engine = composer.Composer.new(scheme.Compile({k: 'k', kk: 'Tk', ky: 'ky'}, {a: 'a'}))
+  engine.Feed(input.Event.new('k'))
+  engine.Feed(input.Event.new('k'))
+  engine.Feed(input.Event.new('y'))
+  assert.equals(engine.Feed(input.Event.new('a'))[0].output.text, 'きゃ')
+  engine.Feed(input.Event.new('k'))
+  engine.Feed(input.Event.new('k'))
+  engine.Feed(input.Event.new('y'))
+  assert.equals(engine.Backspace(), true)
+  assert.equals(engine.Feed(input.Event.new('a'))[0].output.text, 'か')
+}

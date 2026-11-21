@@ -182,7 +182,7 @@ export class Session
           composed = composition.Result.new(false, composed.reading, composed.okuri,
             composed.okuri_started)
         endif
-        results->add(this._ApplyOutput(composed, auto_convert))
+        results->add(this._ApplyOutput(composed, auto_convert && !matched.is_prefix))
       endif
     endfor
     return results

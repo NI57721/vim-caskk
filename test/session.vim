@@ -469,3 +469,25 @@ suite.modified_input_restarts_reading_in_retained_empty_preedit = (): void => {
     assert.equals(ime.GetSnapshot().in_preedit, true)
   endfor
 }
+
+suite.sokuon_prefix_consumes_modified_input_and_keeps_okuri_pending = (): void => {
+  for keys in [['K', 'k'], ['k', 'K'], [';', 'k', 'k']]
+    const ime = session.Session.new(scheme.Compile({k: 'k', kk: 'Tk'}, {a: 'a'}), ';')
+    for key in keys
+      ime.Feed(key)
+    endfor
+    assert.equals(ime.GetSnapshot().reading, 'っ')
+    assert.equals(ime.Pending()[0].modified, false)
+    ime.Feed('a')
+    assert.equals(ime.GetSnapshot().reading, 'っか')
+    assert.equals(ime.GetSnapshot().okuri_started, false)
+  endfor
+  const ime = session.Session.new(scheme.Compile({k: 'k', kk: 'Tk'}, {a: 'a'}), ';', {}, null_object, 'か')
+  ime.Feed('K')
+  const results = ime.Feed('k')
+  assert.equals(ime.GetSnapshot().okuri, 'っ')
+  assert.equals(ime.InCandidate(), false)
+  assert.equals(results[-1].registration_requested, false)
+  ime.Feed('a')
+  assert.equals(ime.GetSnapshot().okuri, 'っか')
+}

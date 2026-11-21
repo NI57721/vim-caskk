@@ -67,6 +67,10 @@ def SpecialKeys(sequence: string): list<string>
   return InputKeys(sequence)
 enddef
 
+def IsSokuonRow(value: string): bool
+  return value =~# '^T.' && has_key(kana.TABLE.rows, strpart(value, 1))
+enddef
+
 export def ValidateConsonants(definitions: dict<string>): dict<string>
   final validated: dict<string> = {}
   final sequences: list<list<string>> = []
@@ -79,8 +83,8 @@ export def ValidateConsonants(definitions: dict<string>): dict<string>
       throw 'caskk: invalid input scheme: consonant keys resolve to the same key sequence'
     endif
     sequences->add(tokens)
-    if !has_key(kana.TABLE.rows, value) && !has_key(kana.TABLE.symbols, value)
-      throw 'caskk: invalid input scheme: consonant values must name one kana consonant or output symbol'
+    if !has_key(kana.TABLE.rows, value) && !has_key(kana.TABLE.symbols, value) && !IsSokuonRow(value)
+      throw 'caskk: invalid input scheme: consonant values must name one kana consonant, T plus one consonant, or output symbol'
     endif
     validated[key] = value
   endfor
@@ -151,13 +155,17 @@ export def Compile(consonants: dict<string>, combinations: dict<string>,
 
   final rows: dict<string> = {}
   final symbols: dict<string> = {}
+  final sokuon: dict<bool> = {}
   for [key, value] in items(consonants)
     if has_key(kana.TABLE.symbols, value)
       symbols[key] = kana.TABLE.symbols[value]
+    elseif IsSokuonRow(value)
+      rows[key] = strpart(value, 1)
+      sokuon[key] = true
     else
       rows[key] = value
     endif
   endfor
-  const table = table_types.CombinationTable.new(rows, symbols, patterns)
+  const table = table_types.CombinationTable.new(rows, symbols, patterns, sokuon)
   return CompiledScheme.new(table, rules)
 enddef

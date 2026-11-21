@@ -351,3 +351,17 @@ suite.insertleave_closes_an_empty_preedit_range = (): void => {
   assert.equals(getline(1), '前後')
   assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
 }
+
+suite.sokuon_prefix_keeps_pending_input_and_semantic_undo = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  compiled = scheme.Compile({k: 'k', kk: 'Tk'}, {a: 'a'})
+  feedkeys("a\<F2>KkP\<BS>PaCP\<Esc>", 'xt')
+  assert.equals(errors, [])
+  assert.equals(readings, ['っ', 'っ', ''])
+  assert.equals(getline(1), '前っあ後')
+  normal! u
+  assert.equals(getline(1), '前後')
+  execute "normal! \<C-r>"
+  assert.equals(getline(1), '前っあ後')
+}

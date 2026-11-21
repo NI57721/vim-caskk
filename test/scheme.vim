@@ -1,6 +1,7 @@
 vim9script
 
 import autoload 'caskk/scheme.vim' as scheme
+import autoload 'caskk/scheme/kana.vim' as kana
 import autoload 'caskk/composer.vim' as composer
 import 'caskk/input.vim' as input
 import 'caskk/combination_table.vim' as table_types
@@ -215,4 +216,21 @@ suite.empty_special_keys_are_rejected_at_compile_time = (): void => {
     caught = v:exception
   endtry
   assert.equals(caught, 'caskk: special requires at least one key')
+}
+
+suite.sokuon_prefix_accepts_exactly_one_existing_nonempty_row = (): void => {
+  for row in keys(kana.TABLE.rows)
+    if row != ''
+      assert.equals(scheme.ValidateConsonants({q: 'T' .. row}), {q: 'T' .. row})
+    endif
+  endfor
+  for value in ['TTk', 'TN', 'Nk', 'Tq', 'Tka', 'kT']
+    var caught = false
+    try
+      scheme.ValidateConsonants({q: value})
+    catch /^caskk: invalid input scheme:/
+      caught = true
+    endtry
+    assert.equals(caught, true, value)
+  endfor
 }
