@@ -130,6 +130,7 @@ endclass
 export class PrefixSearch
   const _lines: list<string>
   const _prefix: string
+  const _exact_plain: bool
   const _encoding: string
   const _okuri_start: number
   const _plain_start: number
@@ -144,13 +145,16 @@ export class PrefixSearch
 
   def new(lines: list<string>, prefix: string, encoding: string,
       okuri_start: number, plain_start: number, sectioned: bool,
-      fallback: dict<dictionary.Entry>)
+      fallback: dict<dictionary.Entry>, exact_plain: bool = false)
     this._lines = lines
     this._prefix = prefix
+    this._exact_plain = exact_plain
+    this._section = exact_plain ? 1 : 0
     this._encoding = encoding
     this._okuri_start = okuri_start
     this._plain_start = plain_start
-    this._fallback = sectioned ? [] : values(fallback)
+    this._fallback = sectioned ? [] : exact_plain
+      ? (has_key(fallback, prefix) ? [fallback[prefix]] : []) : values(fallback)
     if sectioned
       this._StartSection()
     else
@@ -203,7 +207,7 @@ export class PrefixSearch
         endif
         const entry = this._fallback[this._position]
         this._position += 1
-        if stridx(entry.lookup_key, this._prefix) == 0
+        if this._exact_plain ? entry.lookup_key ==# this._prefix : stridx(entry.lookup_key, this._prefix) == 0
           found->add(entry)
         endif
       elseif this._phase ==# 'binary'
@@ -217,7 +221,7 @@ export class PrefixSearch
           this._probe += 1
           continue
         endif
-        const comparison = stridx(key, this._prefix) == 0 ? 0
+        const comparison = !this._exact_plain && stridx(key, this._prefix) == 0 ? 0
           : CompareKeys(key, this._prefix, this._encoding)
         if this._section == 0 ? comparison > 0 : comparison < 0
           this._low = this._probe + 1
@@ -236,7 +240,7 @@ export class PrefixSearch
         const key = EntryKey(line)
         if key ==# ''
           continue
-        elseif stridx(key, this._prefix) != 0
+        elseif this._exact_plain ? key !=# this._prefix : stridx(key, this._prefix) != 0
           this._NextSection()
           continue
         endif
@@ -272,6 +276,12 @@ export class SourceData
     this._sectioned = sectioned
     this._fallback = fallback
     this._encoding = encoding
+  enddef
+
+  # An exact plain headword, using the same bounded iterator as prefix lookup.
+  def BeginPlainLookup(reading: string): PrefixSearch
+    return PrefixSearch.new(this._lines, reading, this._encoding, this._okuri_start,
+      this._plain_start, this._sectioned, this._fallback, true)
   enddef
 
   def BeginPrefix(prefix: string): PrefixSearch
@@ -459,6 +469,10 @@ export class Database
 
   def new(sources: list<SourceData>)
     this._sources = copy(sources)
+  enddef
+
+  def BeginPlainLookup(reading: string): list<PrefixSearch>
+    return mapnew(this._sources, (_, source) => source.BeginPlainLookup(reading))
   enddef
 
   def BeginPrefix(prefix: string): list<PrefixSearch>

@@ -5,6 +5,11 @@ import autoload 'caskk/user_state.vim' as user_state
 
 import autoload 'caskk/dictionary/stem.vim' as stem
 
+export def AllowsOkuri(candidate: dictionary.Candidate, okuri: string): bool
+  return index(split('いかくけきしうそさみめげがす', '\zs'), strcharpart(okuri, 0, 1)) >= 0
+    && index(split(join(candidate.annotations, ';'), '[[:space:];]\+'), '@adj') >= 0
+enddef
+
 # Experimental stem expansion; never applies preference ranking or learning.
 export def Lookup(entries: dict<dictionary.Entry>, preferences: user_state.State,
     reading: string, okuri: string, database: dict_index.Database): list<dictionary.Candidate>
@@ -14,7 +19,7 @@ export def Lookup(entries: dict<dictionary.Entry>, preferences: user_state.State
   const sources = stem.Lookup(entries, preferences, reading, database)
   final result: list<dictionary.Candidate> = []
   for candidate in sources
-    if !empty(filter(copy(candidate.annotations), (_, annotation) => annotation =~# '\(^\|[[:space:];]\)@adj\($\|[[:space:];]\)'))
+    if AllowsOkuri(candidate, okuri)
         && index(mapnew(result, (_, item) => item.text), candidate.text) < 0
       result->add(candidate)
     endif

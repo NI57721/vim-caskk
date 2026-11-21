@@ -277,7 +277,7 @@ export class Session
       const chosen = this._completions[this._completion_index]
       const text = this._Render(chosen.text)
       if chosen.learnable
-        this._preferences.Learn(chosen.query, chosen.candidate.text)
+        conversion.LearnCandidate(this._preferences, chosen.query, chosen.candidate, chosen.is_stem)
       endif
       this.CancelCompletion()
       this._state.Commit()
@@ -336,7 +336,8 @@ export class Session
       return null_object
     endif
     this._completion_request = completion.Search.new(this._entries, this._preferences,
-      this._state.reading, this._state.okuri, this._dictionary_index, this._small_tsu_okuri_as_t)
+      this._state.reading, this._state.okuri, this._dictionary_index, this._small_tsu_okuri_as_t,
+      this._input_mode != input_mode.ABBREVIATION)
     return this._completion_request
   enddef
 
@@ -382,7 +383,7 @@ export class Session
     const first = max([0, min([this._completion_index - 10, count - 20])])
     for index in range(first, min([count - 1, first + 19]))
       const item = this._completions[index]
-      const annotations = item.candidate.annotations + ['読み: ' .. item.query.reading
+      const annotations = item.candidate.annotations + ['読み: ' .. item.reading
         .. (item.okuri == '' ? '' : '*' .. item.okuri)]
       candidates->add(conversion.CandidateInfo.new(index, count, this._Render(item.text),
         annotations, item.tier))

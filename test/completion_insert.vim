@@ -498,3 +498,21 @@ suite.zero_okuri_imperative_converts_with_a_verb_marker = (): void => {
   assert.equals(captures, ['前呉れ後', '前呉れ後'])
   assert.equals(stridx(string(popup_lines[0]), '呉れ［verb］') >= 0, true)
 }
+
+suite.typed_adjective_suffix_preview_cancel_commit_and_undo = (): void => {
+  const source = tempname()
+  defer delete(source)
+  writefile(['おいし /美味し;@adj/'], source)
+  Setup({dictionaries: [source]})
+  defer Cleanup()
+  Caskk.Disable()
+  Caskk.RegisterInputScheme({name: 'suffix-completion', consonants: {}, combinations: {},
+    specials: {x: 'おいしくなりました'}})
+  Caskk.Enable('suffix-completion')
+  feedkeys("aX\<F12>\<Tab>\<F12>\<F5>\<F12>\<Tab>" .. WAIT .. "\<CR>\<Esc>", 'xt')
+  assert.equals(captures, ['前おいしくなりました後', '前美味しくなりました後', '前おいしくなりました後'])
+  assert.equals(getline(1), '前美味しくなりました後')
+  assert.equals(user_runtime.Get().GetSnapshot().mru[json_encode(['おいし', ''])], ['美味し'])
+  normal! u
+  assert.equals(getline(1), '前おいしくなりました後')
+}

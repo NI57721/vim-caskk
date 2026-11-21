@@ -9,6 +9,18 @@ import autoload 'caskk/user_state.vim' as user_state
 import autoload 'caskk/dictionary/verb.vim' as verb
 import autoload 'caskk/dictionary/adjective.vim' as adjective
 
+# Conversion and tagged completion share the source identity and kuru variants.
+export def LearnCandidate(preferences: user_state.State, query: dictionary.Query,
+    candidate: dictionary.Candidate, is_stem: bool)
+  final variants: list<string> = []
+  if is_stem && query.reading =~# 'く$'
+      && index(split(join(candidate.annotations, ';'), '[[:space:];]\+'), '@verb-henkaku-k') >= 0
+    const prefix = strcharpart(query.reading, 0, strchars(query.reading) - 1)
+    variants->extend([prefix .. 'こ', prefix .. 'き'])
+  endif
+  preferences.Learn(query, candidate.text, variants)
+enddef
+
 # Candidate text stays separate from the full okuri used for presentation.
 export class Candidates
   const query: dictionary.Query
@@ -180,13 +192,7 @@ export class Selection
     const text = this._prepared.TextAt(this._index)
     const query = this._prepared.PreferenceQuery(this._index)
     const candidate = this._prepared.candidates[this._index]
-    final variants: list<string> = []
-    if this._prepared.IsExperimental(this._index) && query.reading =~# 'く$'
-        && index(split(join(candidate.annotations, ';'), '[[:space:];]\+'), '@verb-henkaku-k') >= 0
-      const prefix = strcharpart(query.reading, 0, strchars(query.reading) - 1)
-      variants->extend([prefix .. 'こ', prefix .. 'き'])
-    endif
-    this._preferences.Learn(query, candidate.text, variants)
+    LearnCandidate(this._preferences, query, candidate, this._prepared.IsExperimental(this._index))
     this._active = false
     return text
   enddef

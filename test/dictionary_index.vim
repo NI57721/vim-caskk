@@ -186,3 +186,20 @@ suite.ambiguous_boundary_probe_falls_back_to_the_actual_section_headers = (): vo
   assert.equals(len(source.Lookup('word', false)), 1)
   assert.equals(source.Lookup('あ', false), [])
 }
+
+suite.incremental_plain_lookup_only_visits_the_exact_stem = (): void => {
+  const lines = [';; okuri-ari entries.', 'たべr /食べ/',
+    ';; okuri-nasi entries.', 'たべ /食べ;@verb-1/', ';; gap', 'たべ /喰べ;@verb-1/',
+    'たべもの /食べ物/', 'ほか /他/']
+  for source in [dict_index.SourceFromLines(lines), dict_index.SourceFromLines(lines[1 :])]
+    const search = source.BeginPlainLookup('たべ')
+    final found: list<dictionary.Entry> = []
+    while !search.IsDone()
+      const rows = search.Step(1)
+      assert.equals(len(rows) <= 1, true)
+      found->extend(rows)
+    endwhile
+    assert.equals(mapnew(found, (_, entry) => entry.lookup_key), repeat(['たべ'], len(found)))
+    assert.equals(mapnew(found, (_, entry) => entry.candidates[0].text)[0], '食べ')
+  endfor
+}

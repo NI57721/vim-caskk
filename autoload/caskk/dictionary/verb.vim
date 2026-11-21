@@ -36,6 +36,18 @@ export def KuruSourceReading(reading: string): string
   return reading =~# '[こき]$' ? strcharpart(reading, 0, strchars(reading) - 1) .. 'く' : ''
 enddef
 
+export def AllowsOkuri(candidate: dictionary.Candidate, okuri: string): bool
+  if okuri == ''
+    return false
+  endif
+  for tag in split(join(candidate.annotations, ';'), '[[:space:];]\+')
+    if has_key(tags.ENDINGS, tag) && stridx(tags.ENDINGS[tag], strcharpart(okuri, 0, 1)) >= 0
+      return true
+    endif
+  endfor
+  return false
+enddef
+
 export def Lookup(entries: dict<dictionary.Entry>, preferences: user_state.State, reading: string, okuri: string, database: dict_index.Database): list<dictionary.Candidate>
   final result: list<dictionary.Candidate> = []
   for candidate in stem.Lookup(entries, preferences, reading, database)
@@ -45,15 +57,7 @@ export def Lookup(entries: dict<dictionary.Entry>, preferences: user_state.State
       endif
       continue
     endif
-    var matched = false
-    for annotation in candidate.annotations
-      for tag in split(annotation, '[[:space:];]\+')
-        if has_key(tags.ENDINGS, tag) && stridx(tags.ENDINGS[tag], strcharpart(okuri, 0, 1)) >= 0
-          matched = true
-        endif
-      endfor
-    endfor
-    if matched
+    if AllowsOkuri(candidate, okuri)
       result->add(candidate)
     endif
   endfor

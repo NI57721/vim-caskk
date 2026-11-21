@@ -179,3 +179,95 @@ suite.verb_stems_are_not_completed_without_a_plain_source = (): void => {
     assert.equals(ime.ShowCompletion(2), entries['かな'].candidates[0].has_plain_source)
   endfor
 }
+
+suite.typed_endings_complete_tagged_stems_without_predicting_more_text = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('おいし /美味し;@adj/'),
+    parser.ParseLine('たべ /食べ;@verb-1/'), parser.ParseLine('よ /読;@verb-5-m/'),
+    parser.ParseLine('と /問;@verb-5-w-tou/'), parser.ParseLine('ありう /あり得;@verb-1-uru/')]])
+  for [reading, expected, stem, suffix] in [
+    ['おいしい', '美味しい', 'おいし', 'い'],
+    ['おいしくなりました', '美味しくなりました', 'おいし', 'くなりました'],
+    ['たべました', '食べました', 'たべ', 'ました'],
+    ['たべちゃった', '食べちゃった', 'たべ', 'ちゃった'],
+    ['よんじゃった', '読んじゃった', 'よ', 'んじゃった'],
+    ['とうた', '問うた', 'と', 'うた'],
+    ['ありうれば', 'あり得れば', 'ありう', 'れば']]
+    const found = completion.Prepare(entries, user_state.State.new(), reading)
+    assert.equals(mapnew(found, (_, candidate) => candidate.text), [expected], reading)
+    assert.equals(found[0].query.reading, stem)
+    assert.equals(found[0].query.exact_okuri, '')
+    assert.equals(found[0].okuri, suffix)
+  endfor
+  for reading in ['たべ', 'たべぱ', 'おいしぱ', 'とった', 'ありうない']
+    assert.equals(completion.Prepare(entries, user_state.State.new(), reading), [], reading)
+  endfor
+}
+
+suite.stem_completion_keeps_existing_candidates_and_prefers_longer_stem_matches = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('かなかな /通常/'),
+    parser.ParseLine('かなか /長;@verb-1/'), parser.ParseLine('かな /短;@adj/')]])
+  const found = completion.Prepare(entries, user_state.State.new(), 'かなかな')
+  assert.equals(mapnew(found, (_, candidate) => candidate.text), ['通常', '長な', '短かな'])
+}
+
+suite.stem_completion_uses_registered_annotations_across_okuri_and_shares_learning = (): void => {
+  const preferences = user_state.State.new()
+  preferences.AddEntry(lookup.CreateQuery('たべ', 'る'), dictionary.Candidate.new('食べ', ['@verb-1']))
+  preferences.AddEntry(lookup.CreateQuery('たべ', 'た'), dictionary.Candidate.new('食べ', ['注釈', '@verb-1']))
+  preferences.AddEntry(lookup.CreateQuery('たべ', ''), dictionary.Candidate.new('喰べ', ['@verb-1']))
+  const ime = session.Session.new(scheme.Compile({}, {}), '', {}, preferences, 'たべました')
+  assert.equals(ime.ShowCompletion(2), true)
+  assert.equals(len(ime.GetCompletionInfo().candidates), 2)
+  ime.MoveCompletion(1)
+  assert.equals(preferences.GetSnapshot().mru, {})
+  ime.CancelCompletion()
+  assert.equals(ime.GetSnapshot().reading, 'たべました')
+  ime.ShowCompletion(2)
+  ime.MoveCompletion(index(mapnew(ime.GetCompletionInfo().candidates, (_, candidate) => candidate.text), '喰べました'))
+  assert.equals(ime.Commit()[-1].text, '喰べました')
+  assert.equals(preferences.GetSnapshot().mru[json_encode(['たべ', ''])], ['喰べ'])
+  assert.equals(has_key(preferences.GetSnapshot().mru, json_encode(['たべました', ''])), false)
+  assert.equals(completion.Prepare({}, preferences, 'たべない')[0].text, '喰べない')
+}
+
+suite.kuru_completion_shares_source_learning_and_keeps_the_entered_reading = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('く /来;@verb-henkaku-k/')]])
+  const preferences = user_state.State.new()
+  const ime = session.Session.new(scheme.Compile({}, {}), '', entries, preferences, 'きます')
+  assert.equals(ime.ShowCompletion(2), true)
+  assert.equals(ime.GetCompletionInfo().candidates[0].text, '来ます')
+  assert.equals(index(ime.GetCompletionInfo().candidates[0].annotations, '読み: き*ます') >= 0, true)
+  ime.Commit()
+  assert.equals(preferences.GetSnapshot().mru[json_encode(['く', ''])], ['来'])
+  assert.equals(preferences.RecentIndex(lookup.CreateQuery('こ', ''), '来'), 0)
+}
+
+suite.abbreviation_does_not_treat_typed_text_as_tagged_okuri = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('ab /単語;@verb-1/')]])
+  const ime = session.Session.new(scheme.Compile({}, {}), '', entries, user_state.State.new())
+  ime.SetInputMode('Abbreviation')
+  for key in ['a', 'b', 'る']
+    ime.Feed(key)
+  endfor
+  assert.equals(ime.ShowCompletion(2), false)
+}
+
+suite.indexed_stems_keep_sources_choices_and_ordinary_identity = (): void => {
+  const database = dictionary_index.Database.new([
+    dictionary_index.SourceFromLines([';; okuri-ari entries.', ';; okuri-nasi entries.',
+      'たべ /食べ;@verb-1/誤;@unknown/古;@verb-bungo-2-shimo-r/', 'たべました /食べました/']),
+    dictionary_index.SourceFromLines(['たべ /喰べ;@verb-1/食べ;別注;@verb-1/'])])
+  const preferences = user_state.State.new()
+  preferences.Pin(lookup.CreateQuery('たべ', ''), '喰べ')
+  const search = completion.Search.new({}, preferences, 'たべました', '', database)
+  var steps = 0
+  while !search.Step(1)
+    steps += 1
+    assert.equals(steps < 300, true)
+  endwhile
+  const found = search.Result()
+  assert.equals(mapnew(found, (_, c) => c.text), ['食べました', '喰べました', '食べました'])
+  assert.equals(mapnew(found, (_, c) => c.is_stem), [false, true, true])
+  assert.equals(found[1].tier, 'pinned')
+  assert.equals(completion.Prepare({}, preferences, 'たべました', 'る', database), [])
+}
