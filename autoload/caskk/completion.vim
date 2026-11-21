@@ -19,12 +19,10 @@ export class Candidate
   const tier: string
   const learnable: bool
   const is_stem: bool
-  const reading: string
 
   def new(this.query, this.okuri, this.candidate, this.tier, this.learnable,
-      is_stem: bool = false, reading: string = '')
+      is_stem: bool = false)
     this.is_stem = is_stem
-    this.reading = reading == '' ? query.reading : reading
     this.text = numeric.ExpandPlaceholders(candidate.text, query.reading) .. okuri
   enddef
 endclass
@@ -333,8 +331,7 @@ export class Search
         const candidate = this._ranked[this._candidate]
         this._candidate += 1
         this._result->add(Candidate.new(this._query, this._stem_match.okuri, candidate,
-          this._preferences.GetCandidateTier(this._query, candidate.text), true, true,
-          this._stem_match.reading))
+          this._preferences.GetCandidateTier(this._query, candidate.text), true, true))
       endif
     endwhile
     return this.IsDone()

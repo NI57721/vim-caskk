@@ -383,10 +383,8 @@ export class Session
     const first = max([0, min([this._completion_index - 10, count - 20])])
     for index in range(first, min([count - 1, first + 19]))
       const item = this._completions[index]
-      const annotations = item.candidate.annotations + ['読み: ' .. item.reading
-        .. (item.okuri == '' ? '' : '*' .. item.okuri)]
       candidates->add(conversion.CandidateInfo.new(index, count, this._Render(item.text),
-        annotations, item.tier))
+        item.candidate.annotations, item.tier))
     endfor
     return conversion.CandidateListInfo.new(this._completion_index, candidates)
   enddef

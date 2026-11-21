@@ -236,7 +236,7 @@ suite.kuru_completion_shares_source_learning_and_keeps_the_entered_reading = ():
   const ime = session.Session.new(scheme.Compile({}, {}), '', entries, preferences, 'きます')
   assert.equals(ime.ShowCompletion(2), true)
   assert.equals(ime.GetCompletionInfo().candidates[0].text, '来ます')
-  assert.equals(index(ime.GetCompletionInfo().candidates[0].annotations, '読み: き*ます') >= 0, true)
+  assert.equals(ime.GetCompletionInfo().candidates[0].annotations, ['@verb-henkaku-k'])
   ime.Commit()
   assert.equals(preferences.GetSnapshot().mru[json_encode(['く', ''])], ['来'])
   assert.equals(preferences.RecentIndex(lookup.CreateQuery('こ', ''), '来'), 0)
