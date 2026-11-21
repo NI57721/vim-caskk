@@ -6,21 +6,21 @@ import autoload 'caskk/dictionary/stem.vim' as stem
 
 import 'caskk/verb_tags.vim' as tags
 
-# Ichidan stems can stand alone. Other tags need a complete form,
+# Regular ichidan and kureru stems can stand alone; uru cannot. Other tags need a complete form,
 # such as classical 来(こ) / 来(く).
 export def IsStandalone(reading: string, candidate: dictionary.Candidate): bool
   const forms: dict<string> = {
-    '@verb-irregular-s': 'す$',
-    '@verb-irregular-z': 'ず$',
-    '@verb-classical-irregular-k': '[こく]$',
-    '@verb-classical-irregular-s': 'す$',
-    '@verb-classical-irregular-z': 'ず$',
-    '@verb-classical-irregular-n': '[ぬね]$',
-    '@verb-classical-irregular-r': '[りれ]$',
+    '@verb-henkaku-s': 'す$',
+    '@verb-henkaku-z': 'ず$',
+    '@verb-bungo-henkaku-k': '[こく]$',
+    '@verb-bungo-henkaku-s': 'す$',
+    '@verb-bungo-henkaku-z': 'ず$',
+    '@verb-bungo-henkaku-n': '[ぬね]$',
+    '@verb-bungo-henkaku-r': '[りれ]$',
   }
   for annotation in candidate.annotations
     for tag in split(annotation, '[[:space:];]\+')
-      if has_key(tags.ENDINGS, tag) && tag =~# '^@verb-1-\%(kami\|shimo\)-'
+      if index(['@verb-1', '@verb-1-kureru'], tag) >= 0
         return true
       endif
       if has_key(forms, tag) && reading =~# forms[tag]

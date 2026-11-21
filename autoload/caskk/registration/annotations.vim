@@ -12,23 +12,25 @@ def Describe(tag: string): string
   if tag == '@adj'
     return '形容詞'
   endif
+  const ichidan = {'@verb-1': '一段', '@verb-1-kureru': '一段（呉れる）', '@verb-1-uru': '一段（得る）'}
+  if has_key(ichidan, tag)
+    return ichidan[tag]
+  endif
   var name = substitute(tag, '^@verb-', '', '')
-  name = substitute(name, '^classical-', '文語 ', '')
-  name = substitute(name, '1-kami-', '上一段 ', '')
-  name = substitute(name, '1-shimo-', '下一段 ', '')
+  name = substitute(name, '^bungo-', '文語 ', '')
   name = substitute(name, '2-kami-', '上二段 ', '')
   name = substitute(name, '2-shimo-', '下二段 ', '')
   name = substitute(name, '\<5-', '五段 ', '')
   name = substitute(name, '\<4-', '四段 ', '')
-  name = substitute(name, 'irregular-', '変格 ', '')
+  name = substitute(name, 'henkaku-', '変格 ', '')
   const rows = {a: 'ア行', k: 'カ行', g: 'ガ行', s: 'サ行', z: 'ザ行', t: 'タ行',
     d: 'ダ行', n: 'ナ行', h: 'ハ行', b: 'バ行', m: 'マ行', r: 'ラ行', y: 'ヤ行', w: 'ワ行'}
   final parts = split(name, ' ')
   const ending = split(parts[-1], '-')
   parts[-1] = get(rows, ending[0], ending[0])
   if len(ending) > 1
-    const variants = {iku: '行く', yuku: '往く', aru: 'ある', iu: '言う', yuu: '言う（ゆう）',
-      kureru: '呉れる', u: 'う', hu: 'ふ', zu: 'ず', du: 'づ'}
+    const variants = {iku: '行く', yuku: '往く', aru: 'ある', tou: '問う',
+      u: 'う', hu: 'ふ', zu: 'ず', du: 'づ'}
     parts[-1] ..= '（' .. get(variants, ending[1], ending[1]) .. '）'
   endif
   return join(parts, '')

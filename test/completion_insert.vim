@@ -488,7 +488,7 @@ suite.zero_okuri_imperative_converts_with_a_verb_marker = (): void => {
   const source = tempname()
   defer delete(source)
   writefile([';; okuri-ari entries.', ';; okuri-nasi entries.',
-    'くれ /呉れ;@verb-1-shimo-r-kureru/'], source)
+    'くれ /呉れ;@verb-1-kureru/'], source)
   Setup({dictionaries: [source], mappings: {"\<Space>": 'Convert', "\<F10>": 'Commit'}})
   defer Cleanup()
   Caskk.Disable()

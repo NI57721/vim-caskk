@@ -12,7 +12,7 @@ import autoload 'caskk/registration/text.vim' as registration_text
 final suite = themis#suite('experimental verbs')
 const assert = themis#helper('assert')
 suite.ichidan_stem_is_not_rewritten = (): void => {
-  const entry = parser.ParseLine('たべ /食べ;@verb-1-shimo-b/')
+  const entry = parser.ParseLine('たべ /食べ;@verb-1/')
   const preferences = state.State.new()
   for suffix in ['る', 'れ', 'ろ', 'よ', 'な', 'ま', 'た', 'て', 'ら', 'さ']
     const prepared = conversion.Prepare({'たべ': entry}, preferences, 'たべ', suffix)
@@ -25,7 +25,7 @@ suite.ichidan_stem_is_not_rewritten = (): void => {
 }
 
 suite.types_filter_candidates_and_preserve_ordinary_duplicates = (): void => {
-  const stem = parser.ParseLine('か /書;説明 @verb-5-k @verb-classical-4-k/架;@verb-unknown/描;@verb-5-k-extra/')
+  const stem = parser.ParseLine('か /書;説明 @verb-5-k @verb-bungo-4-k/架;@verb-unknown/描;@verb-5-k-extra/')
   const normal = parser.ParseLine('かk /書/')
   const preferences = state.State.new()
   const prepared = conversion.Prepare({'か': stem, 'かk': normal}, preferences, 'か', 'く')
@@ -49,11 +49,11 @@ suite.godan_sound_changes_and_irregular_types_are_distinct = (): void => {
   for [tag, allowed, rejected] in [
     ['5-k', 'い', 'っ'], ['5-k-iku', 'っ', 'い'], ['5-k-yuku', 'っ', 'い'],
     ['5-g', 'い', 'っ'], ['5-m', 'ん', 'っ'], ['5-r-aru', 'い', 'ん'],
-    ['5-w', 'っ', 'ん'], ['5-w-iu', 'う', 'ん'], ['5-w-yuu', 'う', 'ん'],
-    ['1-shimo-r-kureru', 'れ', 'ろ'], ['1-shimo-r', 'ろ', 'ぱ'],
-    ['irregular-k', 'こ', 'せ'], ['irregular-k', 'る', 'ぱ'], ['irregular-k', 'た', 'ぱ'], ['irregular-s', 'せ', 'こ'], ['irregular-z', 'じ', 'し'],
-    ['classical-2-kami-k', 'き', 'け'], ['classical-2-shimo-k', 'け', 'き'],
-    ['classical-irregular-n', 'ぬ', 'る'], ['classical-irregular-r', 'り', 'ぬ']]
+    ['5-w', 'っ', 'ん'], ['5-w-tou', 'う', 'っ'],
+    ['1-kureru', 'れ', 'ろ'], ['1', 'ろ', 'ぱ'],
+    ['henkaku-k', 'こ', 'せ'], ['henkaku-k', 'る', 'ぱ'], ['henkaku-k', 'た', 'ぱ'], ['henkaku-s', 'せ', 'こ'], ['henkaku-z', 'じ', 'し'],
+    ['bungo-2-kami-k', 'き', 'け'], ['bungo-2-shimo-k', 'け', 'き'],
+    ['bungo-henkaku-n', 'ぬ', 'る'], ['bungo-henkaku-r', 'り', 'ぬ']]
     const entry = parser.ParseLine('よ /語;@verb-' .. tag .. '/')
     const entries = {'よ': entry}
     assert.equals(len(conversion.Prepare(entries, state.State.new(), 'よ', allowed).candidates), 1, tag)
@@ -74,22 +74,22 @@ suite.indexed_euc_jp_and_user_stems_keep_annotations = (): void => {
   const path = tempname()
   defer delete(path)
   writefile(mapnew([';; okuri-ari entries.', ';; okuri-nasi entries.',
-    'き /切;@verb-5-r/着;@verb-1-kami-k/',
-    'たべ /食べ;説明 @verb-1-shimo-b/'],
+    'き /切;@verb-5-r/着;@verb-1/',
+    'たべ /食べ;説明 @verb-1/'],
     (_, line) => iconv(line, 'utf-8', 'euc-jp')), path)
   const database = loader.Open([loader.Source.new(path, 'euc-jp')])
   const preferences = state.State.new()
   const prepared = conversion.Prepare({}, preferences, 'たべ', 'る', true, database)
   assert.equals(prepared.TextAt(0), '食べる')
-  assert.equals(prepared.candidates[0].annotations, ['説明 @verb-1-shimo-b'])
+  assert.equals(prepared.candidates[0].annotations, ['説明 @verb-1'])
   const homonyms = conversion.Prepare({}, preferences, 'き', 'ら', true, database)
   assert.equals(mapnew(homonyms.candidates, (_, item) => item.text), ['切', '着'])
-  preferences.AddEntry(lookup.CreateQuery('たべ', ''), parser.ParseLine('たべ /喰べ;@verb-1-shimo-b/').candidates[0])
+  preferences.AddEntry(lookup.CreateQuery('たべ', ''), parser.ParseLine('たべ /喰べ;@verb-1/').candidates[0])
   const registered = conversion.Prepare({}, preferences, 'たべ', 'な')
   assert.equals(registered.TextAt(0), '喰べな')
 }
 
-suite.all_78_types_accept_their_terminal_connection_and_reject_unrelated_kana = (): void => {
+suite.all_57_types_accept_their_terminal_connection_and_reject_unrelated_kana = (): void => {
   const cases = [
     ['5-k', 'く'],
     ['5-k-iku', 'く'],
@@ -103,74 +103,53 @@ suite.all_78_types_accept_their_terminal_connection_and_reject_unrelated_kana = 
     ['5-r', 'る'],
     ['5-r-aru', 'る'],
     ['5-w', 'う'],
-    ['5-w-iu', 'う'],
-    ['5-w-yuu', 'う'],
-    ['1-kami-a', 'る'],
-    ['1-kami-k', 'る'],
-    ['1-kami-g', 'る'],
-    ['1-kami-z', 'る'],
-    ['1-kami-t', 'る'],
-    ['1-kami-n', 'る'],
-    ['1-kami-h', 'る'],
-    ['1-kami-b', 'る'],
-    ['1-kami-m', 'る'],
-    ['1-kami-r', 'る'],
-    ['1-shimo-a', 'る'],
-    ['1-shimo-k', 'る'],
-    ['1-shimo-g', 'る'],
-    ['1-shimo-s', 'る'],
-    ['1-shimo-z', 'る'],
-    ['1-shimo-t', 'る'],
-    ['1-shimo-d', 'る'],
-    ['1-shimo-n', 'る'],
-    ['1-shimo-h', 'る'],
-    ['1-shimo-b', 'る'],
-    ['1-shimo-m', 'る'],
-    ['1-shimo-r', 'る'],
-    ['1-shimo-r-kureru', 'る'],
-    ['irregular-k', 'く'],
-    ['irregular-s', 'す'],
-    ['irregular-z', 'ず'],
-    ['classical-4-k', 'く'],
-    ['classical-4-g', 'ぐ'],
-    ['classical-4-s', 'す'],
-    ['classical-4-t', 'つ'],
-    ['classical-4-h-u', 'う'],
-    ['classical-4-h-hu', 'ふ'],
-    ['classical-4-b', 'ぶ'],
-    ['classical-4-m', 'む'],
-    ['classical-4-r', 'る'],
-    ['classical-2-kami-k', 'く'],
-    ['classical-2-kami-g', 'ぐ'],
-    ['classical-2-kami-t', 'つ'],
-    ['classical-2-kami-d', 'づ'],
-    ['classical-2-kami-h', 'ふ'],
-    ['classical-2-kami-b', 'ぶ'],
-    ['classical-2-kami-m', 'む'],
-    ['classical-2-kami-y', 'ゆ'],
-    ['classical-2-kami-r', 'る'],
-    ['classical-2-shimo-a', 'う'],
-    ['classical-2-shimo-k', 'く'],
-    ['classical-2-shimo-g', 'ぐ'],
-    ['classical-2-shimo-s', 'す'],
-    ['classical-2-shimo-z', 'ず'],
-    ['classical-2-shimo-t', 'つ'],
-    ['classical-2-shimo-d-zu', 'ず'],
-    ['classical-2-shimo-d-du', 'づ'],
-    ['classical-2-shimo-n', 'ぬ'],
-    ['classical-2-shimo-h', 'ふ'],
-    ['classical-2-shimo-b', 'ぶ'],
-    ['classical-2-shimo-m', 'む'],
-    ['classical-2-shimo-y', 'ゆ'],
-    ['classical-2-shimo-r', 'る'],
-    ['classical-2-shimo-w', 'う'],
-    ['classical-irregular-k', 'く'],
-    ['classical-irregular-s', 'す'],
-    ['classical-irregular-z', 'ず'],
-    ['classical-irregular-n', 'ぬ'],
-    ['classical-irregular-r', 'り'],
+    ['5-w-tou', 'う'],
+    ['1', 'る'],
+    ['1-kureru', 'る'],
+    ['1-uru', 'る'],
+    ['henkaku-k', 'く'],
+    ['henkaku-s', 'す'],
+    ['henkaku-z', 'ず'],
+    ['bungo-4-k', 'く'],
+    ['bungo-4-g', 'ぐ'],
+    ['bungo-4-s', 'す'],
+    ['bungo-4-t', 'つ'],
+    ['bungo-4-h-u', 'う'],
+    ['bungo-4-h-hu', 'ふ'],
+    ['bungo-4-b', 'ぶ'],
+    ['bungo-4-m', 'む'],
+    ['bungo-4-r', 'る'],
+    ['bungo-2-kami-k', 'く'],
+    ['bungo-2-kami-g', 'ぐ'],
+    ['bungo-2-kami-t', 'つ'],
+    ['bungo-2-kami-d', 'づ'],
+    ['bungo-2-kami-h', 'ふ'],
+    ['bungo-2-kami-b', 'ぶ'],
+    ['bungo-2-kami-m', 'む'],
+    ['bungo-2-kami-y', 'ゆ'],
+    ['bungo-2-kami-r', 'る'],
+    ['bungo-2-shimo-a', 'う'],
+    ['bungo-2-shimo-k', 'く'],
+    ['bungo-2-shimo-g', 'ぐ'],
+    ['bungo-2-shimo-s', 'す'],
+    ['bungo-2-shimo-z', 'ず'],
+    ['bungo-2-shimo-t', 'つ'],
+    ['bungo-2-shimo-d-zu', 'ず'],
+    ['bungo-2-shimo-d-du', 'づ'],
+    ['bungo-2-shimo-n', 'ぬ'],
+    ['bungo-2-shimo-h', 'ふ'],
+    ['bungo-2-shimo-b', 'ぶ'],
+    ['bungo-2-shimo-m', 'む'],
+    ['bungo-2-shimo-y', 'ゆ'],
+    ['bungo-2-shimo-r', 'る'],
+    ['bungo-2-shimo-w', 'う'],
+    ['bungo-henkaku-k', 'く'],
+    ['bungo-henkaku-s', 'す'],
+    ['bungo-henkaku-z', 'ず'],
+    ['bungo-henkaku-n', 'ぬ'],
+    ['bungo-henkaku-r', 'り'],
   ]
-  assert.equals(len(cases), 78)
+  assert.equals(len(cases), 57)
   for [tag, ending] in cases
     const entry = parser.ParseLine('よ /語;@verb-' .. tag .. '/')
     const preferences = state.State.new()
@@ -258,10 +237,10 @@ suite.stem_preferences_are_shared_across_okuri_but_not_ordinary_candidates = ():
 
 suite.standalone_complete_forms_are_exceptions_to_bare_stem_suppression = (): void => {
   for [reading, text, tag] in [
-    ['くれ', '呉れ', '1-shimo-r-kureru'], ['みてくれ', '見て呉れ', '1-shimo-r-kureru'],
-    ['こ', '来', 'classical-irregular-k'], ['く', '来', 'classical-irregular-k'],
-    ['す', '為', 'classical-irregular-s'], ['ず', 'ず', 'classical-irregular-z'],
-    ['あり', '有り', 'classical-irregular-r'], ['いぬ', '往ぬ', 'classical-irregular-n']]
+    ['くれ', '呉れ', '1-kureru'], ['みてくれ', '見て呉れ', '1-kureru'],
+    ['こ', '来', 'bungo-henkaku-k'], ['く', '来', 'bungo-henkaku-k'],
+    ['す', '為', 'bungo-henkaku-s'], ['ず', 'ず', 'bungo-henkaku-z'],
+    ['あり', '有り', 'bungo-henkaku-r'], ['いぬ', '往ぬ', 'bungo-henkaku-n']]
     const entry = parser.ParseLine(reading .. ' /' .. text .. ';@verb-' .. tag .. '/')
     const prepared = conversion.Prepare({[reading]: entry}, state.State.new(), reading)
     assert.equals(prepared.experimental_count, 1, reading)
@@ -269,7 +248,7 @@ suite.standalone_complete_forms_are_exceptions_to_bare_stem_suppression = (): vo
     assert.equals(selected.CurrentText(), text .. '')
     assert.equals(selected.Commit(), text)
   endfor
-  for [reading, tag] in [['か', '5-k'], ['こ', 'irregular-k'], ['し', 'classical-irregular-n']]
+  for [reading, tag] in [['か', '5-k'], ['こ', 'henkaku-k'], ['し', 'bungo-henkaku-n']]
     const entry = parser.ParseLine(reading .. ' /語;@verb-' .. tag .. '/')
     assert.equals(conversion.Prepare({[reading]: entry}, state.State.new(), reading).candidates, [], reading)
   endfor
@@ -278,7 +257,7 @@ suite.standalone_complete_forms_are_exceptions_to_bare_stem_suppression = (): vo
 suite.annotated_user_stems_registered_with_okuri_apply_to_other_endings = (): void => {
   const preferences = state.State.new()
   preferences.AddEntry(lookup.CreateQuery('たべ', 'る'),
-    parser.ParseLine('たべ /食べ;説明 @verb-1-shimo-b/').candidates[0])
+    parser.ParseLine('たべ /食べ;説明 @verb-1/').candidates[0])
   const restored = state.State.new()
   restored.Restore(codec.Decode(codec.Encode(preferences.GetSnapshot())))
   for suffix in ['る', 'な', 'た']
@@ -300,12 +279,12 @@ suite.annotated_okuri_registration_is_available_as_a_verb_stem = (): void => {
   ime.Feed('X')
   const requested = ime.Feed('Y')
   assert.equals(requested[-1].registration_requested, true)
-  const registered = ime.Register(registration_text.Parse('食べ;@verb-1-shimo-b'))
+  const registered = ime.Register(registration_text.Parse('食べ;@verb-1'))
   assert.equals(registered.text, '食べる')
   const prepared = conversion.Prepare({}, preferences, 'たべ', 'な')
   assert.equals(prepared.DisplayAt(0), '食べな［verb］')
   assert.equals(preferences.GetSnapshot().entries[json_encode(['たべ', 'る'])][0].annotations,
-    ['@verb-1-shimo-b'])
+    ['@verb-1'])
 }
 
 suite.selection_returns_plain_text_but_popup_info_keeps_the_marker = (): void => {
@@ -321,7 +300,7 @@ suite.selection_returns_plain_text_but_popup_info_keeps_the_marker = (): void =>
 
 
 suite.iu_stem_accepts_sokuon_from_system_and_user_entries = (): void => {
-  const entry = parser.ParseLine('い /言;@verb-5-w-iu/')
+  const entry = parser.ParseLine('い /言;@verb-5-w/')
   for from_user in [false, true]
     const preferences = state.State.new()
     if from_user
@@ -338,7 +317,7 @@ suite.iu_stem_accepts_sokuon_from_system_and_user_entries = (): void => {
 
 suite.modified_i_then_l_selects_itta_without_marking_buffer_text = (): void => {
   const compiled = scheme.Compile({l: 'T'}, {i: 'i'})
-  const entries = {'い': parser.ParseLine('い /言;@verb-5-w-iu/')}
+  const entries = {'い': parser.ParseLine('い /言;@verb-5-w/')}
   const ime = session.Session.new(compiled, '', entries)
   ime.Feed('I')
   const results = ime.Feed('L')
@@ -392,7 +371,7 @@ suite.deleting_a_registered_stem_preserves_its_system_source = (): void => {
 
 
 suite.yuu_stem_accepts_sokuon_from_system_and_user_entries = (): void => {
-  const entry = parser.ParseLine('ゆ /言;@verb-5-w-yuu/')
+  const entry = parser.ParseLine('ゆ /言;@verb-5-w/')
   for from_user in [false, true]
     const preferences = state.State.new()
     if from_user
@@ -409,7 +388,7 @@ suite.yuu_stem_accepts_sokuon_from_system_and_user_entries = (): void => {
 
 suite.yu_sokuon_input_selects_itta = (): void => {
   const compiled = scheme.Compile({l: 'T'}, {}, [scheme.SpecialDefinition.new(['y'], 'ゆ')])
-  const entries = {'ゆ': parser.ParseLine('ゆ /言;@verb-5-w-yuu/')}
+  const entries = {'ゆ': parser.ParseLine('ゆ /言;@verb-5-w/')}
   const ime = session.Session.new(compiled, '', entries)
   ime.Feed('Y')
   const results = ime.Feed('L')
@@ -421,7 +400,7 @@ suite.yu_sokuon_input_selects_itta = (): void => {
 
 suite.ichidan_stems_convert_without_okuri = (): void => {
   for [reading, text, tag] in [
-    ['あけ', '開け', '1-shimo-k'], ['たべ', '食べ', '1-shimo-b'], ['み', '見', '1-kami-m']]
+    ['あけ', '開け', '1'], ['たべ', '食べ', '1'], ['み', '見', '1']]
     const entry = parser.ParseLine(reading .. ' /' .. text .. ';@verb-' .. tag .. '/')
     const preferences = state.State.new()
     const ime = session.Session.new(scheme.Compile({}, {}), '', {}, preferences, reading)
@@ -436,7 +415,7 @@ import 'caskk/verb_tags.vim' as verb_tags
 
 suite.ichidan_stems_accept_chau_contractions = (): void => {
   for tag in keys(verb_tags.ENDINGS)
-    if tag !~# '^@verb-1-'
+    if index(['@verb-1', '@verb-1-kureru'], tag) < 0
       continue
     endif
     const entries = {'たべ': parser.ParseLine('たべ /食べ;' .. tag .. '/')}
@@ -453,7 +432,7 @@ suite.modified_chau_input_converts_the_registered_stem = (): void => {
     scheme.SpecialDefinition.new(['x'], 'たべ'),
     scheme.SpecialDefinition.new(['y'], 'ちゃう'),
   ])
-  const ime = session.Session.new(compiled, '', {'たべ': parser.ParseLine('たべ /食べ;@verb-1-shimo-b/')})
+  const ime = session.Session.new(compiled, '', {'たべ': parser.ParseLine('たべ /食べ;@verb-1/')})
   ime.Feed('X')
   const results = ime.Feed('Y')
   assert.equals(results[-1].in_candidate, true)
@@ -461,7 +440,7 @@ suite.modified_chau_input_converts_the_registered_stem = (): void => {
 }
 
 suite.miru_and_kuru_accept_chau_contractions = (): void => {
-  for [reading, text, tag] in [['み', '見', '1-kami-m'], ['き', '来', 'irregular-k']]
+  for [reading, text, tag] in [['み', '見', '1'], ['き', '来', 'henkaku-k']]
     const entries = {[reading]: parser.ParseLine(reading .. ' /' .. text .. ';@verb-' .. tag .. '/')}
     for okuri in ['ちゃう', 'ちゃった', 'ちゃって', 'ちゃわない']
       const prepared = conversion.Prepare(entries, state.State.new(), reading, okuri)
@@ -476,13 +455,13 @@ const GODAN_CONTRACTIONS: dict<string> = {
   '5-g': 'いじゃう', '5-s': 'しちゃう', '5-t': 'っちゃう',
   '5-n': 'んじゃう', '5-b': 'んじゃう', '5-m': 'んじゃう',
   '5-r': 'っちゃう', '5-r-aru': 'っちゃう',
-  '5-w': 'っちゃう', '5-w-iu': 'っちゃう', '5-w-yuu': 'っちゃう',
+  '5-w': 'っちゃう', '5-w-tou': 'うちゃう',
 }
 
 suite.all_modern_verb_types_accept_shimau_contractions = (): void => {
   var tested = 0
   for tag in keys(verb_tags.ENDINGS)
-    if tag =~# '^@verb-classical-'
+    if tag =~# '^@verb-bungo-' || tag ==# '@verb-1-uru'
       continue
     endif
     const short_tag = strpart(tag, strlen('@verb-'))
@@ -495,5 +474,22 @@ suite.all_modern_verb_types_accept_shimau_contractions = (): void => {
     endfor
     tested += 1
   endfor
-  assert.equals(tested, 40)
+  assert.equals(tested, 18)
+}
+
+
+suite.tou_excludes_sokuon_and_uru_only_accepts_ru_and_re = (): void => {
+  for [reading, text, tag, accepted, rejected] in [
+      ['と', '問', '5-w-tou', ['う', 'うた', 'うて', 'わない'], ['っ', 'った', 'って']],
+      ['う', '得', '1-uru', ['る', 'れば'], ['', 'ない', 'ます', 'た', 'て', 'ろ', 'ちゃう']],
+      ['ありう', 'あり得', '1-uru', ['る', 'れば'], ['', 'ない', 'ます', 'た', 'ちゃう']]]
+    const entry = parser.ParseLine(reading .. ' /' .. text .. ';@verb-' .. tag .. '/')
+    for okuri in accepted
+      const prepared = conversion.Prepare({[reading]: entry}, state.State.new(), reading, okuri)
+      assert.equals(prepared.TextAt(0), text .. okuri)
+    endfor
+    for okuri in rejected
+      assert.equals(conversion.Prepare({[reading]: entry}, state.State.new(), reading, okuri).candidates, [], tag .. ': ' .. okuri)
+    endfor
+  endfor
 }

@@ -42,7 +42,21 @@ suite.fuzzy_matching_keeps_input_order_and_catalog_order = (): void => {
 suite.w_row_tags_use_w_and_describe_their_variants = (): void => {
   const items = annotations.Matches('@verb-5-w')
   assert.equals(mapnew(items, (_, item) => item.word),
-    ['@verb-5-w', '@verb-5-w-iu', '@verb-5-w-yuu'])
+    ['@verb-5-w', '@verb-5-w-tou'])
   assert.equals(mapnew(items, (_, item) => item.description),
-    ['五段ワ行', '五段ワ行（言う）', '五段ワ行（言う（ゆう））'])
+    ['五段ワ行', '五段ワ行（問う）'])
+}
+
+
+suite.refreshed_catalog_has_57_verb_tags_and_describes_new_forms = (): void => {
+  assert.equals(len(tags.ENDINGS), 57)
+  assert.equals(len(annotations.Matches('@')), 58)
+  for [tag, description] in [['@verb-1', '一段'], ['@verb-1-kureru', '一段（呉れる）'],
+      ['@verb-1-uru', '一段（得る）'], ['@verb-henkaku-k', '変格カ行'],
+      ['@verb-bungo-4-k', '文語四段カ行'], ['@verb-bungo-2-kami-k', '文語上二段カ行'],
+      ['@verb-bungo-2-shimo-w', '文語下二段ワ行'], ['@verb-bungo-henkaku-r', '文語変格ラ行']]
+    const item = filter(annotations.Matches(tag), (_, candidate) => candidate.word == tag)
+    assert.equals(len(item), 1, tag)
+    assert.equals(item[0].description, description, tag)
+  endfor
 }

@@ -354,11 +354,11 @@ suite.annotation_is_saved_without_inserting_it = (): void => {
 suite.annotation_completion_accepts_a_label_before_registering = (): void => {
   const fixture = Setup(false)
   defer Cleanup(fixture)
-  feedkeys("aKas\<F3>d;@verb-1-shimo-b\<CR>\<CR>\<Esc>", 'xt')
+  feedkeys("aKas\<F3>d;@verb-1\<CR>\<CR>\<Esc>", 'xt')
   assert.equals(errors, [])
   assert.equals(getline(1), '前漢字後')
   assert.equals(user_runtime.Get().GetSnapshot().entries[json_encode(['か', ''])][0].annotations,
-    ['@verb-1-shimo-b'])
+    ['@verb-1'])
 }
 
 suite.annotation_completion_escape_and_backspace_preserve_the_window = (): void => {
