@@ -427,7 +427,7 @@ export class Session
     endif
     const text = this._selection.CurrentCandidateText()
     return this._selection.IsExperimental()
-      ? !empty(stem.RegisteredQueries(this._preferences, this._prepared.query.reading, text))
+      ? !empty(stem.RegisteredQueries(this._preferences, this._selection.CurrentSourceReading(), text))
       : this._preferences.HasEntryForLookup(this._prepared.query, text)
   enddef
 
@@ -438,7 +438,7 @@ export class Session
     const info = this._selection.GetInfo()
     const candidate_text = this._selection.CurrentCandidateText()
     if this._selection.IsExperimental()
-      for query in stem.RegisteredQueries(this._preferences, this._prepared.query.reading, candidate_text)
+      for query in stem.RegisteredQueries(this._preferences, this._selection.CurrentSourceReading(), candidate_text)
         this._preferences.DeleteEntry(query, candidate_text)
       endfor
     else

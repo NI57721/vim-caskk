@@ -184,7 +184,7 @@ export class State
     return deleted
   enddef
 
-  def Learn(query: dictionary.Query, text: string)
+  def Learn(query: dictionary.Query, text: string, selection_readings: list<string> = [])
     const key = Identity(query)
     if get(this._pinned, key, '') ==# text || index(get(this._demoted, key, []), text) >= 0
       return
@@ -196,16 +196,23 @@ export class State
       endif
     endfor
     const identity = json_encode([query.exact_okuri, text])
-    final recent = [identity]
-    for previous in get(this._recent, query.reading, [])
-      if previous !=# identity
-        recent->add(previous)
+    var changed = get(this._mru, key, []) !=# history
+    # Reading variants share the choice order, but not ordinary okuri MRU.
+    for reading in uniq(sort([query.reading] + selection_readings))
+      final recent = [identity]
+      for previous in get(this._recent, reading, [])
+        if previous !=# identity
+          recent->add(previous)
+        endif
+      endfor
+      if get(this._recent, reading, []) !=# recent
+        this._recent[reading] = recent
+        changed = true
       endif
     endfor
-    if get(this._mru, key, []) ==# history && get(this._recent, query.reading, []) ==# recent
+    if !changed
       return
     endif
-    this._recent[query.reading] = recent
     this._mru[key] = history
     this._Changed()
   enddef

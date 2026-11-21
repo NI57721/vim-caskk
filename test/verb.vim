@@ -1,4 +1,8 @@
 vim9script
+import 'caskk/dictionary.vim' as dictionary
+import autoload 'caskk/dictionary/index.vim' as dict_index
+import autoload 'caskk.vim' as Caskk
+import autoload 'caskk/user_state/runtime.vim' as runtime
 import autoload 'caskk/dictionary/loader.vim' as loader
 import autoload 'caskk/dictionary/lookup.vim' as lookup
 import autoload 'caskk/conversion.vim' as conversion
@@ -492,4 +496,118 @@ suite.tou_excludes_sokuon_and_uru_only_accepts_ru_and_re = (): void => {
       assert.equals(conversion.Prepare({[reading]: entry}, state.State.new(), reading, okuri).candidates, [], tag .. ': ' .. okuri)
     endfor
   endfor
+}
+
+suite.kuru_one_source_supplies_ku_ko_and_ki_without_rewriting_it = (): void => {
+  const entry = parser.ParseLine('く /来;説明 @verb-henkaku-k/句;@verb-5-k/区/')
+  for [reading, okuri, expected] in [['く', 'る', '来る'], ['こ', 'よう', '来よう'],
+      ['こ', 'ない', '来ない'], ['き', 'ます', '来ます'], ['き', 'た', '来た'], ['き', 'ちゃう', '来ちゃう']]
+    const prepared = conversion.Prepare({'く': entry}, state.State.new(), reading, okuri)
+    assert.equals(len(prepared.candidates), 1)
+    assert.equals(prepared.TextAt(0), expected)
+    assert.equals(prepared.PreferenceQuery(0).reading, 'く')
+  endfor
+  assert.equals(entry.candidates[0].text, '来')
+  assert.equals(conversion.Prepare({'く': entry}, state.State.new(), 'こ').candidates, [])
+  assert.equals(conversion.Prepare({'く': entry}, state.State.new(), 'き').candidates, [])
+}
+
+suite.kuru_indexed_sources_keep_dictionary_order_and_ordinary_duplicates = (): void => {
+  const original = dict_index.SourceFromLines(['く /来;@verb-henkaku-k/'])
+  const ordinary = dict_index.SourceFromLines(['こy /通常/来/'])
+  for sources in [[original, ordinary], [ordinary, original]]
+    const prepared = conversion.Prepare({}, state.State.new(), 'こ', 'よう', true, dict_index.Database.new(sources))
+    assert.equals(mapnew(prepared.candidates, (_, candidate) => candidate.text),
+      sources[0] is original ? ['来', '通常', '来'] : ['通常', '来', '来'])
+  endfor
+}
+
+suite.kuru_learning_and_explicit_choices_follow_the_registered_reading = (): void => {
+  const entries = {'く': parser.ParseLine('く /来;@verb-henkaku-k/來;@verb-henkaku-k/')}
+  const preferences = state.State.new()
+  const selected = conversion.Selection.new(conversion.Prepare(entries, preferences, 'こ', 'よう'), preferences)
+  selected.Select(1)
+  selected.Commit()
+  const restored = state.State.new()
+  restored.Restore(codec.Decode(codec.Encode(preferences.GetSnapshot())))
+  assert.equals(conversion.Prepare(entries, restored, 'き', 'ます').TextAt(0), '來ます')
+  const pinned = conversion.Selection.new(conversion.Prepare(entries, restored, 'き', 'ます'), restored)
+  pinned.TogglePin()
+  assert.equals(conversion.Selection.new(conversion.Prepare(entries, restored, 'く', 'る'), restored).GetInfo().tier, 'pinned')
+  pinned.ToggleDemote()
+  assert.equals(conversion.Prepare(entries, restored, 'こ', 'ない').TextAt(0), '来ない')
+}
+
+suite.kuru_user_registration_with_okuri_is_deleted_from_its_ko_variant = (): void => {
+  const preferences = state.State.new()
+  preferences.AddEntry(lookup.CreateQuery('く', 'る'), dictionary.Candidate.new('来', ['@verb-henkaku-k']))
+  const compiled = scheme.Compile({}, {}, [scheme.SpecialDefinition.new(['x'], 'よう')])
+  const ime = session.Session.new(compiled, '', {}, preferences, 'こ')
+  assert.equals(ime.Feed('X')[-1].text, '来よう')
+  assert.equals(ime.CanDeleteUserEntry(), true)
+  ime.DeleteUserEntry()
+  assert.equals(preferences.GetSnapshot().entries, {})
+}
+
+suite.kuru_latest_choice_still_wins_against_ordinary_candidates_in_each_variant = (): void => {
+  const entries = {'く': parser.ParseLine('く /来;@verb-henkaku-k/'),
+    'こy': parser.ParseLine('こy /通常/'), 'きm': parser.ParseLine('きm /通常/')}
+  const preferences = state.State.new()
+  preferences.Learn(lookup.CreateQuery('こ', 'よ'), '通常')
+  preferences.Learn(lookup.CreateQuery('き', 'ま'), '通常')
+  const selected = conversion.Selection.new(conversion.Prepare(entries, preferences, 'く', 'る'), preferences)
+  selected.Commit()
+  assert.equals(conversion.Prepare(entries, preferences, 'こ', 'よう').TextAt(0), '来よう')
+  assert.equals(conversion.Prepare(entries, preferences, 'き', 'ます').TextAt(0), '来ます')
+  const ordinary = conversion.Selection.new(conversion.Prepare(entries, preferences, 'こ', 'よう'), preferences)
+  ordinary.Select(1)
+  ordinary.Commit()
+  assert.equals(conversion.Prepare(entries, preferences, 'こ', 'よう').TextAt(0), '通常よう')
+  const again = conversion.Selection.new(conversion.Prepare(entries, preferences, 'く', 'る'), preferences)
+  again.Commit()
+  const restored = state.State.new()
+  restored.Restore(codec.Decode(codec.Encode(preferences.GetSnapshot())))
+  assert.equals(conversion.Prepare(entries, restored, 'こ', 'よう').TextAt(0), '来よう')
+}
+
+
+
+def RestoreKuruUserState(snapshot: state.Snapshot)
+  runtime.Get().Restore(snapshot)
+enddef
+
+suite.kuru_real_input_commits_and_cancels_using_the_entered_reading = (): void => {
+  const previous = bufnr('%')
+  const snapshot = runtime.Get().GetSnapshot()
+  defer RestoreKuruUserState(snapshot)
+  const path = tempname()
+  defer delete(path)
+  writefile(['く /来;@verb-henkaku-k/'], path)
+  enew
+  const buffer = bufnr('%')
+  setlocal buftype=nofile noswapfile
+  try
+    Caskk.RegisterInputScheme({name: 'kuru-test', consonants: {}, combinations: {},
+      specials: {x: 'こ', y: 'よう', z: 'き', m: 'ます'}})
+    Caskk.Config({dictionaries: [path], mode_popup: false, candidate_popup: false,
+      mappings: {c: 'Commit', q: 'PreviousCandidate'}})
+    Caskk.Enable('kuru-test')
+    feedkeys("iXYc\<Esc>", 'xt')
+    assert.equals(getline(1), '来よう')
+    undo
+    assert.equals(getline(1), 'こよう')
+    undo
+    assert.equals(getline(1), '')
+    feedkeys("iZMc\<Esc>", 'xt')
+    assert.equals(getline(1), '来ます')
+    undo
+    undo
+    feedkeys("iXYqc\<Esc>", 'xt')
+    assert.equals(getline(1), 'こよう')
+  finally
+    Caskk.Disable()
+    Caskk.Config({})
+    execute 'noautocmd keepalt hide buffer ' .. previous
+    execute 'silent! bwipeout! ' .. buffer
+  endtry
 }

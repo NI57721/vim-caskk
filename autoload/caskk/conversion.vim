@@ -26,6 +26,9 @@ export class Candidates
   enddef
 
   def PreferenceQuery(index: number): dictionary.Query
+    if this.candidates[index].source_reading != ''
+      return lookup.CreateQuery(this.candidates[index].source_reading, '')
+    endif
     return this.IsExperimental(index) ? lookup.CreateQuery(this.query.reading, '') : this.query
   enddef
 
@@ -124,6 +127,11 @@ export class Selection
     return CandidateListInfo.new(this._index, candidates)
   enddef
 
+  def CurrentSourceReading(): string
+    this._CheckActive()
+    return this._prepared.PreferenceQuery(this._index).reading
+  enddef
+
   def IsExperimental(): bool
     return this._prepared.IsExperimental(this._index)
   enddef
@@ -170,7 +178,15 @@ export class Selection
   def Commit(): string
     this._CheckActive()
     const text = this._prepared.TextAt(this._index)
-    this._preferences.Learn(this._prepared.PreferenceQuery(this._index), this._prepared.candidates[this._index].text)
+    const query = this._prepared.PreferenceQuery(this._index)
+    const candidate = this._prepared.candidates[this._index]
+    final variants: list<string> = []
+    if this._prepared.IsExperimental(this._index) && query.reading =~# 'く$'
+        && index(split(join(candidate.annotations, ';'), '[[:space:];]\+'), '@verb-henkaku-k') >= 0
+      const prefix = strcharpart(query.reading, 0, strchars(query.reading) - 1)
+      variants->extend([prefix .. 'こ', prefix .. 'き'])
+    endif
+    this._preferences.Learn(query, candidate.text, variants)
     this._active = false
     return text
   enddef
@@ -183,6 +199,10 @@ export class Selection
 endclass
 
 # Each row keeps its own preference identity and marker when sources interleave.
+def RowIdentity(is_stem: bool, candidate: dictionary.Candidate): string
+  return json_encode([is_stem, candidate.text, candidate.source_reading])
+enddef
+
 class RankedRow
   const candidate: dictionary.Candidate
   const marker: string
@@ -221,7 +241,7 @@ export def Prepare(entries: dict<dictionary.Entry>, preferences: user_state.Stat
   final markers = repeat(['［adj］'], len(experimental))
   for candidate in verb.Lookup(entries, preferences, reading, okuri, database)
     const position = index(mapnew(experimental, (_, item) => item.text), candidate.text)
-    if position >= 0
+    if position >= 0 && candidate.source_reading == ''
       markers[position] = '［adj,verb］'
     else
       experimental->add(candidate)
@@ -232,7 +252,12 @@ export def Prepare(entries: dict<dictionary.Entry>, preferences: user_state.Stat
     return Candidates.new(query, okuri, ranked)
   endif
   const stem_query = lookup.CreateQuery(reading, '')
-  const sources = database is null_object ? [entries] : database.LookupSources([query, stem_query])
+  final source_queries = [query, stem_query]
+  const kuru_source = verb.KuruSourceReading(reading)
+  if kuru_source != ''
+    source_queries->add(lookup.CreateQuery(kuru_source, ''))
+  endif
+  const sources = database is null_object ? [entries] : database.LookupSources(source_queries)
   final source_ranks: dict<number> = {}
   final source_positions: dict<number> = {}
   const empty_preferences = user_state.State.new()
@@ -240,21 +265,20 @@ export def Prepare(entries: dict<dictionary.Entry>, preferences: user_state.Stat
     const source = sources[source_index]
     var source_position = 0
     for candidate in lookup.Lookup(source, query)
-      const identity = json_encode([false, candidate.text])
+      const identity = RowIdentity(false, candidate)
       if !has_key(source_ranks, identity)
         source_ranks[identity] = source_index
         source_positions[identity] = source_position
       endif
       source_position += 1
     endfor
-    const eligible = adjective.Lookup(source, empty_preferences, reading, okuri, null_object)
+    final eligible = adjective.Lookup(source, empty_preferences, reading, okuri, null_object)
         + verb.Lookup(source, empty_preferences, reading, okuri, null_object)
     const eligible_texts = mapnew(eligible, (_, candidate) => candidate.text)
-    for candidate in lookup.Lookup(source, stem_query)
-      if index(eligible_texts, candidate.text) < 0
-        continue
-      endif
-      const identity = json_encode([true, candidate.text])
+    final ordered = filter(copy(lookup.Lookup(source, stem_query)), (_, candidate) => index(eligible_texts, candidate.text) >= 0)
+    ordered->extend(filter(copy(eligible), (_, candidate) => candidate.source_reading != ''))
+    for candidate in ordered
+      const identity = RowIdentity(true, candidate)
       if !has_key(source_ranks, identity)
         source_ranks[identity] = source_index
         source_positions[identity] = source_position
@@ -267,16 +291,18 @@ export def Prepare(entries: dict<dictionary.Entry>, preferences: user_state.Stat
   for candidate in ranked + experimental
     const position = len(rows)
     const is_stem = position >= len(ranked)
-    const preference_query = is_stem ? stem_query : query
+    const preference_query = candidate.source_reading != ''
+      ? lookup.CreateQuery(candidate.source_reading, '') : is_stem ? stem_query : query
     const tier_name = preferences.GetCandidateTier(preference_query, candidate.text)
     const tier = tier_name ==# 'pinned' ? 0 : tier_name ==# 'demoted' ? 2 : 1
-    const recent_index = preferences.RecentIndex(preference_query, candidate.text)
+    const recent_query = candidate.source_reading != '' ? stem_query : preference_query
+    const recent_index = preferences.RecentIndex(recent_query, candidate.text)
     const recent = tier == 1 && recent_index >= 0 ? recent_index : 2147483647
     const learned = preferences.HistoryIndex(preference_query, candidate.text)
     const history = tier == 1 && learned >= 0 ? learned : 2147483647
     rows->add(RankedRow.new(candidate, is_stem ? markers[position - len(ranked)] : '',
-      tier, recent, history, get(source_ranks, json_encode([is_stem, candidate.text]), len(sources)),
-      get(source_positions, json_encode([is_stem, candidate.text]), position)))
+      tier, recent, history, get(source_ranks, RowIdentity(is_stem, candidate), len(sources)),
+      get(source_positions, RowIdentity(is_stem, candidate), position)))
   endfor
   sort(rows, CompareRows)
   return Candidates.new(query, okuri, mapnew(rows, (_, row) => row.candidate), len(experimental),

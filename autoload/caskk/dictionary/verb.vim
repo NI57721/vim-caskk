@@ -31,6 +31,11 @@ export def IsStandalone(reading: string, candidate: dictionary.Candidate): bool
   return false
 enddef
 
+# Reverse only the final reading alternation of a registered modern kuru stem.
+export def KuruSourceReading(reading: string): string
+  return reading =~# '[こき]$' ? strcharpart(reading, 0, strchars(reading) - 1) .. 'く' : ''
+enddef
+
 export def Lookup(entries: dict<dictionary.Entry>, preferences: user_state.State, reading: string, okuri: string, database: dict_index.Database): list<dictionary.Candidate>
   final result: list<dictionary.Candidate> = []
   for candidate in stem.Lookup(entries, preferences, reading, database)
@@ -52,5 +57,14 @@ export def Lookup(entries: dict<dictionary.Entry>, preferences: user_state.State
       result->add(candidate)
     endif
   endfor
+  const source_reading = KuruSourceReading(reading)
+  if okuri != '' && source_reading != ''
+      && stridx(tags.ENDINGS['@verb-henkaku-k'], strcharpart(okuri, 0, 1)) >= 0
+    for candidate in stem.Lookup(entries, preferences, source_reading, database)
+      if index(split(join(candidate.annotations, ';'), '[[:space:];]\+'), '@verb-henkaku-k') >= 0
+        result->add(dictionary.Candidate.new(candidate.text, candidate.annotations, 0, source_reading))
+      endif
+    endfor
+  endif
   return result
 enddef

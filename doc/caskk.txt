@@ -201,7 +201,11 @@ Verb stems                                            *caskk-experimental-verb*
     'たべ /食べ;@verb-1/' converts たべ*る to 食べる.
     Regular ichidan, kureru, kuru, suru and zuru tags accept ち for contractions:
     たべ*ちゃう → 食べちゃう and たべ*ちゃった → 食べちゃった.
-    'き /来;@verb-henkaku-k/' similarly converts き*ちゃう to 来ちゃう.
+    'く /来;@verb-henkaku-k/' also converts こ*よう to 来よう,
+    き*ます to 来ます, and き*ちゃう to 来ちゃう.  Only modern kuru tags
+    share these readings; the source candidate text is never rewritten.
+    Selection history, pinning, demotion, and deletion refer to the source く.
+    Cancelling restores the entered reading.  Completion is not expanded.
     Its popup row shows ［verb］.
     Regular ichidan and kureru stems, plus certain complete forms, also
     convert without okuri.

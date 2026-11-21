@@ -6,8 +6,11 @@ export class Candidate
   const text: string
   const annotations: list<string>
   const has_plain_source: bool
+  # Only transient reading variants set this; dictionary entries stay unchanged.
+  const source_reading: string
 
-  def new(this.text, annotations: list<string>, plain_source: number = -1)
+  def new(this.text, annotations: list<string>, plain_source: number = -1, source_reading: string = '')
+    this.source_reading = source_reading
     this.annotations = copy(annotations)
     this.has_plain_source = plain_source < 0 ? !tags.HasVerb(annotations) : plain_source != 0
   enddef
