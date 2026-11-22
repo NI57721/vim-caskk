@@ -101,6 +101,7 @@ enddef
 export class View
   var _window: number = 0
   var _confirmation: bool = false
+  var _labelled_above: bool = false
 
   def new()
   enddef
@@ -162,11 +163,10 @@ export class View
     const lines = Format(info, keys, rank_action)
     if !empty(keys)
       const previous = this._window == 0 ? {} : popup_getpos(this._window)
-      const last_top = max([1, &lines - &cmdheight - len(keys)])
       const anchor = screenpos(win_getid(), line('.'), col('.'))
-      const below = anchor.row + 1
-      const initial = below <= last_top ? below : max([1, anchor.row - len(keys) - 1])
-      const top = min([get(previous, 'line', initial), last_top])
+      this._labelled_above = (!empty(previous) && this._labelled_above)
+        || anchor.row + len(lines) > &lines - &cmdheight
+      const top = this._labelled_above ? max([1, anchor.row - len(lines)]) : anchor.row + 1
       const width = min([60, max(mapnew(lines, (_, line) => strdisplaywidth(line)))]) + 2
       const left = min([max([1, get(previous, 'col', anchor.col)]), max([1, &columns - width + 1])])
       const options = {
@@ -184,6 +184,7 @@ export class View
       HighlightSelection(this._window, 0)
       return
     endif
+    this._labelled_above = false
     const previous = this._window == 0 ? {} : popup_getpos(this._window)
     if !empty(previous)
       # Preserve the initial screen rectangle as selection scrolls toward the end.

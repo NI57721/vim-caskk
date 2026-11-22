@@ -364,6 +364,34 @@ suite.candidate_popup_keeps_its_position_and_height_near_the_end = (): void => {
   endfor
 }
 
+suite.short_labelled_list_touches_the_conversion_row_near_the_bottom = (): void => {
+  const fixture = Setup(true, {}, 2, true, {})
+  defer Cleanup(fixture)
+  botright split
+  defer execute('close')
+  resize 1
+  redraw!
+  const row = screenpos(win_getid(), line('.'), col('.')).row
+  feedkeys('aKas' .. CAPTURE .. "c\<Esc>", 'xt')
+  assert.equals(observations[0].lines, ['1 蚊 — 昆虫', '2 科 — 学科'])
+  assert.equals(observations[0].position.line + observations[0].height, row)
+}
+
+suite.short_final_page_stays_above_the_conversion_row = (): void => {
+  const fixture = Setup(true, {}, 5, true, {candidate_select_keys: ['1', '2', '3', '4']})
+  defer Cleanup(fixture)
+  botright split
+  defer execute('close')
+  resize 3
+  redraw!
+  const row = screenpos(win_getid(), line('.'), col('.')).row
+  feedkeys('aKas' .. CAPTURE .. 'n' .. CAPTURE .. 'p' .. CAPTURE .. "c\<Esc>", 'xt')
+  assert.equals(mapnew(observations, (_, observed) => observed.height), [4, 1, 4])
+  for observed in observations
+    assert.equals(observed.position.line + observed.height, row)
+  endfor
+}
+
 suite.deletion_confirmation_is_fully_visible_in_a_small_terminal = (): void => {
   const script = tempname() .. '.vim'
   const report = tempname()
