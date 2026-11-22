@@ -55,7 +55,6 @@ class Settings
   const registration_inline: bool
   const undo_revert_to_reading: bool
   const candidate_select_keys: list<string>
-  const candidate_page_size: number
   const candidate_popup: bool
   const mode_popup: bool
   const mode_popup_labels: dict<string>
@@ -65,7 +64,7 @@ class Settings
 
   def new(this.highlight, this.input, this.state_path, this.state_auto, this.registration_prefill,
       this.registration_auto, this.registration_inline, this.undo_revert_to_reading,
-      this.candidate_popup, this.candidate_select_keys, this.candidate_page_size, this.mode_popup,
+      this.candidate_popup, this.candidate_select_keys, this.mode_popup,
       mode_popup_labels: dict<string>, mode_popup_markers: dict<string>, this.mode_popup_time,
       dictionary_sources: list<loader.Source> = [])
     this.mode_popup_labels = copy(mode_popup_labels)
@@ -277,7 +276,7 @@ def Parse(options: dict<any>, shared_index: dict_index.Database = null_object): 
     if index(['highlight', 'sticky_key', 'keyboard_layout', 'keyboard_layout_overrides', 'mappings', 'dictionaries', 'state_path', 'state_auto',
         'small_tsu_okuri_as_t',
         'registration_prefill', 'registration_auto', 'registration_inline', 'candidate_popup',
-        'candidate_select_keys', 'candidate_page_size', 'persist_input_mode',
+        'candidate_select_keys', 'persist_input_mode',
         'undo_revert_to_reading',
         'register_mode_conversions', 'completion_min_length', 'keep_preedit_on_backspace',
         'mode_popup', 'mode_popup_labels', 'mode_popup_markers', 'mode_popup_time'], section) < 0
@@ -348,12 +347,6 @@ def Parse(options: dict<any>, shared_index: dict_index.Database = null_object): 
     endif
     candidate_select_keys->add(key)
   endfor
-  const candidate_page_size = get(options, 'candidate_page_size', len(candidate_select_keys))
-  if type(candidate_page_size) != v:t_number
-      || (has_key(options, 'candidate_page_size')
-        && (candidate_page_size < 1 || candidate_page_size > len(candidate_select_keys)))
-    throw 'candidate_page_size must be between 1 and the number of selection keys'
-  endif
   const candidate_popup: bool = get(options, 'candidate_popup', true)
   if type(get(options, 'mode_popup', true)) != v:t_bool
     throw 'mode_popup must be a bool'
@@ -376,7 +369,7 @@ def Parse(options: dict<any>, shared_index: dict_index.Database = null_object): 
   return Settings.new(highlight, Input.new(sticky_key, keyboard_layout, keyboard_layout_overrides,
     actions, dictionary_index, small_tsu_okuri_as_t, persist_input_mode, register_mode_conversions, completion_min_length, keep_preedit_on_backspace), destination, state_auto,
     registration_prefill, registration_auto, registration_inline, undo_revert_to_reading,
-    candidate_popup, candidate_select_keys, candidate_page_size, mode_popup, mode_popup_labels,
+    candidate_popup, candidate_select_keys, mode_popup, mode_popup_labels,
     mode_popup_markers, mode_popup_time, sources)
 enddef
 
@@ -412,7 +405,6 @@ def SameDictionaryIndependentSettings(left: Settings, right: Settings): bool
     && left.state_auto == right.state_auto
     && left.candidate_popup == right.candidate_popup
     && left.candidate_select_keys == right.candidate_select_keys
-    && left.candidate_page_size == right.candidate_page_size
     && left.mode_popup == right.mode_popup
     && left.mode_popup_labels == right.mode_popup_labels
     && left.mode_popup_markers == right.mode_popup_markers
@@ -517,7 +509,7 @@ export def GetCandidatePopup(): bool
 enddef
 
 export def GetCandidateSelectKeys(): list<string>
-  return current.candidate_popup ? current.candidate_select_keys[: current.candidate_page_size - 1] : []
+  return current.candidate_popup ? copy(current.candidate_select_keys) : []
 enddef
 
 export def GetModePopup(): bool

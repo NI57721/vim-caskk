@@ -18,4 +18,16 @@ CancelRegistration()				*caskk-cancel-registration*
 元のバッファの挿入モードで保留中の登録要求を取り消す。候補を送り切った場合は
 直前の候補選択を復元し、候補が見つからなかった場合は読みと送りへ戻る。
 
+候補選択ラベル                     *caskk-config-candidate-select-keys*
+
+candidate_select_keys には、重複しない印字可能な単一キーを指定する。
+既定は ['1', '2', '3', '4', '5']。1 ページの最大件数はラベル数で決まり、
+画面に収まる件数と残りの候補数でさらに制限する。空リストでは一候補ずつ移動する。
+
+1 ページ最大 4 件にする設定例: >
+  candidate_select_keys: ['1', '2', '3', '4']
+<
+旧設定から移行するには、使いたい件数に合わせて candidate_select_keys を短くし、
+candidate_page_size を設定から削除する。
+
  vim:tw=78:ts=8:noet:ft=help:norl:

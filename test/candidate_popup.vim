@@ -260,7 +260,7 @@ suite.exhaustion_closes_candidate_popup_before_opening_registration = (): void =
 suite.registration_escape_restores_the_last_page_and_its_label = (): void => {
   for inline in [false, true]
     const fixture = Setup(true, {}, 3, true,
-      {candidate_page_size: 2, registration_inline: inline, registration_prefill: false})
+      {candidate_select_keys: ['1', '2'], registration_inline: inline, registration_prefill: false})
     try
       feedkeys('aKass' .. CAPTURE .. 's' .. "\<Esc>" .. CAPTURE .. 'p' .. CAPTURE
         .. "s1\<Esc>", 'xt')
@@ -304,7 +304,7 @@ suite.public_cancel_restores_the_candidate_without_opening_registration = (): vo
 
 suite.inline_escape_commits_the_draft_candidate_before_restoring_the_source_page = (): void => {
   const fixture = Setup(true, {}, 3, true,
-    {candidate_page_size: 2, registration_inline: true, registration_prefill: false})
+    {candidate_select_keys: ['1', '2'], registration_inline: true, registration_prefill: false})
   defer Cleanup(fixture)
   feedkeys('aKasssKassp' .. "\<Esc>" .. CAPTURE .. "\<Esc>" .. CAPTURE .. "1\<Esc>", 'xt')
   assert.equals(registration_readings, ['か', ''])
@@ -451,9 +451,30 @@ suite.default_labels_commit_and_digits_remain_literal_afterward = (): void => {
   assert.equals(getline(1), '前科3後')
 }
 
+suite.four_labels_limit_pages_and_are_reused_in_order = (): void => {
+  const fixture = Setup(true, {}, 5, true, {candidate_select_keys: ['4', '2', '3', '1']})
+  defer Cleanup(fixture)
+  feedkeys('aKas' .. CAPTURE .. 'n' .. CAPTURE .. 'p' .. CAPTURE .. 'n2' .. CAPTURE .. "4\<Esc>", 'xt')
+  assert.equals(observations[0].lines, ['4 蚊 — 昆虫', '2 科 — 学科', '3 候補3', '1 候補4'])
+  assert.equals(observations[1].lines, ['4 候補5'])
+  assert.equals(observations[2].lines, observations[0].lines)
+  assert.equals(observations[3].lines, observations[1].lines)
+  assert.equals(getline(1), '前候補5後')
+}
+
+suite.removed_candidate_page_size_is_an_unknown_option = (): void => {
+  var error = ''
+  try
+    Caskk.Config({candidate_page_size: 4})
+  catch
+    error = v:exception
+  endtry
+  assert.equals(error, 'caskk: invalid configuration: unknown section: candidate_page_size')
+}
+
 suite.custom_pages_keep_labels_stable_when_editing_rank = (): void => {
   const fixture = Setup(true, {t: 'TogglePin', d: 'ToggleDemote', x: 'Commit'}, 3, true,
-    {candidate_select_keys: ['x', 'y', 'é'], candidate_page_size: 2})
+    {candidate_select_keys: ['x', 'y']})
   defer Cleanup(fixture)
   feedkeys('aKann' .. CAPTURE .. 'ypt' .. CAPTURE .. "y" .. CAPTURE .. "d\<Esc>" .. CAPTURE .. "xc\<Esc>", 'xt')
   assert.equals(observations[0].lines, ['x 候補3'])
@@ -468,7 +489,7 @@ suite.custom_pages_keep_labels_stable_when_editing_rank = (): void => {
 
 suite.invalid_candidate_label_settings_are_rejected = (): void => {
   for options in [{candidate_select_keys: ['x', 'x']}, {candidate_select_keys: ['xy']},
-      {candidate_select_keys: ["\<Tab>"]}, {candidate_page_size: 0}, {candidate_page_size: 6}]
+      {candidate_select_keys: ["\<Tab>"]}]
     var error = ''
     try
       Caskk.Config(options)
@@ -480,7 +501,7 @@ suite.invalid_candidate_label_settings_are_rejected = (): void => {
 }
 
 suite.page_edges_restore_reading_and_request_registration = (): void => {
-  const fixture = Setup(true, {}, 3, true, {candidate_page_size: 2, registration_auto: false})
+  const fixture = Setup(true, {}, 3, true, {candidate_select_keys: ['1', '2'], registration_auto: false})
   defer Cleanup(fixture)
   feedkeys('aKasp' .. CAPTURE .. 'sss' .. CAPTURE .. "\<Esc>", 'xt')
   assert.equals(observations[0].lines, [])

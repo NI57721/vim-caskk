@@ -227,7 +227,7 @@ suite.disabled_reconversion_exhaustion_can_open_either_registration_field = (): 
 suite.registration_cancel_restores_reconversion_with_or_without_the_ime_enabled = (): void => {
   for enabled in [true, false]
     for inline in [true, false]
-      const fixture = Setup({candidate_select_keys: ['1'], candidate_page_size: 1,
+      const fixture = Setup({candidate_select_keys: ['1'],
         registration_inline: inline, registration_prefill: false})
       try
         ConvertAndCommit()

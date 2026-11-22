@@ -82,7 +82,7 @@ def Setup(prefill: bool = false, with_candidates: bool = false, extra_mappings: 
   setline(1, '前後')
   cursor(1, 1)
   var options: dict<any> = {registration_auto: false, registration_inline: true,
-    registration_prefill: prefill, candidate_page_size: second_okuri ? 5 : 1,
+    registration_prefill: prefill, candidate_select_keys: second_okuri ? ['1', '2', '3', '4', '5'] : ['1'],
     highlight: {preedit: {term: 'underline', cterm: 'underline', gui: 'underline'}},
     mode_popup: true, mode_popup_time: 0,
     mappings: extend({s: 'Convert', n: 'NextCandidate', "\<F6>": 'OpenRegistration'}, extra_mappings)}

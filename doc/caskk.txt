@@ -322,6 +322,18 @@ candidate_popup                           *caskk-config-candidate-popup*
     completion; ShowCompletion remains available.  ★ marks pinned candidates,
     ↓ marks demoted candidates.
 
+candidate_select_keys               *caskk-config-candidate-select-keys*
+    List of unique, printable single keys.  Defaults to ['1', '2', '3', '4', '5'].
+    The number of labels sets the maximum candidates per page.  Each page
+    also fits the available screen space and the remaining candidates.
+    An empty list moves through candidates one at a time.
+
+    For up to four candidates per page: >
+      candidate_select_keys: ['1', '2', '3', '4']
+<
+    To migrate, shorten candidate_select_keys to the desired page size and
+    remove candidate_page_size from your configuration.
+
 mode_popup                                     *caskk-config-mode-popup*
     bool, true.  Shows the input mode near the cursor.
 

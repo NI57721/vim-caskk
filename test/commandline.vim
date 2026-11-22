@@ -77,13 +77,10 @@ enddef
 def LabelDictionary(extra: dict<any> = {}): string
   const path = tempname()
   writefile(['か /蚊/家/科/課/歌/'], path)
-  final options = extend({dictionaries: [path], candidate_select_keys: ['a', '界', '3'],
-    candidate_page_size: 2, mode_popup: false, mappings: {'a': 'KatakanaMode',
+  final options = extend({dictionaries: [path], candidate_select_keys: ['a', '界'],
+    mode_popup: false, mappings: {'a': 'KatakanaMode',
     'p': 'TogglePin', 'd': 'ToggleDemote', "\<Space>": 'Convert',
     "\<C-N>": 'NextCandidate', "\<C-P>": 'PreviousCandidate'}}, extra)
-  if empty(options.candidate_select_keys)
-    remove(options, 'candidate_page_size')
-  endif
   Caskk.Config(options)
   return path
 enddef
