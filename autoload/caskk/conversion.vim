@@ -253,7 +253,10 @@ export def Prepare(entries: dict<dictionary.Entry>, preferences: user_state.Stat
       && index(mapnew(system_candidates, (_, candidate) => candidate.text), '#6') < 0
     system_candidates->add(dictionary.Candidate.new('#6', []))
   endif
-  const ranked = preferences.Rank(query, system_candidates)
+  final ranked = preferences.Rank(query, system_candidates)
+  if okuri == ''
+    ranked->map((_, candidate) => verb.WithStandaloneAnnotations(reading, candidate))
+  endif
   final experimental = adjective.Lookup(entries, preferences, reading, okuri, database)
   final markers = repeat(['［adj］'], len(experimental))
   for candidate in verb.Lookup(entries, preferences, reading, okuri, database)

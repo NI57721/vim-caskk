@@ -176,6 +176,40 @@ suite.bare_stems_are_hidden_but_independent_plain_sources_survive = (): void => 
   endfor
 }
 
+suite.ordinary_conversion_hides_nonstandalone_tags_from_merged_sources = (): void => {
+  const plain = dict_index.SourceFromLines(['き /聞/'])
+  const tagged = dict_index.SourceFromLines(['き /聞;@verb-5-k/'])
+  const combined = dict_index.SourceFromLines(['き /聞/', 'き /聞;@verb-5-k/'])
+  const preferences = state.State.new()
+  for sources in [[plain, tagged], [tagged, plain], [combined]]
+    const database = dict_index.Database.new(sources)
+    const ordinary = conversion.Prepare({}, preferences, 'き', '', true, database)
+    assert.equals(mapnew(ordinary.candidates, (_, candidate) => candidate.text), ['聞'])
+    assert.equals(ordinary.candidates[0].annotations, [])
+    assert.equals(ordinary.candidates[0].has_plain_source, true)
+    const stem = conversion.Prepare({}, preferences, 'き', 'く', true, database)
+    assert.equals(len(stem.candidates), 1)
+    assert.equals(stem.DisplayAt(0), '聞く［verb］')
+    assert.equals(stem.candidates[0].annotations, ['@verb-5-k'])
+  endfor
+}
+
+suite.ordinary_conversion_keeps_other_annotation_tokens = (): void => {
+  const annotation = '@verb-5-k;説明;@verb-5-k ; @adj @verb-unknown @verb-1;@verb-5-k @verb-5-g'
+  const database = dict_index.Database.new([dict_index.SourceFromLines([
+    'き /聞/', 'き /聞;' .. annotation .. '/', 'とじ /綴じ;@verb-1/'])])
+  const preferences = state.State.new()
+  const ordinary = conversion.Prepare({}, preferences, 'き', '', true, database)
+  assert.equals(ordinary.DisplayAt(0), '聞')
+  assert.equals(ordinary.candidates[0].annotations, ['説明;@adj @verb-unknown @verb-1'])
+  const adjective = conversion.Prepare({}, preferences, 'き', 'い', true, database)
+  assert.equals(adjective.DisplayAt(0), '聞い［adj,verb］')
+  assert.equals(adjective.candidates[0].annotations, [annotation])
+  const ichidan = conversion.Prepare({}, preferences, 'とじ', '', true, database)
+  assert.equals(ichidan.DisplayAt(0), '綴じ［verb］')
+  assert.equals(ichidan.candidates[0].annotations, ['@verb-1'])
+}
+
 suite.plain_user_and_indexed_sources_survive_snapshot_copying = (): void => {
   const path = tempname()
   defer delete(path)
@@ -187,7 +221,9 @@ suite.plain_user_and_indexed_sources_survive_snapshot_copying = (): void => {
   preferences.AddEntry(lookup.CreateQuery('か', ''), parser.ParseLine('か /書/').candidates[0])
   const copied = state.State.new()
   copied.Restore(preferences.GetSnapshot())
-  assert.equals(len(conversion.Prepare({}, copied, 'か', '', true, database).candidates), 1)
+  const ordinary = conversion.Prepare({}, copied, 'か', '', true, database)
+  assert.equals(len(ordinary.candidates), 1)
+  assert.equals(ordinary.candidates[0].annotations, [])
   const unknown = parser.ParseLine('か /書;@verb-unknown/')
   assert.equals(len(conversion.Prepare({'か': unknown}, state.State.new(), 'か').candidates), 1)
   const both = parser.ParseLine('か /書;@adj @verb-5-k/')

@@ -6,29 +6,55 @@ import autoload 'caskk/dictionary/stem.vim' as stem
 
 import 'caskk/verb_tags.vim' as tags
 
+const STANDALONE_FORMS: dict<string> = {
+  '@verb-henkaku-s': 'す$',
+  '@verb-henkaku-z': 'ず$',
+  '@verb-bungo-henkaku-k': '[こく]$',
+  '@verb-bungo-henkaku-s': 'す$',
+  '@verb-bungo-henkaku-z': 'ず$',
+  '@verb-bungo-henkaku-n': '[ぬね]$',
+  '@verb-bungo-henkaku-r': '[りれ]$',
+}
+const SEPARATOR = '[[:space:];]'
+
 # Regular ichidan and kureru stems can stand alone; uru cannot. Other tags need a complete form,
 # such as classical 来(こ) / 来(く).
+def IsStandaloneTag(reading: string, tag: string): bool
+  return tag ==# '@verb-1' || tag ==# '@verb-1-kureru'
+    || (has_key(STANDALONE_FORMS, tag) && reading =~# STANDALONE_FORMS[tag])
+enddef
+
 export def IsStandalone(reading: string, candidate: dictionary.Candidate): bool
-  const forms: dict<string> = {
-    '@verb-henkaku-s': 'す$',
-    '@verb-henkaku-z': 'ず$',
-    '@verb-bungo-henkaku-k': '[こく]$',
-    '@verb-bungo-henkaku-s': 'す$',
-    '@verb-bungo-henkaku-z': 'ず$',
-    '@verb-bungo-henkaku-n': '[ぬね]$',
-    '@verb-bungo-henkaku-r': '[りれ]$',
-  }
-  for annotation in candidate.annotations
-    for tag in split(annotation, '[[:space:];]\+')
-      if index(['@verb-1', '@verb-1-kureru'], tag) >= 0
-        return true
-      endif
-      if has_key(forms, tag) && reading =~# forms[tag]
-        return true
-      endif
-    endfor
+  for tag in split(join(candidate.annotations, ';'), SEPARATOR .. '\+')
+    if IsStandaloneTag(reading, tag)
+      return true
+    endif
   endfor
   return false
+enddef
+
+export def WithStandaloneAnnotations(reading: string, candidate: dictionary.Candidate): dictionary.Candidate
+  final annotations: list<string> = []
+  for annotation in candidate.annotations
+    const rejected = filter(split(annotation, SEPARATOR .. '\+'),
+      (_, tag) => has_key(tags.ENDINGS, tag) && !IsStandaloneTag(reading, tag))
+    if empty(rejected)
+      annotations->add(annotation)
+      continue
+    endif
+
+    const tag = '\%(' .. join(rejected, '\|') .. '\)'
+    const run = tag .. '\%(' .. SEPARATOR .. '\+' .. tag .. '\)*'
+    # At the end remove the preceding separator. Elsewhere remove the following one.
+    const pattern = SEPARATOR .. '\+' .. run .. SEPARATOR .. '*$'
+      .. '\|\%(^\|' .. SEPARATOR .. '\@<=\)' .. run .. '\%(' .. SEPARATOR .. '\+\|$\)'
+    const filtered = substitute(annotation, '\C' .. pattern, '', 'g')
+    if filtered != ''
+      annotations->add(filtered)
+    endif
+  endfor
+  return annotations ==# candidate.annotations ? candidate
+    : dictionary.Candidate.new(candidate.text, annotations, candidate.has_plain_source ? 1 : 0, candidate.source_reading)
 enddef
 
 # Reverse only the final reading alternation of a registered modern kuru stem.
