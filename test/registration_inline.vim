@@ -82,7 +82,7 @@ def Setup(prefill: bool = false, with_candidates: bool = false, extra_mappings: 
   setline(1, '前後')
   cursor(1, 1)
   var options: dict<any> = {registration_auto: false, registration_inline: true,
-    registration_prefill: prefill,
+    registration_prefill: prefill, candidate_page_size: second_okuri ? 5 : 1,
     highlight: {preedit: {term: 'underline', cterm: 'underline', gui: 'underline'}},
     mode_popup: true, mode_popup_time: 0,
     mappings: extend({s: 'Convert', n: 'NextCandidate', "\<F6>": 'OpenRegistration'}, extra_mappings)}
@@ -247,8 +247,8 @@ suite.inline_candidate_selection_keeps_the_registration_draft_visible = (): void
   defer Cleanup(context)
   feedkeys("aKasnn\<F6>sn\<Cmd>call CaskkTestInlineCapture()\<CR>\<CR>\<Esc>", 'xt')
   assert.equals(popup_lines, ['辞書登録: か  [Enter:登録 Esc:取消]', '登録語: 科│',
-    '1 蚊', '2 科'])
-  assert.equals(selected_candidate_rows, [4])
+    '1 科'])
+  assert.equals(selected_candidate_rows, [])
   assert.equals(index(visible_mode_labels, '▼あ') >= 0, true)
   assert.equals(getline(1), '前科後')
   assert.equals(popup_list() == [], true)

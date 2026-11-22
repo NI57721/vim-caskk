@@ -182,12 +182,20 @@ suite.buffer_local_command_mappings_are_restored = (): void => {
 
 var popup_text: list<string> = []
 var popup_position: dict<number> = {}
+var candidate_highlight = false
 
 def CapturePopup()
   redraw
   popup_text = []
+  candidate_highlight = false
   for id in popup_list()
-    popup_text->extend(getbufline(winbufnr(id), 1, '$'))
+    const buf = winbufnr(id)
+    const lines = getbufline(buf, 1, '$')
+    popup_text->extend(lines)
+    for row in range(1, len(lines))
+      candidate_highlight = candidate_highlight
+        || !empty(filter(prop_list(row, {bufnr: buf}), (_, prop) => prop.type ==# 'caskk_candidate_selected'))
+    endfor
     const pos = popup_getpos(id)
     popup_position = {line: pos.line, col: pos.col, width: pos.width, height: pos.height}
   endfor
@@ -551,7 +559,7 @@ suite.labels_follow_pages_and_ignore_empty_slots = (): void => {
   const path = LabelDictionary()
   defer delete(path)
   for [keys, expected] in [
-    [" \<C-N>", '家'], ['  ', '科'], ["  \<C-P>", '蚊'],
+    [" \<C-N>", '科'], ['  ', '科'], ["  \<C-P>", '蚊'],
     [" \<C-P>", 'か'], ['    ', 'か'], ['   界', '歌'], ['   界a', '歌']]
     feedkeys(":\<F2>Ka" .. keys .. "\<F3>\<C-C>", 'xt')
     assert.equals(captured, expected)
@@ -569,18 +577,19 @@ suite.rank_labels_keep_preview_and_update_the_next_conversion = (): void => {
   defer execute('cunmap <F6>')
   feedkeys(":\<F2>Ka p\<Esc>\<F6>a\<F3>\<C-C>", 'xt')
   assert.equals(popup_text, ['a 蚊', '界 家'])
+  assert.equals(candidate_highlight, false)
   assert.equals(captured, '蚊')
   assert.equals(user_runtime.Get().GetSnapshot().pinned, {})
 
   feedkeys(":\<F2>Ka p\<F6>\<Esc>p界\<F3>\<C-C>", 'xt')
   assert.equals(popup_text, ['a 蚊', '界 家', '固定する候補のラベルを入力（Escで取消）'])
   assert.equals(captured, '蚊')
-  feedkeys(":\<F2>Ka d\<C-N>\<F6>\<F3>\<C-C>", 'xt')
+  feedkeys(":\<F2>Ka  d\<C-P>\<F6>\<F3>\<C-C>", 'xt')
   assert.equals(popup_text, ['a ★ 家', '界 蚊'])
-  assert.equals(captured, '蚊')
-  feedkeys(":\<F2>Ka d\<C-N>d界\<F6>\<F3>\<C-C>", 'xt')
+  assert.equals(captured, '家')
+  feedkeys(":\<F2>Ka  d\<C-P>d界\<F6>\<F3>\<C-C>", 'xt')
   assert.equals(popup_text, ['a ★ 家', '界 ↓ 蚊'])
-  assert.equals(captured, '蚊')
+  assert.equals(captured, '家')
   feedkeys(":\<F2>Ka \<F3>\<C-C>", 'xt')
   assert.equals(captured, '家')
   const saved = user_store.Load(state_path)

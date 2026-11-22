@@ -98,7 +98,7 @@ export class Binding
     this._entries = copy(entries)
     this._dictionary_index = dictionary_index
     this._preferences = preferences is null_object ? user_state.State.new() : preferences
-    this._actions = copy(actions)
+    this._actions = mapnew(actions, (_, action) => mapping.NormalizeAction(action))
     this._initial_reading = initial_reading
     this._registration_auto = registration_auto
     this._small_tsu_okuri_as_t = small_tsu_okuri_as_t
@@ -138,8 +138,7 @@ export class Binding
     if sticky_key != ''
       tokens[sticky_key] = true
     endif
-    for [key, action] in items(actions)
-      mapping.ValidateAction(action)
+    for key in keys(this._actions)
       tokens[key] = true
     endfor
     final lhs: dict<string> = {}
@@ -294,9 +293,9 @@ export class Binding
 
   def _InstallReconversionActionMappings()
     for [key, action] in items(this._actions)
-      if action !=# 'Convert' && action !=# 'Commit'
-          && (empty(candidate_view.PageKeys()) || index(['NextCandidate', 'PreviousCandidate',
-            'TogglePin', 'ToggleDemote', 'DeleteUserEntry'], action) < 0)
+      if action !=# 'NextCandidate' && action !=# 'Commit'
+          && (empty(candidate_view.PageKeys()) || index(['PreviousCandidate', 'TogglePin',
+            'ToggleDemote', 'DeleteUserEntry'], action) < 0)
         continue
       endif
       const lhs = this._keys[key]
@@ -320,7 +319,7 @@ export class Binding
       endif
       requested = requested || result.registration_requested
       if result.dictionary_loading
-        echomsg 'Caskk: dictionary is still loading; press Convert again when loading finishes'
+        echomsg 'Caskk: dictionary is still loading; press NextCandidate again when loading finishes'
       endif
       if result.commit_preedit && this._reconversion_pending isnot null_object
         const prepared = this._reconversion_pending
@@ -543,7 +542,7 @@ export class Binding
     if action ==# 'DeleteUserEntry'
       return this._inline_editor.input.CanDeleteUserEntry()
     endif
-    return index(['Convert', 'NextCandidate', 'PreviousCandidate', 'Commit',
+    return index(['NextCandidate', 'PreviousCandidate', 'Commit',
       'TogglePin', 'ToggleDemote', 'AbbreviationMode'], action) >= 0
   enddef
 
@@ -724,7 +723,7 @@ export class Binding
     endif
     if action ==# 'ShowCompletion' || action ==# 'CancelCompletion'
       return
-    elseif action ==# 'Convert'
+    elseif action ==# 'NextCandidate'
       if this._inline_editor.input.InCandidate()
         this._AppendInlineResults([this._inline_editor.input.MoveCandidatePage(len(candidate_view.PageKeys(true)), 1)])
       else
@@ -735,8 +734,6 @@ export class Binding
           this._AppendInlineResults(results)
         endif
       endif
-    elseif action ==# 'NextCandidate' && this._inline_editor.input.InCandidate()
-      this._AppendInlineResults([this._inline_editor.input.NextCandidate()])
     elseif action ==# 'PreviousCandidate' && this._inline_editor.input.InCandidate()
       this._AppendInlineResults([this._inline_editor.input.MoveCandidatePage(len(candidate_view.PageKeys(true)), -1)])
     elseif action ==# 'TogglePin' && this._inline_editor.input.InCandidate()
@@ -828,9 +825,9 @@ export class Binding
       return this._editor.IsInCompletion() || (!has_candidate && snapshot.in_preedit)
     elseif action ==# 'CancelCompletion'
       return this._editor.IsInCompletion()
-    elseif action ==# 'Convert'
+    elseif action ==# 'NextCandidate'
       return has_candidate || snapshot.in_preedit || this._editor.HasPendingNasal(true)
-    elseif action ==# 'NextCandidate' || action ==# 'PreviousCandidate'
+    elseif action ==# 'PreviousCandidate'
       return has_candidate || this._editor.IsInCompletion()
     elseif action ==# 'TogglePin' || action ==# 'ToggleDemote'
       return has_candidate
@@ -1180,7 +1177,7 @@ export class Binding
       if key ==# '<CR>' || completion_action ==# 'Commit'
         this._Record(this._editor.Commit())
         return
-      elseif completion_action ==# 'ShowCompletion' || completion_action ==# 'NextCandidate'
+      elseif completion_action ==# 'ShowCompletion'
           || (completion_action == '' && key ==# '<Down>')
         this._editor.MoveCompletion(1)
         this._SyncInputMode()
@@ -1253,14 +1250,12 @@ export class Binding
     elseif action ==# 'ShowCompletion'
       this._StartCompletionSearch(true)
       this._SyncInputMode()
-    elseif action ==# 'Convert'
+    elseif action ==# 'NextCandidate'
       if this._editor.IsInCandidate()
         this._Record([this._editor.MoveCandidatePage(len(candidate_view.PageKeys()), 1)])
       else
         this._Record(this._editor.StartConversion())
       endif
-    elseif action ==# 'NextCandidate'
-      this._Record([this._editor.NextCandidate()])
     elseif action ==# 'PreviousCandidate'
       this._Record([this._editor.MoveCandidatePage(len(candidate_view.PageKeys()), -1)])
     elseif action ==# 'TogglePin'
@@ -1371,10 +1366,8 @@ export class Binding
     if !this._ResolveDeleteUserEntryConfirmation(key) && !this._HandleCandidateKey(key)
       const action = get(this._actions, key, '')
       const size = len(candidate_view.PageKeys())
-      if action ==# 'Convert' || action ==# 'PreviousCandidate'
-        this._Record([this._editor.MoveCandidatePage(size, action ==# 'Convert' ? 1 : -1)])
-      elseif action ==# 'NextCandidate'
-        this._Record([this._editor.NextCandidate()])
+      if action ==# 'NextCandidate' || action ==# 'PreviousCandidate'
+        this._Record([this._editor.MoveCandidatePage(size, action ==# 'NextCandidate' ? 1 : -1)])
       elseif action ==# 'Commit'
         this._Record(this._editor.Commit())
       elseif action ==# 'DeleteUserEntry' && this._editor.CanDeleteUserEntry()

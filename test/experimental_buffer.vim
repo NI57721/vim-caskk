@@ -24,7 +24,7 @@ suite.popup_keeps_marker_while_buffer_shows_only_candidate = (): void => {
   const number = bufnr('%')
   try
     Caskk.RegisterInputScheme({name: 'marker', consonants: {k: 'k'}, combinations: {a: 'a', u: 'u'}})
-    Caskk.Config({dictionaries: [path], mappings: {"\<Space>": 'NextCandidate'}})
+    Caskk.Config({dictionaries: [path], candidate_page_size: 1, mappings: {"\<Space>": 'NextCandidate'}})
     Caskk.Enable('marker')
     inoremap <buffer> <F12> <ScriptCmd>Capture()<CR>
     feedkeys("iKaKu\<Space>\<F12>\<Esc>", 'xt')

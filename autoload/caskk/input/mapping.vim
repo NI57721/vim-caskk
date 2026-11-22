@@ -4,15 +4,17 @@ import autoload 'caskk/input/keycode.vim' as keycode
 import autoload 'caskk/input/mode.vim' as input_mode
 
 const ACTIONS = [
-  'ShowCompletion', 'CancelCompletion', 'Convert', 'NextCandidate', 'PreviousCandidate', 'Commit', 'OpenRegistration',
+  'ShowCompletion', 'CancelCompletion', 'NextCandidate', 'PreviousCandidate', 'Commit', 'OpenRegistration',
   'TogglePin', 'ToggleDemote', 'DeleteUserEntry',
   'AbbreviationMode', 'KatakanaMode', 'HalfwidthKatakanaMode', 'FullwidthAlphanumericMode',
 ]
 
-export def ValidateAction(action: string)
-  if index(ACTIONS, action) < 0
+export def NormalizeAction(action: string): string
+  const normalized = action ==# 'Convert' ? 'NextCandidate' : action
+  if index(ACTIONS, normalized) < 0
     throw 'caskk: unknown binding action: ' .. action
   endif
+  return normalized
 enddef
 
 export def Lhs(token: string): string

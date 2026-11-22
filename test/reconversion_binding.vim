@@ -68,7 +68,7 @@ def ConvertAndCommit()
 enddef
 
 suite.normal_mode_reconversion_selects_and_commits_a_different_candidate = (): void => {
-  const fixture = Setup()
+  const fixture = Setup({candidate_select_keys: []})
   defer Cleanup(fixture)
   ConvertAndCommit()
   cursor(1, 4)
@@ -81,7 +81,7 @@ suite.normal_mode_reconversion_selects_and_commits_a_different_candidate = (): v
 }
 
 suite.reconversion_uses_normal_conversion_mapping_and_live_candidate_text = (): void => {
-  const fixture = Setup()
+  const fixture = Setup({candidate_select_keys: []})
   defer Cleanup(fixture)
   ConvertAndCommit()
   cursor(1, 4)
@@ -137,7 +137,7 @@ suite.okuri_history_reconverts_using_its_exact_okuri_lookup = (): void => {
 }
 
 suite.confirmation_leaves_insert_mode_active_for_following_user_input = (): void => {
-  const fixture = Setup()
+  const fixture = Setup({candidate_select_keys: []})
   defer Cleanup(fixture)
   ConvertAndCommit()
   cursor(1, 4)
@@ -147,7 +147,7 @@ suite.confirmation_leaves_insert_mode_active_for_following_user_input = (): void
 }
 
 suite.disabling_caskk_during_reconversion_does_not_cancel_candidate_selection = (): void => {
-  const fixture = Setup()
+  const fixture = Setup({candidate_select_keys: []})
   defer Cleanup(fixture)
   ConvertAndCommit()
   cursor(1, 4)
@@ -158,7 +158,7 @@ suite.disabling_caskk_during_reconversion_does_not_cancel_candidate_selection = 
 }
 
 suite.reconversion_remains_available_after_caskk_is_disabled = (): void => {
-  const fixture = Setup()
+  const fixture = Setup({candidate_select_keys: []})
   defer Cleanup(fixture)
   ConvertAndCommit()
   Caskk.Disable()

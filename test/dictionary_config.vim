@@ -48,7 +48,7 @@ suite.public_conversion_uses_merged_source_order_without_duplicate_candidates = 
   writefile([';; okuri-ari entries.', 'こk /濃/', 'あk /明/',
     ';; okuri-nasi entries.', 'あ /亜/', 'か /蚊/課/'], second)
   const original = [readblob(first), readblob(second)]
-  Caskk.Config({dictionaries: [first, second], mappings: {s: 'Convert', n: 'NextCandidate'}})
+  Caskk.Config({dictionaries: [first, second], candidate_select_keys: [], mappings: {s: 'Convert', n: 'NextCandidate'}})
   Caskk.Enable('dictionary-config')
   for [steps, expected] in [[0, '蚊'], [1, '科'], [2, '課']]
     setline(1, '前後')

@@ -1,5 +1,6 @@
 vim9script
 
+import autoload 'caskk.vim' as Caskk
 import autoload 'caskk/binding.vim' as binding
 import autoload 'caskk/scheme.vim' as scheme
 import autoload 'caskk/dictionary/merge.vim' as merger
@@ -368,6 +369,8 @@ suite.backspace_cancelled_candidate_keeps_reading_edits_in_one_undo_unit = (): v
 suite.enable_installs_keys_and_actions_and_insertleave_closes_preedit = (): void => {
   const context = Setup()
   defer Cleanup(context)
+  Caskk.Config({candidate_select_keys: []})
+  defer Caskk.Config({})
   const entries = merger.Merge([[parser.ParseLine('か /蚊/科/')]])
   const actions = {s: 'Convert', n: 'NextCandidate', c: 'Commit'}
   const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), ';', entries, user_state.State.new(), actions)
@@ -807,6 +810,8 @@ suite.enter_commits_reading_then_inserts_a_native_line_break = (): void => {
 suite.native_movement_commits_and_learns_the_selected_candidate = (): void => {
   const context = Setup()
   defer Cleanup(context)
+  Caskk.Config({candidate_select_keys: []})
+  defer Caskk.Config({})
   const preferences = user_state.State.new()
   const entries = merger.Merge([[parser.ParseLine('か /蚊/科/')]])
   const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries, preferences, {s: 'Convert', n: 'NextCandidate'})

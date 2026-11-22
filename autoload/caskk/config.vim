@@ -189,8 +189,7 @@ def ReadMappings(raw: any): dict<string>
     if type(value) != v:t_string
       throw 'mapping action must be a string: ' .. key
     endif
-    const action: string = value
-    mapping.ValidateAction(action)
+    const action = mapping.NormalizeAction(value)
     const lhs = mapping.Lhs(key)
     if has_key(physical_keys, lhs)
       throw 'duplicate physical mapping: ' .. key

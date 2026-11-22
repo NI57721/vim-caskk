@@ -359,9 +359,8 @@ def Dispatch(key: string)
   elseif action != '' && current.IsSpecialContinuation(key)
     Apply(current.Feed(key))
     Pending()
-  elseif (action ==# 'Convert' || action ==# 'NextCandidate') && busy
-    Apply(current.InCandidate() ? [current.MoveCandidatePage(
-      action ==# 'Convert' ? len(page_labels) : 0, 1)]
+  elseif action ==# 'NextCandidate' && busy
+    Apply(current.InCandidate() ? [current.MoveCandidatePage(len(page_labels), 1)]
       : current.StartConversion({}, user_runtime.Get()))
   elseif action ==# 'PreviousCandidate' && current.InCandidate()
     Apply([current.MoveCandidatePage(len(page_labels), -1)])

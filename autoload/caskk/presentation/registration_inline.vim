@@ -2,7 +2,6 @@ vim9script
 
 import autoload 'caskk/config.vim' as configuration
 import autoload 'caskk/registration/editor.vim' as registration_editor
-import autoload 'caskk/conversion.vim' as conversion
 import autoload 'caskk/presentation/candidate.vim' as candidate_view
 import 'caskk/registration.vim' as registration
 
@@ -37,7 +36,6 @@ export class View
       const visible = 6
       if !empty(keys)
         page_height = len(keys) + 3
-        selected_line = len(lines) + info.selected_index - conversion.PageStart(info.selected_index, len(keys)) + 1
         lines->extend(candidates)
       elseif len(candidates) <= visible
         selected_line = len(lines) + info.selected_index + 1

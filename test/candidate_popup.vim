@@ -395,12 +395,12 @@ suite.custom_pages_keep_labels_stable_when_editing_rank = (): void => {
   const fixture = Setup(true, {t: 'TogglePin', d: 'ToggleDemote', x: 'Commit'}, 3, true,
     {candidate_select_keys: ['x', 'y', 'é'], candidate_page_size: 2})
   defer Cleanup(fixture)
-  feedkeys('aKass' .. CAPTURE .. 'ypt' .. CAPTURE .. "y" .. CAPTURE .. "d\<Esc>" .. CAPTURE .. "xc\<Esc>", 'xt')
+  feedkeys('aKann' .. CAPTURE .. 'ypt' .. CAPTURE .. "y" .. CAPTURE .. "d\<Esc>" .. CAPTURE .. "xc\<Esc>", 'xt')
   assert.equals(observations[0].lines, ['x 候補3'])
   assert.equals(observations[1].lines[-1], '固定する候補のラベルを入力（Escで取消）')
   assert.equals(observations[2].lines, ['x 蚊 — 昆虫', 'y ★ 科 — 学科'])
   assert.equals(observations[3].lines, observations[2].lines)
-  assert.equals(selected_rows[2], 1)
+  assert.equals(selected_rows[2], 0)
   assert.equals(getline(1), '前蚊c後')
   feedkeys("AKasx\<Esc>", 'xt')
   assert.equals(getline(1), '前蚊c後科')
@@ -422,7 +422,7 @@ suite.invalid_candidate_label_settings_are_rejected = (): void => {
 suite.page_edges_restore_reading_and_request_registration = (): void => {
   const fixture = Setup(true, {}, 3, true, {candidate_page_size: 2, registration_auto: false})
   defer Cleanup(fixture)
-  feedkeys('aKasnp' .. CAPTURE .. 'sss' .. CAPTURE .. "\<Esc>", 'xt')
+  feedkeys('aKasp' .. CAPTURE .. 'sss' .. CAPTURE .. "\<Esc>", 'xt')
   assert.equals(observations[0].lines, [])
   assert.equals(observations[1].lines, [])
   assert.equals(registration_readings, ['', 'か'])
@@ -432,11 +432,11 @@ suite.page_edges_restore_reading_and_request_registration = (): void => {
 suite.demotion_affects_the_next_conversion_and_navigation_dismisses_the_prompt = (): void => {
   const fixture = Setup(true, {t: 'TogglePin', d: 'ToggleDemote'}, 3, true, {})
   defer Cleanup(fixture)
-  feedkeys('aKasd' .. CAPTURE .. '2' .. CAPTURE .. 'tn' .. CAPTURE .. "c\<Esc>AKas" .. CAPTURE .. "1\<Esc>", 'xt')
+  feedkeys('aKasd' .. CAPTURE .. '2' .. CAPTURE .. 'tc' .. CAPTURE .. "\<Esc>AKas" .. CAPTURE .. "1\<Esc>", 'xt')
   assert.equals(observations[0].lines[-1], '降格する候補のラベルを入力（Escで取消）')
   assert.equals(observations[1].lines, ['1 蚊 — 昆虫', '2 ↓ 科 — 学科', '3 候補3'])
-  assert.equals(observations[2].lines, observations[1].lines)
-  assert.equals(selected_rows[1 : 2], [1, 2])
+  assert.equals(observations[2].lines, [])
+  assert.equals(selected_rows[1 : 2], [0, 0])
   assert.equals(observations[3].lines, ['1 蚊 — 昆虫', '2 候補3', '3 ↓ 科 — 学科'])
 }
 

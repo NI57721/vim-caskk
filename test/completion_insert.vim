@@ -392,9 +392,9 @@ suite.abbreviation_enter_keeps_ascii_before_search_results_arrive = (): void => 
 }
 
 suite.abbreviation_explicit_conversion_and_commit_still_accept_candidates = (): void => {
-  Setup({mappings: {q: 'AbbreviationMode', "\<Space>": 'Convert', "\<CR>": 'Commit', "\<F10>": 'Commit'}})
+  Setup({mappings: {q: 'AbbreviationMode', "\<Space>": 'NextCandidate', "\<CR>": 'Commit', "\<F10>": 'Commit'}})
   defer Cleanup()
-  feedkeys("aqapple \<CR>\<F12>\<Esc>", 'xt')
+  feedkeys("aqapple" .. WAIT .. " \<CR>\<F12>\<Esc>", 'xt')
   assert.equals(captures[0], '前林檎後')
   setline(1, '前後')
   cursor(1, 1)

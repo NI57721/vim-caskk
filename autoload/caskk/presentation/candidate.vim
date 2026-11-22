@@ -125,8 +125,6 @@ export class View
       lines->extend(CommandlinePrompt(rank_action))
     endif
     const first = empty(keys) ? min([info.selected_index, max([0, len(lines) - room])]) : 0
-    const selected = empty(keys) ? info.selected_index
-      : info.selected_index - conversion.PageStart(info.selected_index, len(keys))
     # Vim scrolls the popup with the screen when the command line wraps.
     const options = {
       line: &lines - &cmdheight, col: 1, pos: 'botleft', posinvert: false,
@@ -139,7 +137,7 @@ export class View
       popup_settext(this._window, lines)
       popup_setoptions(this._window, options)
     endif
-    HighlightSelection(this._window, selected + 1)
+    HighlightSelection(this._window, empty(keys) ? info.selected_index + 1 : 0)
   enddef
 
   def Render(info: conversion.CandidateListInfo, message: string = '',
@@ -163,7 +161,6 @@ export class View
     endif
     const lines = Format(info, keys, rank_action)
     if !empty(keys)
-      const selected = info.selected_index - conversion.PageStart(info.selected_index, len(keys)) + 1
       const previous = this._window == 0 ? {} : popup_getpos(this._window)
       const last_top = max([1, &lines - &cmdheight - len(keys)])
       const anchor = screenpos(win_getid(), line('.'), col('.'))
@@ -184,7 +181,7 @@ export class View
         popup_setoptions(this._window, options)
         popup_settext(this._window, lines)
       endif
-      HighlightSelection(this._window, selected)
+      HighlightSelection(this._window, 0)
       return
     endif
     const previous = this._window == 0 ? {} : popup_getpos(this._window)
