@@ -12,7 +12,11 @@ export class CombinationTable
   const symbols: dict<string>
   const combinations: dict<pattern_types.OutputPattern>
 
-  def new(this.consonants, this.symbols, this.combinations, sokuon: dict<bool> = {})
+  const n_fallback: bool
+
+  def new(this.consonants, this.symbols, this.combinations, sokuon: dict<bool> = {},
+      n_fallback: bool = true)
     this.sokuon = sokuon
+    this.n_fallback = n_fallback
   enddef
 endclass

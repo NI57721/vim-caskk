@@ -571,6 +571,10 @@ export class Session
     return this._composer.Pending()
   enddef
 
+  def HasPendingNasal(require_modified: bool): bool
+    return this._composer.HasPendingNasal(require_modified)
+  enddef
+
   def IsSpecialContinuation(key: string): bool
     return this._composer.IsSpecialContinuation(key)
   enddef

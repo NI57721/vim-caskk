@@ -15,9 +15,7 @@ export def Definition(): dict<dict<string>>
     consonants[key .. key] = 'T' .. consonants[key]
   endfor
   final specials = {
-    n: 'ん', nn: 'ん', "n'": 'ん',
-    na: 'な', ni: 'に', nu: 'ぬ', ne: 'ね', no: 'の',
-    nya: 'にゃ', nyi: 'に', nyu: 'にゅ', nye: 'にぇ', nyo: 'にょ',
+    nn: 'ん', "n'": 'ん',
     xtu: 'っ', xtsu: 'っ', ltu: 'っ', ltsu: 'っ',
     '!': '！', ',': '、', '-': 'ー', '.': '。', ':': '：', ';': '；', '?': '？', '[': '「', ']': '」',
   }

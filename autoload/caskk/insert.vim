@@ -472,6 +472,10 @@ export class Editor
     return this._session.Pending()
   enddef
 
+  def HasPendingNasal(require_modified: bool): bool
+    return this._session.HasPendingNasal(require_modified)
+  enddef
+
   def IsSpecialContinuation(key: string): bool
     return this._session.IsSpecialContinuation(key)
   enddef

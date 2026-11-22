@@ -704,7 +704,7 @@ export class Binding
     elseif action ==# 'CancelCompletion'
       return this._editor.IsInCompletion()
     elseif action ==# 'Convert'
-      return has_candidate || snapshot.in_preedit
+      return has_candidate || snapshot.in_preedit || this._editor.HasPendingNasal(true)
     elseif action ==# 'NextCandidate' || action ==# 'PreviousCandidate'
       return has_candidate || this._editor.IsInCompletion()
     elseif action ==# 'TogglePin' || action ==# 'ToggleDemote'
@@ -712,7 +712,7 @@ export class Binding
     elseif action ==# 'DeleteUserEntry'
       return this._editor.CanDeleteUserEntry()
     elseif action ==# 'Commit'
-      return has_candidate || snapshot.in_preedit
+      return has_candidate || snapshot.in_preedit || this._editor.HasPendingNasal(false)
     elseif action ==# 'OpenRegistration'
       return this.GetRegistrationRequest() isnot null_object
     elseif mapping.ModeForAction(action) != ''

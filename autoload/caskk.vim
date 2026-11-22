@@ -49,13 +49,18 @@ enddef
 
 export def RegisterInputScheme(definition: dict<any>)
   for field in keys(definition)
-    if index(['name', 'base', 'consonants', 'combinations', 'specials'], field) < 0
+    if index(['name', 'base', 'consonants', 'combinations', 'specials', 'n_fallback'], field) < 0
       throw 'caskk: invalid input scheme: unknown field: ' .. field
     endif
   endfor
   if !has_key(definition, 'name') || type(definition.name) != v:t_string
     throw 'caskk: invalid input scheme: name must be a string'
   endif
+  const fallback = get(definition, 'n_fallback', true)
+  if type(fallback) != v:t_bool
+    throw 'caskk: invalid input scheme: n_fallback must be a boolean'
+  endif
+  const n_fallback: bool = fallback
   const name: string = definition.name
   const inherit = has_key(definition, 'base')
   final defaults: dict<dict<string>> = {consonants: {}, combinations: {}, specials: {}}
@@ -74,7 +79,7 @@ export def RegisterInputScheme(definition: dict<any>)
     ReadSchemeMap(definition, 'combinations', defaults.combinations, inherit))
   const specials = inherit || has_key(definition, 'specials')
     ? ReadSchemeMap(definition, 'specials', defaults.specials, inherit) : {}
-  schemes.Register(name, consonants, combinations, scheme.SpecialDefinitions(specials))
+  schemes.Register(name, consonants, combinations, scheme.SpecialDefinitions(specials), n_fallback)
   commandline.Disable()
   binding.DisableAll()
 enddef

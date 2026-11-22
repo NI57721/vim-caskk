@@ -990,3 +990,29 @@ suite.sticky_vowel_after_deleting_the_last_reading_has_no_okuri_marker = (): voi
     endtry
   endfor
 }
+
+suite.pending_modified_nasal_converts_cancels_commits_and_undoes = (): void => {
+  for [modified, finish, expected, undo_text] in [
+    ['Q', "\<Space>\<CR>", '前撥後', '前ん後'],
+    [';q', "\<Space>p\<CR>", '前ん後', '前後'],
+    ['Q', "\<CR>", '前ん後', '前後'],
+    ['q', "\<CR>", '前ん後', '前後'],
+    ['q', "\<BS>", '前後', '前後']]
+    const context = Setup()
+    try
+      const entries = merger.Merge([[parser.ParseLine('ん /撥/')]])
+      const keys = binding.Binding.new(scheme.Compile({q: 'n'}, {a: 'a'}), ';', entries,
+        user_state.State.new(), {'<Space>': 'Convert', '<CR>': 'Commit', p: 'PreviousCandidate'})
+      keys.Enable()
+      feedkeys('a' .. modified .. finish .. "\<Esc>", 'xt')
+      assert.equals(getline(1), expected, modified .. keytrans(finish))
+      if expected !=# '前後'
+        normal! u
+        assert.equals(getline(1), undo_text, modified .. keytrans(finish))
+      endif
+      keys.Disable()
+    finally
+      Cleanup(context)
+    endtry
+  endfor
+}

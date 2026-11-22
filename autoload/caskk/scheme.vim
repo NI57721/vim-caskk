@@ -138,7 +138,7 @@ enddef
 # Compile all output patterns without retaining caller-owned containers.
 # Dictionary keys and special input elements are already normalized KeyTokens.
 export def Compile(consonants: dict<string>, combinations: dict<string>,
-    specials: list<SpecialDefinition> = []): CompiledScheme
+    specials: list<SpecialDefinition> = [], n_fallback: bool = true): CompiledScheme
   final patterns: dict<pattern_types.OutputPattern> = {}
   for [key, pattern] in items(combinations)
     const parsed = output_pattern.Parse(pattern)
@@ -166,6 +166,6 @@ export def Compile(consonants: dict<string>, combinations: dict<string>,
       rows[key] = value
     endif
   endfor
-  const table = table_types.CombinationTable.new(rows, symbols, patterns, sokuon)
+  const table = table_types.CombinationTable.new(rows, symbols, patterns, sokuon, n_fallback)
   return CompiledScheme.new(table, rules)
 enddef

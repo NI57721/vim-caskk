@@ -285,3 +285,60 @@ suite.roman_fy_uses_the_consonant_row_and_allows_combination_overrides = (): voi
   Caskk.RegisterInputScheme({name: 'roman-fy-custom', base: 'roman', combinations: {a: 'o'}})
   assert.equals(TypeText('roman-fy-custom', 'fya'), 'ふょ')
 }
+
+suite.n_fallback_defaults_to_on_and_can_be_disabled = (): void => {
+  for [name, options, nasal] in [
+    ['nasal-default', {}, 'ん'],
+    ['nasal-enabled', {n_fallback: true}, 'ん'],
+    ['nasal-disabled', {n_fallback: false}, 'q']]
+    Caskk.RegisterInputScheme(extend({name: name, consonants: {q: 'n', k: 'k'},
+      combinations: {a: 'a', i: 'i', u: 'u', e: 'e', o: 'o'},
+      specials: {quz: '特', kz: '継', '.': '。'}}, options))
+    for [input, expected] in [
+      ['qaqiquqeqo', 'なにぬねの'], ['aqka', 'あ' .. nasal .. 'か'],
+      ['q.', nasal .. '。'], ['qkz', nasal .. '継'], ['q', nasal],
+      ['quz', '特'], ['quka', 'ぬか']]
+      assert.equals(TypeText(name, input), expected, input)
+    endfor
+    const ime = session.Session.new(Caskk.GetInputScheme(name))
+    assert.equals(ime.Feed('q'), [])
+    ime.BackspacePending()
+    assert.equals(ime.Commit(), [])
+  endfor
+}
+
+suite.n_fallback_resolves_long_definitions_and_replays_the_remainder = (): void => {
+  Caskk.RegisterInputScheme({name: 'nasal-long', consonants: {qx: 'n', qxy: 'ny', yk: 'k', z: 'Tn'},
+    combinations: {a: 'a'}, specials: {qxz: '特', '.': '。'}})
+  for [input, expected] in [
+    ['qxa', 'な'], ['qxya', 'にゃ'], ['qxzka', '特kあ'], ['qx', 'ん'],
+    ['qxy', 'んy'], ['qxyka', 'んか'], ['qx.', 'ん。'], ['q.', 'q。'], ['za', 'っな']]
+    assert.equals(TypeText('nasal-long', input), expected, input)
+  endfor
+  Caskk.RegisterInputScheme({name: 'nasal-prefix', consonants: {qx: 'n', qxyz: 'ny', y: 'y'},
+    combinations: {a: 'a'}, specials: {'.': '。'}})
+  for [input, expected] in [['qxya', 'んや'], ['qxy.', 'んy。'], ['qxy', 'んy']]
+    assert.equals(TypeText('nasal-prefix', input), expected, input)
+  endfor
+}
+
+suite.roman_n_rows_respect_overrides_and_n_fallback_is_validated = (): void => {
+  Caskk.RegisterInputScheme({name: 'roman-n-row', base: 'roman', n_fallback: false,
+    consonants: {n: 'm', q: 'N'}, combinations: {a: 'o'}})
+  for [input, expected] in [
+    ['na', 'も'], ['nya', 'にょ'], ['nyi', 'に'], ['n', 'n'],
+    ['nn', 'ん'], ["n'", 'ん'], ['qa', 'んお']]
+    assert.equals(TypeText('roman-n-row', input), expected, input)
+  endfor
+  Caskk.RegisterInputScheme({name: 'roman-no-fallback', base: 'roman', n_fallback: false})
+  for invalid in [0, 1, 'false', v:null]
+    var caught = ''
+    try
+      Caskk.RegisterInputScheme({name: 'roman-no-fallback', base: 'roman', n_fallback: invalid})
+    catch
+      caught = v:exception
+    endtry
+    assert.equals(caught, 'caskk: invalid input scheme: n_fallback must be a boolean')
+    assert.equals(TypeText('roman-no-fallback', 'anka'), 'あnか')
+  endfor
+}

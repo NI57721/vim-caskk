@@ -222,6 +222,58 @@ export class Composer
     return false
   enddef
 
+  def _NasalPrefixLength(events: list<input.Event>): number
+    if !this._table.n_fallback || this._carried_row != ''
+      return 0
+    endif
+    for length in range(len(events), 1, -1)
+      const key = this._ConsonantKey(events[: length - 1])
+      if get(this._table.consonants, key, '') ==# 'n' && !has_key(this._table.sokuon, key)
+        return length
+      endif
+    endfor
+    return 0
+  enddef
+
+  def _ResolveUnmatched(events: list<input.Event>, results: list<Result>, nasal_length: number)
+    if nasal_length == 0
+      for event in events
+        results->add(Result.new([event]))
+      endfor
+      return
+    endif
+    const nasal_events = events[: nasal_length - 1]
+    const consonant = this._LogicalConsonant(this._ConsonantKey(nasal_events), nasal_events)
+    results->add(Result.new([consonant], pattern_types.OutputPattern.new('ん', -1), false, true))
+    for event in events[nasal_length :]
+      this._Replay(event, results)
+    endfor
+  enddef
+
+  def _FinishConsonant(results: list<Result>)
+    while !empty(this._consonant)
+      const events = this._consonant
+      const nasal_length = this._NasalPrefixLength(events)
+      this._ClearConsonant()
+      this._ResolveUnmatched(events, results, nasal_length)
+    endwhile
+  enddef
+
+  # An action can resolve an unfinished nasal before any preedit text exists.
+  def HasPendingNasal(require_modified: bool): bool
+    if !this._table.n_fallback || (empty(this._consonant) && empty(this._special_pending))
+      return false
+    endif
+    const resolved = special.MatchEvents(this._rules, this._special_pending, true)
+    const events = this._consonant + resolved.replay
+    if empty(events)
+      return false
+    endif
+    const length = this._NasalPrefixLength(events)
+    return length > 0 && (!require_modified
+      || this._LogicalConsonant('', events[: length - 1]).modified)
+  enddef
+
   # Normal replay must bypass special matching to avoid retrying a failed prefix.
   def _Replay(event: input.Event, results: list<Result>)
     if !empty(this._consonant)
@@ -264,8 +316,8 @@ export class Composer
           endfor
           return
         endif
-        this._ClearConsonant()
         if matched_symbol != ''
+          this._ClearConsonant()
           results->add(Result.new(matched_events,
             pattern_types.OutputPattern.new(this._table.symbols[matched_symbol], -1), false, true))
           for replayed in remainder
@@ -274,6 +326,7 @@ export class Composer
           return
         endif
         if !empty(remainder) && has_key(this._table.combinations, remainder[0].key)
+          this._ClearConsonant()
           const combination_event = remainder[0]
           var pattern: pattern_types.OutputPattern = null_object
           try
@@ -296,9 +349,9 @@ export class Composer
           endfor
           return
         endif
-        for unmatched in matched_events
-          results->add(Result.new([unmatched]))
-        endfor
+        const nasal_length = this._NasalPrefixLength(matched_events)
+        this._ClearConsonant()
+        this._ResolveUnmatched(matched_events, results, nasal_length)
         for replayed in remainder
           this._Replay(replayed, results)
         endfor
@@ -444,12 +497,7 @@ export class Composer
 
       # A successful special consumes its own keys, leaving no combination key
       # for an earlier unmatched consonant. Return that consonant first.
-      if !empty(this._consonant)
-        for unmatched in this._consonant
-          results->add(Result.new([unmatched]))
-        endfor
-        this._ClearConsonant()
-      endif
+      this._FinishConsonant(results)
       results->add(Result.new(match.events, match.output, true))
       remaining = match.rest
     endwhile
@@ -471,12 +519,7 @@ export class Composer
   def Flush(): list<Result>
     final results = this._Process(this._special_pending, true)
     this._EmitSokuon(results, true)
-    if !empty(this._consonant)
-      for unmatched in this._consonant
-        results->add(Result.new([unmatched]))
-      endfor
-      this._ClearConsonant()
-    endif
+    this._FinishConsonant(results)
     return results
   enddef
 

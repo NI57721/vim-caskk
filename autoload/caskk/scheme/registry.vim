@@ -16,8 +16,8 @@ export class Registry
   # Compile before replacement so failed registration leaves the old entry intact.
   # Existing composers retain their compiled scheme when a name is registered again.
   def Register(name: string, consonants: dict<string>, combinations: dict<string>,
-      specials: list<scheme.SpecialDefinition> = [])
-    this._schemes[name] = scheme.Compile(consonants, combinations, specials)
+      specials: list<scheme.SpecialDefinition> = [], n_fallback: bool = true)
+    this._schemes[name] = scheme.Compile(consonants, combinations, specials, n_fallback)
   enddef
 
   def Get(name: string): scheme.CompiledScheme
