@@ -19,7 +19,7 @@ class Fixture
   enddef
 endclass
 
-def Setup(): Fixture
+def Setup(options: dict<any> = {}): Fixture
   const previous = bufnr('%')
   const snapshot = user_runtime.Get().GetSnapshot()
   user_runtime.Get().Restore(user_state.State.new().GetSnapshot())
@@ -34,8 +34,8 @@ def Setup(): Fixture
   mkdir(directory)
   writefile(['か /蚊/科/', 'かk /書/'], directory .. '/system')
   Caskk.RegisterInputScheme({name: 'reconversion', consonants: {k: 'k'}, combinations: {a: 'a', u: 'u'}})
-  Caskk.Config({dictionaries: [directory .. '/system'], candidate_popup: true, mode_popup: false,
-    mappings: {s: 'Convert', c: 'Commit'}})
+  Caskk.Config(extend({dictionaries: [directory .. '/system'], candidate_popup: true, mode_popup: false,
+    mappings: {s: 'Convert', n: 'NextCandidate', t: 'TogglePin', c: 'Commit'}}, options))
   g:caskk_reconversion_probe = []
   inoremap <buffer> <silent> <F11> <ScriptCmd>add(g:caskk_reconversion_probe, [mode(1), len(popup_list()), maparg('s', 'i'), getline(1)])<CR>
   nnoremap <buffer> <silent> <F12> <ScriptCmd>Caskk.Reconvert()<CR>
@@ -72,7 +72,7 @@ suite.normal_mode_reconversion_selects_and_commits_a_different_candidate = (): v
   defer Cleanup(fixture)
   ConvertAndCommit()
   cursor(1, 4)
-  feedkeys("\<F12>sc\<F11>", 'xt')
+  feedkeys("\<F12>nc\<F11>", 'xt')
   assert.equals(getline(1), '前科後')
   assert.equals(g:caskk_reconversion_probe[-1][1], len(fixture.existing_popups))
   assert.equals(maparg('<C-N>', 'n', false, true).rhs, '2j')
@@ -85,7 +85,7 @@ suite.reconversion_uses_normal_conversion_mapping_and_live_candidate_text = (): 
   defer Cleanup(fixture)
   ConvertAndCommit()
   cursor(1, 4)
-  feedkeys("\<F12>\<F11>s\<F11>", 'xt')
+  feedkeys("\<F12>\<F11>n\<F11>", 'xt')
   assert.equals(g:caskk_reconversion_probe[0][0], 'i')
   assert.equals(g:caskk_reconversion_probe[0][1], len(fixture.existing_popups) + 1)
   assert.match(g:caskk_reconversion_probe[0][2], 'Dispatch')
@@ -141,7 +141,7 @@ suite.confirmation_leaves_insert_mode_active_for_following_user_input = (): void
   defer Cleanup(fixture)
   ConvertAndCommit()
   cursor(1, 4)
-  feedkeys("\<F12>sca\<F11>", 'xt')
+  feedkeys("\<F12>nca\<F11>", 'xt')
   assert.equals(getline(1), '前科あ後')
   assert.equals(g:caskk_reconversion_probe[0][0], 'i')
 }
@@ -151,7 +151,7 @@ suite.disabling_caskk_during_reconversion_does_not_cancel_candidate_selection = 
   defer Cleanup(fixture)
   ConvertAndCommit()
   cursor(1, 4)
-  feedkeys("\<F12>\<F10>scx\<F11>", 'xt')
+  feedkeys("\<F12>\<F10>ncx\<F11>", 'xt')
   assert.equals(Caskk.IsEnabled(), false)
   assert.equals(getline(1), '前科x後')
   assert.equals(g:caskk_reconversion_probe[0][0], 'i')
@@ -163,7 +163,7 @@ suite.reconversion_remains_available_after_caskk_is_disabled = (): void => {
   ConvertAndCommit()
   Caskk.Disable()
   cursor(1, 4)
-  feedkeys("\<F12>scx\<F11>", 'xt')
+  feedkeys("\<F12>ncx\<F11>", 'xt')
   assert.equals(Caskk.IsEnabled(), false)
   assert.equals(getline(1), '前科x後')
   assert.equals(g:caskk_reconversion_probe[0][0], 'i')
@@ -178,4 +178,48 @@ suite.reenabling_caskk_during_reconversion_preserves_selection_and_resumes_ime_a
   assert.equals(Caskk.IsEnabled(), true)
   assert.equals(getline(1), '前蚊あ後')
   assert.equals(g:caskk_reconversion_probe[0][0], 'i')
+}
+
+suite.labels_commit_reconversion_and_restore_disabled_mappings = (): void => {
+  for enabled in [true, false]
+    const fixture = Setup()
+    try
+      ConvertAndCommit()
+      if !enabled
+        Caskk.Disable()
+        inoremap <buffer> 2 custom
+      endif
+      cursor(1, 4)
+      feedkeys("\<F12>t\<Esc>2\<F11>", 'xt')
+      assert.equals(getline(1), '前科後')
+      assert.equals(g:caskk_reconversion_probe[-1][0], 'i')
+      if !enabled
+        assert.equals(maparg('2', 'i'), 'custom')
+        assert.equals(maparg('t', 'i'), '')
+        assert.equals(maparg('<Esc>', 'i'), '')
+      endif
+      undo
+      assert.equals(getline(1), '前蚊後')
+    finally
+      Cleanup(fixture)
+    endtry
+  endfor
+}
+
+suite.disabled_reconversion_exhaustion_can_open_either_registration_field = (): void => {
+  for inline in [false, true]
+    const fixture = Setup({registration_inline: inline, registration_prefill: true})
+    try
+      ConvertAndCommit()
+      Caskk.Disable()
+      inoremap <buffer> 2 custom
+      cursor(1, 4)
+      feedkeys("\<F12>ss2\<CR>\<F11>", 'xt')
+      assert.equals(getline(1), '前科後', string(inline))
+      assert.equals(Caskk.IsEnabled(), false)
+      assert.equals(maparg('2', 'i'), 'custom')
+    finally
+      Cleanup(fixture)
+    endtry
+  endfor
 }

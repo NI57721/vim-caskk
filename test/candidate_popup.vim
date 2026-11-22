@@ -28,6 +28,7 @@ endclass
 
 var observations: list<Observation> = []
 var selected_rows: list<number> = []
+var registration_readings: list<string> = []
 var selection_groups: list<string> = []
 var ignored_popups: list<number> = []
 var origin_buffer: number = 0
@@ -35,6 +36,8 @@ const CAPTURE = "\<Cmd>call CaskkTestCandidatePopupCapture()\<CR>"
 const WIPE = "\<Cmd>call CaskkTestCandidatePopupWipe()\<CR>"
 
 def g:CaskkTestCandidatePopupCapture()
+  const request = Caskk.GetRegistrationRequest()
+  registration_readings->add(request is null_object ? '' : request.reading)
   const popups = filter(popup_list(), (_, id) => index(ignored_popups, id) < 0)
   const buffers = mapnew(popups, (_, id) => winbufnr(id))
   const lines = len(buffers) == 1 ? getbufline(buffers[0], 1, '$') : []
@@ -73,7 +76,7 @@ class Fixture
 endclass
 
 def Setup(candidate_popup: bool = true, extra_mappings: dict<string> = {}, candidate_count: number = 2,
-    keep_preedit_on_backspace: bool = true): Fixture
+    keep_preedit_on_backspace: bool = true, options: dict<any> = {candidate_select_keys: []}): Fixture
   const previous = bufnr('%')
   const existing_buffers = mapnew(getbufinfo(), (_, info) => info.bufnr)
   const existing_popups = popup_list()
@@ -97,13 +100,14 @@ def Setup(candidate_popup: bool = true, extra_mappings: dict<string> = {}, candi
   user_runtime.Get().Restore(user_state.State.new().GetSnapshot())
   observations = []
   selected_rows = []
+  registration_readings = []
   selection_groups = []
   Caskk.RegisterInputScheme({name: 'candidate-popup', consonants: {k: 'k'},
     combinations: {a: 'a'}, specials: {d: '漢字', zx: 'い*くらい'}})
   var mappings = {s: 'Convert', n: 'NextCandidate', p: 'PreviousCandidate', c: 'Commit'}
   extend(mappings, extra_mappings)
-  Caskk.Config({keep_preedit_on_backspace: keep_preedit_on_backspace, candidate_popup: candidate_popup, mode_popup: false, dictionaries: [directory .. '/system'],
-    mappings: mappings})
+  Caskk.Config(extend({keep_preedit_on_backspace: keep_preedit_on_backspace, candidate_popup: candidate_popup, mode_popup: false, dictionaries: [directory .. '/system'],
+    mappings: mappings}, options))
   Caskk.Enable('candidate-popup')
   return Fixture.new(previous, number, window, directory, snapshot, existing_buffers, existing_popups)
 enddef
@@ -314,7 +318,7 @@ suite.deletion_confirmation_is_fully_visible_in_a_small_terminal = (): void => {
     "import autoload 'caskk/dictionary/lookup.vim' as lookup",
     "import 'caskk/dictionary.vim' as dictionary",
     "C.RegisterInputScheme({name: 'small-confirmation', consonants: {k: 'k'}, combinations: {a: 'a', i: 'i'}})",
-    "C.Config({mode_popup: false, registration_auto: false, registration_inline: inline, registration_prefill: false, mappings: {s: 'Convert', x: 'DeleteUserEntry', q: 'OpenRegistration'}})",
+    "C.Config({candidate_select_keys: [], mode_popup: false, registration_auto: false, registration_inline: inline, registration_prefill: false, mappings: {s: 'Convert', x: 'DeleteUserEntry', q: 'OpenRegistration'}})",
     "runtime.Get().AddEntry(lookup.CreateQuery('か', ''), dictionary.Candidate.new('蚊', []))",
     "C.Enable('small-confirmation')",
     'def Capture(timer: number)',
@@ -377,4 +381,122 @@ suite.unavailable_backspace_actions_cancel_conversion_without_learning = (): voi
       Cleanup(fixture)
     endtry
   endfor
+}
+
+suite.default_labels_commit_and_digits_remain_literal_afterward = (): void => {
+  const fixture = Setup(true, {}, 2, true, {})
+  defer Cleanup(fixture)
+  feedkeys('aKas' .. CAPTURE .. "23\<Esc>", 'xt')
+  assert.equals(observations[0].lines, ['1 蚊 — 昆虫', '2 科 — 学科'])
+  assert.equals(getline(1), '前科3後')
+}
+
+suite.custom_pages_keep_labels_stable_when_editing_rank = (): void => {
+  const fixture = Setup(true, {t: 'TogglePin', d: 'ToggleDemote', x: 'Commit'}, 3, true,
+    {candidate_select_keys: ['x', 'y', 'é'], candidate_page_size: 2})
+  defer Cleanup(fixture)
+  feedkeys('aKass' .. CAPTURE .. 'ypt' .. CAPTURE .. "y" .. CAPTURE .. "d\<Esc>" .. CAPTURE .. "xc\<Esc>", 'xt')
+  assert.equals(observations[0].lines, ['x 候補3'])
+  assert.equals(observations[1].lines[-1], '固定する候補のラベルを入力（Escで取消）')
+  assert.equals(observations[2].lines, ['x 蚊 — 昆虫', 'y ★ 科 — 学科'])
+  assert.equals(observations[3].lines, observations[2].lines)
+  assert.equals(selected_rows[2], 1)
+  assert.equals(getline(1), '前蚊c後')
+  feedkeys("AKasx\<Esc>", 'xt')
+  assert.equals(getline(1), '前蚊c後科')
+}
+
+suite.invalid_candidate_label_settings_are_rejected = (): void => {
+  for options in [{candidate_select_keys: ['x', 'x']}, {candidate_select_keys: ['xy']},
+      {candidate_select_keys: ["\<Tab>"]}, {candidate_page_size: 0}, {candidate_page_size: 6}]
+    var error = ''
+    try
+      Caskk.Config(options)
+    catch
+      error = v:exception
+    endtry
+    assert.match(error, 'invalid configuration: candidate_')
+  endfor
+}
+
+suite.page_edges_restore_reading_and_request_registration = (): void => {
+  const fixture = Setup(true, {}, 3, true, {candidate_page_size: 2, registration_auto: false})
+  defer Cleanup(fixture)
+  feedkeys('aKasnp' .. CAPTURE .. 'sss' .. CAPTURE .. "\<Esc>", 'xt')
+  assert.equals(observations[0].lines, [])
+  assert.equals(observations[1].lines, [])
+  assert.equals(registration_readings, ['', 'か'])
+  assert.equals(getline(1), '前か後')
+}
+
+suite.demotion_affects_the_next_conversion_and_navigation_dismisses_the_prompt = (): void => {
+  const fixture = Setup(true, {t: 'TogglePin', d: 'ToggleDemote'}, 3, true, {})
+  defer Cleanup(fixture)
+  feedkeys('aKasd' .. CAPTURE .. '2' .. CAPTURE .. 'tn' .. CAPTURE .. "c\<Esc>AKas" .. CAPTURE .. "1\<Esc>", 'xt')
+  assert.equals(observations[0].lines[-1], '降格する候補のラベルを入力（Escで取消）')
+  assert.equals(observations[1].lines, ['1 蚊 — 昆虫', '2 ↓ 科 — 学科', '3 候補3'])
+  assert.equals(observations[2].lines, observations[1].lines)
+  assert.equals(selected_rows[1 : 2], [1, 2])
+  assert.equals(observations[3].lines, ['1 蚊 — 昆虫', '2 候補3', '3 ↓ 科 — 学科'])
+}
+
+suite.custom_multibyte_label_temporarily_overrides_a_user_mapping = (): void => {
+  const fixture = Setup(true, {}, 2, true, {candidate_select_keys: ['x', 'é']})
+  defer Cleanup(fixture)
+  inoremap <buffer> é literal
+  feedkeys("aKaséé\<Esc>", 'xt')
+  assert.equals(getline(1), '前科literal後')
+  assert.equals(maparg('é', 'i'), 'literal')
+}
+
+suite.hidden_popup_leaves_default_labels_as_ordinary_input = (): void => {
+  const fixture = Setup(false, {}, 2, true, {})
+  defer Cleanup(fixture)
+  feedkeys("aKas2\<Esc>", 'xt')
+  assert.equals(getline(1), '前蚊2後')
+}
+
+suite.labels_match_the_visible_rows_in_a_small_terminal = (): void => {
+  const script = tempname()
+  const report = tempname()
+  const dictionary_path = tempname()
+  defer delete(script)
+  defer delete(report)
+  defer delete(dictionary_path)
+  writefile(['か /一/二/三/四/五/六/七/八/'], dictionary_path)
+  writefile([
+    'vim9script',
+    'set rtp^=' .. escape(getcwd(), ' ,'),
+    "import autoload 'caskk.vim' as C",
+    "C.RegisterInputScheme({name: 'small-labels', consonants: {k: 'k'}, combinations: {a: 'a'}})",
+    "C.Config({mode_popup: false, dictionaries: [" .. string(dictionary_path) .. "], mappings: {s: 'Convert'}, candidate_select_keys: ['1', '2', '3', '4', '5', '6', '7', '8']})",
+    "C.Enable('small-labels')",
+    'def Capture(timer: number)',
+    '  writefile([getline(1)], ' .. string(report) .. ')',
+    'enddef',
+    'timer_start(10, Capture, {repeat: -1})',
+  ], script)
+  const terminal = term_start([v:progpath, '-Nu', 'NONE', '-i', 'NONE', '-n', '-N', '-S', script],
+    {hidden: true, term_rows: 8, term_cols: 36})
+  try
+    for _ in range(100)
+      term_wait(terminal, 10)
+      if filereadable(report)
+        break
+      endif
+    endfor
+    term_sendkeys(terminal, 'iKas')
+    term_wait(terminal, 100)
+    const rows = mapnew(range(1, 8), (_, row) => term_getline(terminal, row))
+    for label in ['1 一', '2 二', '3 三', '4 四', '5 五', '6 六']
+      assert.match(join(rows, "\n"), label)
+    endfor
+    assert.equals(stridx(join(rows), '7 七'), -1)
+    term_sendkeys(terminal, '6')
+    term_wait(terminal, 100)
+    assert.equals(readfile(report), ['六'])
+  finally
+    job_stop(term_getjob(terminal), 'kill')
+    execute 'silent! bwipeout! ' .. terminal
+  endtry
 }

@@ -387,7 +387,7 @@ suite.enable_installs_keys_and_actions_and_insertleave_closes_preedit = (): void
 suite.convert_mapping_starts_advances_and_requests_registration_after_last_candidate = (): void => {
   const context = Setup()
   defer Cleanup(context)
-  const entries = merger.Merge([[parser.ParseLine('か /蚊/科/')]])
+  const entries = merger.Merge([[parser.ParseLine('か /蚊/科/家/化/課/可/')]])
   const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries,
     user_state.State.new(), {'<Space>': 'Convert'})
   g:caskk_binding_snapshots = []
@@ -396,7 +396,7 @@ suite.convert_mapping_starts_advances_and_requests_registration_after_last_candi
   keys.Enable()
   feedkeys("aKa\<Space>\<Space>\<F11>\<Space>\<F12>\<Esc>", 'xt')
   assert.equals(getline(1), '前か後')
-  assert.equals(g:caskk_binding_snapshots, [['前科後', ''], ['前か後', 'か']])
+  assert.equals(g:caskk_binding_snapshots, [['前可後', ''], ['前か後', 'か']])
   keys.Disable()
   unlet! g:caskk_binding_snapshots
 }

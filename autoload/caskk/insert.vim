@@ -107,7 +107,7 @@ export class Editor
         cursor(position.line, byteidxcomp(text, charidx(text, byte, true)) + 1)
       endif
     endfor
-    this._candidate_view.Render(this.GetDisplayCandidatesInfo())
+    this.RefreshCandidatePopup()
     return results
   enddef
 
@@ -193,7 +193,7 @@ export class Editor
       if select
         this._PreviewCompletion()
       else
-        this._candidate_view.Render(this.GetDisplayCandidatesInfo())
+        this.RefreshCandidatePopup()
       endif
     endif
     return shown
@@ -357,6 +357,26 @@ export class Editor
     return this._Apply([this._session.CancelRegistration()])[0]
   enddef
 
+  def CandidateSession(): session.Session
+    return this._session
+  enddef
+
+  def RefreshCandidatePopup()
+    this._candidate_view.Render(this.GetDisplayCandidatesInfo(), '', false,
+      this.IsInCandidate() ? candidate_view.PageKeys() : [], this._session.CandidateRankAction())
+  enddef
+
+  def SelectAndCommitCandidate(index: number): list<session.Result>
+    this._CheckInput()
+    this._Apply([this._session.SelectCandidate(index)])
+    return this.Commit()
+  enddef
+
+  def MoveCandidatePage(size: number, direction: number): session.Result
+    this._CheckInput()
+    return this._Apply([this._session.MoveCandidatePage(size, direction)])[0]
+  enddef
+
   def NextCandidate(): session.Result
     this._CheckInput()
     return this._Apply([this._session.NextCandidate()])[0]
@@ -370,13 +390,13 @@ export class Editor
   def TogglePin()
     this._CheckInput()
     this._session.TogglePin()
-    this._candidate_view.Render(this.GetDisplayCandidatesInfo())
+    this.RefreshCandidatePopup()
   enddef
 
   def ToggleDemote()
     this._CheckInput()
     this._session.ToggleDemote()
-    this._candidate_view.Render(this.GetDisplayCandidatesInfo())
+    this.RefreshCandidatePopup()
   enddef
 
   def CanDeleteUserEntry(): bool

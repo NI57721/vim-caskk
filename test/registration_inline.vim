@@ -70,7 +70,7 @@ def g:CaskkTestInlineReloadConfig()
   Caskk.Config({})
 enddef
 
-def Setup(prefill: bool = false, with_candidates: bool = false, extra_mappings: dict<string> = {}): list<number>
+def Setup(prefill: bool = false, with_candidates: bool = false, extra_mappings: dict<string> = {}, second_okuri: bool = false): list<number>
   previous_state = user_runtime.Get().GetSnapshot()
   user_runtime.Get().Restore(user_state.State.new().GetSnapshot())
   const previous = bufnr('%')
@@ -89,12 +89,12 @@ def Setup(prefill: bool = false, with_candidates: bool = false, extra_mappings: 
   if with_candidates
     dictionary_directory = tempname()
     mkdir(dictionary_directory)
-    writefile(['か /蚊/科/', 'かk /行/'], dictionary_directory .. '/system')
+    writefile(['か /蚊/科/', second_okuri ? 'かk /行/書/' : 'かk /行/'], dictionary_directory .. '/system')
     options.dictionaries = [dictionary_directory .. '/system']
   endif
   Caskk.Config(options)
   Caskk.RegisterInputScheme({name: 'registration-inline', consonants: {k: 'k'},
-    combinations: {a: 'a*', u: 'u'}, specials: {z: '漢字'}})
+    combinations: {a: 'a*', i: 'i', u: 'u'}, specials: {z: '漢字'}})
   Caskk.Enable('registration-inline')
   return [previous, number, win_getid()]
 enddef
@@ -247,7 +247,7 @@ suite.inline_candidate_selection_keeps_the_registration_draft_visible = (): void
   defer Cleanup(context)
   feedkeys("aKasnn\<F6>sn\<Cmd>call CaskkTestInlineCapture()\<CR>\<CR>\<Esc>", 'xt')
   assert.equals(popup_lines, ['辞書登録: か  [Enter:登録 Esc:取消]', '登録語: 科│',
-    '1/2 蚊', '2/2 科'])
+    '1 蚊', '2 科'])
   assert.equals(selected_candidate_rows, [4])
   assert.equals(index(visible_mode_labels, '▼あ') >= 0, true)
   assert.equals(getline(1), '前科後')
@@ -294,7 +294,7 @@ suite.inline_registration_converts_a_reading_with_okuri = (): void => {
   feedkeys("aKasnn\<F6>KaKu\<Cmd>call CaskkTestInlineCapture()\<CR>\<Esc>\<Esc>", 'xt')
   assert.equals(popup_lines[0 : 1], ['辞書登録: か  [Enter:登録 Esc:取消]', '登録語: 行く│'])
   assert.equals(len(popup_lines) > 2, true)
-  assert.equals(popup_lines[2], '1/1 行く')
+  assert.equals(popup_lines[2], '1 行く')
 }
 
 suite.disabling_caskk_keeps_inline_registration_open_for_direct_text_entry = (): void => {
@@ -575,4 +575,14 @@ suite.annotation_selection_uses_highlight_and_tracks_navigation = (): void => {
   feedkeys("aKas\<F6>z;@v5k\<Down>\<Cmd>call CaskkTestInlineCapture()\<CR>\<Esc>\<Esc>\<Esc>", 'xt')
   assert.equals(popup_lines[2], '@verb-5-k — 五段カ行')
   assert.equals(selected_candidate_rows, [4])
+}
+
+suite.inline_label_commits_an_okuri_candidate_into_the_registration_text = (): void => {
+  const context = Setup(false, true, {}, true)
+  defer Cleanup(context)
+  feedkeys("aKis\<F6>KaKu2\<Cmd>call CaskkTestInlineCapture()\<CR>\<CR>\<Esc>", 'xt')
+  assert.equals(popup_lines[1 :], ['登録語: 書く│'])
+  assert.equals(getline(1), '前書く後')
+  normal! u
+  assert.equals(getline(1), '前き後')
 }

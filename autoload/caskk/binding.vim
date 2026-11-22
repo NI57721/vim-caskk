@@ -53,6 +53,7 @@ export class Binding
   const _reconversion_history: reconversion.History
   const _mappings = mapping_state.State.new()
   const _inline_mappings = mapping_state.State.new()
+  const _candidate_mappings = mapping_state.State.new()
   const _delete_mappings = mapping_state.State.new()
   const _reconversion_mappings = mapping_state.State.new()
   var _completion_timer: number = -1
@@ -67,6 +68,7 @@ export class Binding
   var _registration_window: registration_window.Window = null_object
   var _window_result: dictionary.Candidate = null_object
   var _window_closing: bool = false
+  var _disable_after_registration: bool = false
   var _input_mode: string = input_mode.HIRAGANA
   var _registration_input: bool = false
   const _annotation: annotation_types.Completion = annotation_types.Completion.new()
@@ -178,6 +180,7 @@ export class Binding
   def Enable()
     this._CheckTarget()
     if this._enabled
+      this._disable_after_registration = false
       return
     endif
     if this._disabled_during_inline_registration
@@ -196,13 +199,11 @@ export class Binding
         if this._mappings.Owns(lhs)
           throw 'caskk: duplicate physical mapping: ' .. key
         endif
-        var argument = substitute(string(key), '<', '<lt>', 'g')
-        argument = substitute(argument, '\\', '<Bslash>', 'g')
-        argument = substitute(argument, '|', '<Bar>', 'g')
-        this._mappings.Install(lhs, '<Cmd>call caskk#binding#DispatchInput(' .. this._buffer .. ', ' .. argument .. ')<CR>')
+        this._mappings.Install(lhs, this._InputMapping('DispatchInput', key))
       endfor
       bindings[id] = this
       this._enabled = true
+      this._SyncCandidateMappings()
       execute 'autocmd caskk_input InsertEnter <buffer=' .. this._buffer .. '> OnInsertEnter(' .. this._buffer .. ')'
       execute 'autocmd caskk_input InsertCharPre <buffer=' .. this._buffer .. '> BeforeCharacter(' .. this._buffer .. ')'
       execute 'autocmd caskk_input InsertLeave,BufLeave,WinLeave <buffer=' .. this._buffer .. '> Leave(' .. this._buffer .. ')'
@@ -212,12 +213,14 @@ export class Binding
       execute 'autocmd caskk_reconversion_history BufWipeout <buffer=' .. this._buffer
         .. '> call caskk#binding#ForgetReconversion(' .. this._buffer .. ')'
       const owner = get(reconversion_owners, id, null_object)
-      if mode(1) =~# '^i' && (owner is null_object || !owner.HasActiveReconversion())
+      if mode(1) =~# '^i' && this._editor is null_object
+          && (owner is null_object || !owner.HasActiveReconversion())
         this.Enter()
       endif
     catch
       const reason = v:exception
       execute 'autocmd! caskk_input * <buffer=' .. this._buffer .. '>'
+      this._candidate_mappings.Restore()
       this._Restore()
       if has_key(bindings, id)
         remove(bindings, id)
@@ -245,6 +248,7 @@ export class Binding
   enddef
 
   def _DisableCompletely()
+    this._disable_after_registration = false
     if this.HasActiveReconversion()
       this._DisableForReconversion()
       return
@@ -272,14 +276,18 @@ export class Binding
   def _DisableForReconversion()
     execute 'autocmd! caskk_input * <buffer=' .. this._buffer .. '>'
     const id = string(this._buffer)
+    this._candidate_mappings.Restore()
     this._Restore()
     remove(bindings, id)
     this._enabled = false
     this._mode_view.Close()
     this._CloseInlineInput()
     this._InstallReconversionActionMappings()
+    this._SyncCandidateMappings()
     execute 'autocmd caskk_reconversion InsertLeave,BufLeave,WinLeave <buffer='
       .. this._buffer .. '> call caskk#binding#CancelReconversion(' .. this._buffer .. ')'
+    execute 'autocmd caskk_reconversion InsertCharPre <buffer=' .. this._buffer
+      .. '> BeforeReconversionCharacter(' .. this._buffer .. ')'
     execute 'autocmd caskk_reconversion BufWipeout <buffer=' .. this._buffer
       .. '> call caskk#binding#ForgetReconversion(' .. this._buffer .. ')'
   enddef
@@ -287,20 +295,20 @@ export class Binding
   def _InstallReconversionActionMappings()
     for [key, action] in items(this._actions)
       if action !=# 'Convert' && action !=# 'Commit'
+          && (empty(candidate_view.PageKeys()) || index(['NextCandidate', 'PreviousCandidate',
+            'TogglePin', 'ToggleDemote', 'DeleteUserEntry'], action) < 0)
         continue
       endif
       const lhs = this._keys[key]
-      this._reconversion_mappings.Install(lhs, '<Cmd>call caskk#binding#ReconversionInput('
-        .. this._buffer .. ', ' .. string(key) .. ')<CR>')
+      this._reconversion_mappings.Install(lhs, this._InputMapping('ReconversionInput', key))
     endfor
   enddef
 
   def _FinishDeferredDisable()
-    if !this._disabled_during_inline_registration
-      return
+    if this._disabled_during_inline_registration || this._disable_after_registration
+      this._disabled_during_inline_registration = false
+      this._DisableCompletely()
     endif
-    this._disabled_during_inline_registration = false
-    this._DisableCompletely()
   enddef
 
   def _Record(results: list<session.Result>)
@@ -328,9 +336,13 @@ export class Binding
       this._reconversion_pending = null_object
     endif
     if committed_conversion
+      if this._reconversion_record isnot null_object && this._enabled
+        execute 'autocmd! caskk_reconversion * <buffer=' .. this._buffer .. '>'
+      endif
       this._reconversion_record = null_object
       this._reconversion_start = []
     endif
+    this._SyncCandidateMappings()
     if this._registration_auto && requested && this._editor isnot null_object
         && !this._editor.IsRegistrationSuspended() && this._editor.GetRegistrationRequest() isnot null_object
       this.OpenRegistrationWindow(configuration.GetRegistrationPrefill())
@@ -373,6 +385,7 @@ export class Binding
     if this._inline_editor isnot null_object
       this._CloseInlineInput()
     endif
+    this._candidate_mappings.Restore()
     this._editor.Abandon()
     this._editor = null_object
     this._mode_marker = ''
@@ -384,6 +397,7 @@ export class Binding
     if this._inline_editor is null_object
       return
     endif
+    this._SyncCandidateMappings()
     this._inline_view.ShowEditor(this.GetRegistrationRequest(), this._inline_editor, message)
     const marker = this._inline_editor.Marker()
     const mode = this._inline_editor.input.GetInputMode()
@@ -403,6 +417,9 @@ export class Binding
   enddef
 
   def _CloseInlineInput(restore_escape: bool = true)
+    if this._inline_editor isnot null_object
+      this._candidate_mappings.Restore()
+    endif
     this._CloseAnnotation()
     this._delete_user_entry_pending = false
     this._inline_view.Close()
@@ -530,8 +547,114 @@ export class Binding
       'TogglePin', 'ToggleDemote', 'AbbreviationMode'], action) >= 0
   enddef
 
+  def _InputMapping(handler: string, key: string): string
+    var argument = substitute(string(key), '<', '<lt>', 'g')
+    argument = substitute(argument, '\\', '<Bslash>', 'g')
+    argument = substitute(argument, '|', '<Bar>', 'g')
+    return '<Cmd>call caskk#binding#' .. handler .. '(' .. this._buffer .. ', ' .. argument .. ')<CR>'
+  enddef
+
+  def _CandidateSession(): session.Session
+    if this._inline_editor isnot null_object
+      return this._inline_editor.input
+    endif
+    return this._editor is null_object ? null_object : this._editor.CandidateSession()
+  enddef
+
+  def _SyncCandidateMappings()
+    if bufnr('%') != this._buffer
+      return
+    endif
+    const current = this._CandidateSession()
+    if current is null_object || !current.InCandidate()
+      this._candidate_mappings.Restore()
+      return
+    endif
+    const inline = this._inline_editor isnot null_object
+    const keys = candidate_view.PageKeys(inline)
+    const regular = this._enabled || inline
+    for key in configuration.GetCandidateSelectKeys()
+      const lhs = mapping.Lhs(key)
+      if index(keys, key) < 0
+        this._candidate_mappings.RestoreKey(lhs)
+      elseif !this._candidate_mappings.Has(lhs) && (!regular || index(values(this._keys), lhs) < 0)
+        this._candidate_mappings.Install(lhs, this._InputMapping(regular ? 'DispatchInput' : 'ReconversionInput', key))
+      endif
+    endfor
+    const escape = mapping.Lhs('<Esc>')
+    if empty(keys) || current.CandidateRankAction() ==# ''
+      current.SetCandidateRankAction('')
+      this._candidate_mappings.RestoreKey(escape)
+    elseif !inline && !this._candidate_mappings.Has(escape)
+      this._candidate_mappings.Install(escape,
+        this._InputMapping(regular ? 'DispatchInput' : 'ReconversionInput', '<Esc>'))
+    endif
+  enddef
+
+  def ResizeCandidateList()
+    const current = this._CandidateSession()
+    if current isnot null_object && current.InCandidate()
+        && !this._delete_user_entry_pending && !this._annotation.active
+      this._RefreshCandidateList()
+    endif
+  enddef
+
+  def _RefreshCandidateList()
+    if this._inline_editor isnot null_object
+      this._RefreshInlinePopup()
+    else
+      this._SyncCandidateMappings()
+      this._editor.RefreshCandidatePopup()
+    endif
+  enddef
+
+  def _HandleCandidateKey(key: string): bool
+    const current = this._CandidateSession()
+    if current is null_object || !current.InCandidate()
+      return false
+    endif
+    const inline = this._inline_editor isnot null_object
+    const keys = candidate_view.PageKeys(inline)
+    if empty(keys)
+      return false
+    endif
+    const pending = current.CandidateRankAction()
+    const label = index(mapnew(keys, (_, token) => mapping.Lhs(token)), mapping.Lhs(key))
+    if label >= 0
+      const target = conversion.PageStart(current.CandidateIndex(), len(keys)) + label
+      if target < len(current.GetCandidates().candidates)
+        if pending !=# ''
+          current.SetCandidateRankAction('')
+          if pending ==# 'TogglePin'
+            current.TogglePin(target)
+          else
+            current.ToggleDemote(target)
+          endif
+          this._RefreshCandidateList()
+        elseif inline
+          this._AppendInlineResults(current.SelectAndCommitCandidate(target))
+        else
+          this._Record(this._editor.SelectAndCommitCandidate(target))
+        endif
+      endif
+      return true
+    endif
+    const action = get(this._actions, key, '')
+    if action ==# 'TogglePin' || action ==# 'ToggleDemote'
+      current.SetCandidateRankAction(action)
+      this._RefreshCandidateList()
+      return true
+    endif
+    if pending !=# ''
+      current.SetCandidateRankAction('')
+      this._RefreshCandidateList()
+      return key ==# '<Esc>'
+    endif
+    return false
+  enddef
+
   def _DispatchInline(key: string)
-    if this._ResolveDeleteUserEntryConfirmation(key)
+    if this._HandleCandidateKey(key)
       return
     endif
     if key ==# '<Esc>'
@@ -603,7 +726,7 @@ export class Binding
       return
     elseif action ==# 'Convert'
       if this._inline_editor.input.InCandidate()
-        this._AppendInlineResults([this._inline_editor.input.NextCandidate()])
+        this._AppendInlineResults([this._inline_editor.input.MoveCandidatePage(len(candidate_view.PageKeys(true)), 1)])
       else
         const results = this._inline_editor.input.StartConversion(this._entries, this._preferences)
         if empty(results)
@@ -615,7 +738,7 @@ export class Binding
     elseif action ==# 'NextCandidate' && this._inline_editor.input.InCandidate()
       this._AppendInlineResults([this._inline_editor.input.NextCandidate()])
     elseif action ==# 'PreviousCandidate' && this._inline_editor.input.InCandidate()
-      this._AppendInlineResults([this._inline_editor.input.PreviousCandidate()])
+      this._AppendInlineResults([this._inline_editor.input.MoveCandidatePage(len(candidate_view.PageKeys(true)), -1)])
     elseif action ==# 'TogglePin' && this._inline_editor.input.InCandidate()
       this._inline_editor.input.TogglePin()
       this._RefreshInlinePopup()
@@ -660,11 +783,13 @@ export class Binding
       return
     endif
     const lhs = mapping.Lhs('<Esc>')
-    var argument = substitute(string('<Esc>'), '<', '<lt>', 'g')
-    argument = substitute(argument, '\\', '<Bslash>', 'g')
-    argument = substitute(argument, '|', '<Bar>', 'g')
-    this._delete_mappings.Install(lhs, '<Cmd>call caskk#binding#DispatchInput('
-      .. this._buffer .. ', ' .. argument .. ')<CR>')
+    if !this._enabled
+      for key in ['y', 'Y', 'n', 'N', '<Esc>']
+        this._delete_mappings.Install(mapping.Lhs(key), this._InputMapping('ReconversionInput', key))
+      endfor
+    else
+      this._delete_mappings.Install(lhs, this._InputMapping('DispatchInput', '<Esc>'))
+    endif
   enddef
 
   def _RestoreDeleteEscape()
@@ -688,7 +813,7 @@ export class Binding
     if this._inline_editor isnot null_object
       this._RefreshInlinePopup()
     elseif this._editor isnot null_object
-      this._editor.ShowDeleteUserEntryConfirmation('')
+      this._editor.RefreshCandidatePopup()
     endif
     return key ==# 'n' || key ==# 'N' || key ==# '<Esc>'
   enddef
@@ -832,6 +957,7 @@ export class Binding
     if reconverting
       this._reconversion_start = []
       this._reconversion_pending = this._editor.GetCandidates()
+      this._SyncCandidateMappings()
     endif
   enddef
 
@@ -861,9 +987,13 @@ export class Binding
   def Leave(force: bool = false)
     this._StopCompletionSearch()
     const previous_revision = this._preferences.Revision()
+    const temporary_inline = this._disable_after_registration && this._inline_editor isnot null_object
     try
       this._LeaveInternal(force)
     finally
+      if temporary_inline && this._inline_editor is null_object
+        this._FinishDeferredDisable()
+      endif
       this._SaveChangedUserState(previous_revision)
     endtry
   enddef
@@ -872,6 +1002,7 @@ export class Binding
     this._CloseAnnotation()
     this._delete_user_entry_pending = false
     this._RestoreDeleteEscape()
+    this._candidate_mappings.Restore()
     if this._editor is null_object
       return
     endif
@@ -907,6 +1038,9 @@ export class Binding
     try
       this._DispatchInput(key)
     finally
+      if this._enabled && this._reconversion_record isnot null_object && !this.HasActiveReconversion()
+        this._CloseReconversion()
+      endif
       this._SaveChangedUserState(previous_revision)
     endtry
   enddef
@@ -1016,16 +1150,15 @@ export class Binding
     if this.HandleAnnotation(key)
       return
     endif
-    if this._reconversion_record isnot null_object && this._editor isnot null_object
-        && this._editor.IsInCandidate()
-      this._CloseReconversion()
-    endif
     this._AbandonExternallyChangedEditor()
     if this._ResolveDeleteUserEntryConfirmation(key)
       return
     endif
     if this._inline_editor isnot null_object
       this._DispatchInline(key)
+      return
+    endif
+    if this._HandleCandidateKey(key)
       return
     endif
     if this._editor isnot null_object && this._editor.IsRegistrationSuspended()
@@ -1085,6 +1218,7 @@ export class Binding
     endif
     if has_key(this._native, key)
       if (key ==# '<BS>' || key ==# '<C-H>') && this._editor isnot null_object && this._editor.Backspace()
+        this._SyncCandidateMappings()
         this._reconversion_pending = null_object
         this._ShowAutomaticCompletion()
         this._SyncInputMode()
@@ -1107,6 +1241,7 @@ export class Binding
     endif
     if (key ==# '<BS>' || key ==# '<C-H>') && action !=# '' && !this._CanRunAction(action)
       if this._editor.Backspace()
+        this._SyncCandidateMappings()
         this._reconversion_pending = null_object
         this._ShowAutomaticCompletion()
         this._SyncInputMode()
@@ -1120,14 +1255,14 @@ export class Binding
       this._SyncInputMode()
     elseif action ==# 'Convert'
       if this._editor.IsInCandidate()
-        this._Record([this._editor.NextCandidate()])
+        this._Record([this._editor.MoveCandidatePage(len(candidate_view.PageKeys()), 1)])
       else
         this._Record(this._editor.StartConversion())
       endif
     elseif action ==# 'NextCandidate'
       this._Record([this._editor.NextCandidate()])
     elseif action ==# 'PreviousCandidate'
-      this._Record([this._editor.PreviousCandidate()])
+      this._Record([this._editor.MoveCandidatePage(len(candidate_view.PageKeys()), -1)])
     elseif action ==# 'TogglePin'
       this._editor.TogglePin()
     elseif action ==# 'ToggleDemote'
@@ -1160,10 +1295,13 @@ export class Binding
   enddef
 
   def RestoreReconversionMappings()
+    this._candidate_mappings.Restore()
     this._reconversion_mappings.Restore()
   enddef
 
   def _CloseReconversion()
+    this._delete_user_entry_pending = false
+    this._RestoreDeleteEscape()
     this.RestoreReconversionMappings()
     execute 'autocmd! caskk_reconversion * <buffer=' .. this._buffer .. '>'
     this._reconversion_record = null_object
@@ -1204,6 +1342,8 @@ export class Binding
         .. '> call caskk#binding#EnterReconversion(' .. this._buffer .. ')'
       execute 'autocmd caskk_reconversion InsertLeave,BufLeave,WinLeave <buffer='
         .. this._buffer .. '> call caskk#binding#CancelReconversion(' .. this._buffer .. ')'
+      execute 'autocmd caskk_reconversion InsertCharPre <buffer=' .. this._buffer
+        .. '> BeforeReconversionCharacter(' .. this._buffer .. ')'
       execute 'autocmd caskk_reconversion BufWipeout <buffer=' .. this._buffer
         .. '> call caskk#binding#ForgetReconversion(' .. this._buffer .. ')'
     endif
@@ -1216,19 +1356,49 @@ export class Binding
       this.Dispatch(key)
       return
     endif
-    if this._editor isnot null_object && this._editor.IsInCandidate()
+    if !this.HasActiveReconversion()
+      return
+    endif
+    const previous_revision = this._preferences.Revision()
+    try
+      this._DispatchReconversion(key)
+    finally
+      this._SaveChangedUserState(previous_revision)
+    endtry
+  enddef
+
+  def _DispatchReconversion(key: string)
+    if !this._ResolveDeleteUserEntryConfirmation(key) && !this._HandleCandidateKey(key)
       const action = get(this._actions, key, '')
-      if action ==# 'Convert'
+      const size = len(candidate_view.PageKeys())
+      if action ==# 'Convert' || action ==# 'PreviousCandidate'
+        this._Record([this._editor.MoveCandidatePage(size, action ==# 'Convert' ? 1 : -1)])
+      elseif action ==# 'NextCandidate'
         this._Record([this._editor.NextCandidate()])
       elseif action ==# 'Commit'
         this._Record(this._editor.Commit())
-        this._editor.Abandon()
-        this._editor = null_object
-        this._CloseReconversion()
+      elseif action ==# 'DeleteUserEntry' && this._editor.CanDeleteUserEntry()
+        this._RequestDeleteUserEntryConfirmation()
       endif
+    endif
+    if this._editor is null_object || this._editor.IsRegistrationSuspended()
+      return
+    elseif this.GetRegistrationRequest() isnot null_object
+      this.RestoreReconversionMappings()
+    elseif !this.HasActiveReconversion()
+      this._CloseReconversion()
+    endif
+  enddef
+
+  def BeforeReconversionCharacter()
+    if this._enabled || this._reconversion_record is null_object || empty(candidate_view.PageKeys())
       return
     endif
-    return
+    # InsertCharPre is text-locked. Close the selection before replaying the
+    # character natively, after its original mappings have already run.
+    const text = v:char
+    v:char = ''
+    feedkeys("\<Cmd>call caskk#binding#CancelReconversion(" .. this._buffer .. ")\<CR>" .. text, 'in')
   enddef
 
   def CancelReconversion()
@@ -1293,7 +1463,7 @@ export class Binding
   enddef
 
   def IsEnabled(): bool
-    return this._enabled
+    return this._enabled && !this._disable_after_registration
   enddef
 
   def GetEditor(): insert.Editor
@@ -1314,6 +1484,29 @@ export class Binding
 
   def OpenRegistrationWindow(prefill: bool = true)
     this._CheckTarget()
+    if !this._enabled && !this._disabled_during_inline_registration
+      # A disabled reconversion can exhaust its pages. Let the registration
+      # editor use the regular mappings until that request is resolved.
+      this.RestoreReconversionMappings()
+      execute 'autocmd! caskk_reconversion * <buffer=' .. this._buffer .. '>'
+      this._reconversion_record = null_object
+      this._reconversion_start = []
+      this.Enable()
+      this._disable_after_registration = true
+      try
+        this._OpenRegistrationField(prefill)
+      catch
+        const reason = v:exception
+        this._disable_after_registration = false
+        this.Disable(true)
+        throw reason
+      endtry
+      return
+    endif
+    this._OpenRegistrationField(prefill)
+  enddef
+
+  def _OpenRegistrationField(prefill: bool)
     if configuration.GetRegistrationInline()
       this._OpenInlineRegistration(prefill)
       return
@@ -1450,6 +1643,9 @@ export class Binding
       throw 'caskk: no current dictionary registration request'
     endif
     this._Record([this._editor.Register(dictionary.Candidate.new(text, annotations))])
+    if !this._enabled && this._reconversion_record isnot null_object
+      this._CloseReconversion()
+    endif
   enddef
 
   def SuspendRegistration()
@@ -1530,6 +1726,10 @@ export class Binding
       endif
     finally
       this._ClearRegistrationReply()
+      if this._disable_after_registration
+        this._disable_after_registration = false
+        this.Disable(true)
+      endif
     endtry
   enddef
 
@@ -1539,6 +1739,9 @@ export class Binding
       throw 'caskk: no current dictionary registration request'
     endif
     this._Record([this._editor.CancelRegistration()])
+    if !this._enabled && this._reconversion_record isnot null_object
+      this._CloseReconversion()
+    endif
   enddef
 endclass
 
@@ -1589,15 +1792,17 @@ enddef
 
 def RequireCurrentBinding(): Binding
   const id = string(bufnr('%'))
-  if !has_key(bindings, id)
+  const owner = get(bindings, id, get(reconversion_owners, id, null_object))
+  if owner is null_object || (!has_key(bindings, id) && owner.GetRegistrationRequest() is null_object)
     throw 'caskk: no current dictionary registration request'
   endif
-  return bindings[id]
+  return owner
 enddef
 
 export def GetRegistrationRequest(): registration.Request
   const id = string(bufnr('%'))
-  return has_key(bindings, id) ? bindings[id].GetRegistrationRequest() : null_object
+  const owner = get(bindings, id, get(reconversion_owners, id, null_object))
+  return owner is null_object ? null_object : owner.GetRegistrationRequest()
 enddef
 
 export def CompleteRegistration(text: string, annotations: list<string> = [])
@@ -1619,7 +1824,8 @@ export def Enable(compiled: scheme.CompiledScheme, sticky_key: string = '', acti
     bindings[id].Enable()
   else
     const previous_owner = get(reconversion_owners, id, null_object)
-    if previous_owner isnot null_object && previous_owner.HasActiveReconversion()
+    if previous_owner isnot null_object
+        && (previous_owner.HasActiveReconversion() || previous_owner.GetRegistrationRequest() isnot null_object)
       previous_owner.RestoreReconversionMappings()
       previous_owner.Enable()
       return
@@ -1740,6 +1946,12 @@ enddef
 
 # InsertCharPre is text-locked. Suppress native insertion and queue the same
 # semantic input before the remaining typeahead, without editing in the event.
+def BeforeReconversionCharacter(number: number)
+  if has_key(reconversion_owners, string(number))
+    reconversion_owners[string(number)].BeforeReconversionCharacter()
+  endif
+enddef
+
 def BeforeCharacter(number: number)
   if !has_key(bindings, string(number)) || char2nr(v:char) < 0x80
     return
@@ -1796,7 +2008,16 @@ export def ReinstallActionMapping(number: number, key: string)
   endif
 enddef
 
+def ResizeCandidateList()
+  const id = string(bufnr('%'))
+  const owner = get(bindings, id, get(reconversion_owners, id, null_object))
+  if owner isnot null_object
+    owner.ResizeCandidateList()
+  endif
+enddef
+
 augroup caskk_input
+  autocmd VimResized * ResizeCandidateList()
 augroup END
 
 augroup caskk_reconversion

@@ -83,12 +83,17 @@ export class CandidateListInfo
   enddef
 endclass
 
+export def PageStart(index: number, size: number): number
+  return index / size * size
+enddef
+
 # One selection lifecycle. Buffer changes and returning to Preedit are handled
 # by the caller; Cancel returns the original reading text to display there.
 export class Selection
   const _prepared: Candidates
   const _preferences: user_state.State
   var _index: number = 0
+  public var rank_action: string = ''
   var _active: bool = true
 
   def new(prepared: Candidates, preferences: user_state.State)
@@ -107,6 +112,10 @@ export class Selection
 
   def IsActive(): bool
     return this._active
+  enddef
+
+  def Index(): number
+    return this._index
   enddef
 
   def CurrentText(): string
@@ -148,16 +157,18 @@ export class Selection
     return this._prepared.IsExperimental(this._index)
   enddef
 
-  def TogglePin(): string
+  def TogglePin(index: number = -1): string
     this._CheckActive()
-    const text = this._prepared.candidates[this._index].text
-    return this._preferences.TogglePin(this._prepared.PreferenceQuery(this._index), text)
+    const target = index < 0 ? this._index : index
+    const text = this._prepared.candidates[target].text
+    return this._preferences.TogglePin(this._prepared.PreferenceQuery(target), text)
   enddef
 
-  def ToggleDemote(): string
+  def ToggleDemote(index: number = -1): string
     this._CheckActive()
-    const text = this._prepared.candidates[this._index].text
-    return this._preferences.ToggleDemote(this._prepared.PreferenceQuery(this._index), text)
+    const target = index < 0 ? this._index : index
+    const text = this._prepared.candidates[target].text
+    return this._preferences.ToggleDemote(this._prepared.PreferenceQuery(target), text)
   enddef
 
   def Select(index: number): string

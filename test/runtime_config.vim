@@ -118,7 +118,7 @@ suite.ctrl_n_and_ctrl_p_navigate_candidates_through_configured_mappings = (): vo
   defer delete(dictionary)
   writefile(['か /蚊/家/化/'], dictionary)
   const actions = {"\<Space>": 'Convert', "\<C-N>": 'Convert', "\<C-P>": 'PreviousCandidate', "\<C-M>": 'Commit'}
-  Caskk.Config({sticky_key: ';', dictionaries: [dictionary], mappings: actions})
+  Caskk.Config({candidate_select_keys: [], sticky_key: ';', dictionaries: [dictionary], mappings: actions})
   Caskk.Enable('configured')
   feedkeys("a;ka\<Space>\<C-N>\<C-P>\<C-M>\<Esc>", 'xt')
   assert.equals(getline(1), '前蚊後')
@@ -271,7 +271,7 @@ suite.ctrl_n_and_ctrl_p_candidate_mappings_work_with_insert_arrow_mappings = ():
   inoremap <Up> <C-O>gk
   inoremap <Down> <C-O>gj
   inoremap <buffer> <F12> <ScriptCmd>CaptureCurrentLine()<CR>
-  Caskk.Config({sticky_key: ';', dictionaries: [dictionary], mappings: {
+  Caskk.Config({candidate_select_keys: [], sticky_key: ';', dictionaries: [dictionary], mappings: {
     "\<Space>": 'Convert', "\<C-N>": 'Convert', "\<C-P>": 'PreviousCandidate', "\<C-M>": 'Commit'}})
   Caskk.Enable('configured')
   g:caskk_captured_lines = []
@@ -698,7 +698,7 @@ suite.numeric_conversion_offers_roman_numerals_with_the_standard_dictionary_temp
   defer delete(path)
   const source = ['# /#1/#3/#2/＃;number/#0/#8/#4/#5/']
   writefile(source, path)
-  Caskk.Config({dictionaries: [path], registration_auto: false, mode_popup: false,
+  Caskk.Config({candidate_select_keys: [], dictionaries: [path], registration_auto: false, mode_popup: false,
     mappings: {q: 'AbbreviationMode', "\<Space>": 'Convert', "\<CR>": 'Commit'}})
   Caskk.Enable('configured')
   feedkeys('aq12' .. repeat("\<Space>", 9) .. "\<CR>\<Esc>", 'xt')

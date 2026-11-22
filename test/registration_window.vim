@@ -69,7 +69,7 @@ enddef
 
 defcompile Handle
 
-def Setup(prefill: bool = true): Fixture
+def Setup(prefill: bool = true, with_candidates: bool = false): Fixture
   const existing_buffers = mapnew(getbufinfo(), (_, info) => info.bufnr)
   const previous = bufnr('%')
   origin_buffer = bufadd('')
@@ -96,7 +96,11 @@ def Setup(prefill: bool = true): Fixture
   mkdir(directory)
   const snapshot = user_runtime.Get().GetSnapshot()
   user_runtime.Get().Restore(user_state.State.new().GetSnapshot())
-  Caskk.Config({registration_auto: false, registration_prefill: prefill,
+  const dictionary = directory .. '/system'
+  if with_candidates
+    writefile(['か /蚊/科/'], dictionary)
+  endif
+  Caskk.Config({dictionaries: with_candidates ? [dictionary] : [], registration_auto: false, registration_prefill: prefill,
     state_path: directory .. '/state.jsonl',
     mappings: {s: 'Convert', n: 'NextCandidate'}})
   Caskk.RegisterInputScheme({name: 'registration-window', consonants: {k: 'k'}, combinations: {a: 'a'},
@@ -414,4 +418,15 @@ suite.annotation_selection_highlights_the_visible_row_after_scrolling = (): void
   assert.equals(annotation_rows, [4])
   assert.equals(annotation_group, 'PmenuSel')
   assert.equals(annotation_lines[0] =~# '^@verb', true)
+}
+
+suite.split_registration_commits_the_candidate_by_label_before_submission = (): void => {
+  const fixture = Setup(true, true)
+  defer Cleanup(fixture)
+  feedkeys("aKass\<F3>s2\<F4>\<CR>\<Esc>", 'xt')
+  assert.equals(errors, [])
+  assert.equals(intermediate_texts, ['科'])
+  assert.equals(getline(1), '前科後')
+  normal! u
+  assert.equals(getline(1), '前か後')
 }

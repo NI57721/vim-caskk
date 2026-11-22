@@ -169,7 +169,7 @@ suite.typing_and_conversion_close_the_completion_menu = (): void => {
   assert.equals(captures, ['前かなき後'])
   assert.equals(len(popup_lines[0]), 1)
   feedkeys("aKana \<F12>\<CR>\<Esc>", 'xt')
-  assert.equals(index(popup_lines[1], '1/1 仮名 — 文字') >= 0, true)
+  assert.equals(index(popup_lines[1], '1 仮名 — 文字') >= 0, true)
 }
 
 suite.popup_can_be_disabled_without_disabling_completion = (): void => {

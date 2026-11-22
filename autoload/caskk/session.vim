@@ -406,18 +406,43 @@ export class Session
     return conversion.CandidateListInfo.new(info.selected_index, candidates)
   enddef
 
-  def TogglePin()
-    if !this.InCandidate()
-      throw 'caskk: no active conversion selection'
-    endif
-    this._selection.TogglePin()
+  def CandidateIndex(): number
+    return this._selection.Index()
   enddef
 
-  def ToggleDemote()
+  def CandidateRankAction(): string
+    return this.InCandidate() ? this._selection.rank_action : ''
+  enddef
+
+  def SetCandidateRankAction(action: string)
+    this._selection.rank_action = action
+  enddef
+
+  def MoveCandidatePage(size: number, direction: number): Result
+    if size == 0
+      return direction > 0 ? this.NextCandidate() : this.PreviousCandidate()
+    endif
+    const target = conversion.PageStart(this.CandidateIndex(), size) + direction * size
+    if target < 0
+      return this.CancelConversion()
+    elseif target >= len(this._prepared.candidates)
+      return this._ExhaustCandidates()
+    endif
+    return this.SelectCandidate(target)
+  enddef
+
+  def TogglePin(index: number = -1)
     if !this.InCandidate()
       throw 'caskk: no active conversion selection'
     endif
-    this._selection.ToggleDemote()
+    this._selection.TogglePin(index)
+  enddef
+
+  def ToggleDemote(index: number = -1)
+    if !this.InCandidate()
+      throw 'caskk: no active conversion selection'
+    endif
+    this._selection.ToggleDemote(index)
   enddef
 
   def CanDeleteUserEntry(): bool
@@ -483,6 +508,11 @@ export class Session
     endif
     results->add(this._PrepareConversion(entries, preferences))
     return results
+  enddef
+
+  def SelectAndCommitCandidate(index: number): list<Result>
+    this.SelectCandidate(index)
+    return this.Commit()
   enddef
 
   def SelectCandidate(index: number): Result
@@ -558,6 +588,10 @@ export class Session
       return Result.new(this._Render(this._selection.CurrentText()), [], this._state.GetSnapshot(),
         false, true, true, false, false, this._DisplayPreedit())
     endif
+    return this._ExhaustCandidates()
+  enddef
+
+  def _ExhaustCandidates(): Result
     # Exhaustion requests registration rather than committing or wrapping.
     # Keep the prepared query and full okuri for the separate registration UI.
     const text = this._Render(this._selection.Cancel())

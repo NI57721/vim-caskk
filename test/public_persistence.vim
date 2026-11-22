@@ -134,8 +134,8 @@ suite.automatic_candidate_preference_changes_are_saved_without_waiting_for_exit 
   Caskk.Config({state_path: path, state_auto: true,
     dictionaries: [fixture.directory .. '/system'], mappings: {s: 'Convert', v: 'TogglePin'}})
   Caskk.Enable('persistence')
-  feedkeys("aKasv\<Esc>", 'xt')
-  assert.equals(store.Load(path).pinned[json_encode(['か', ''])], '蚊')
+  feedkeys("aKasv2\<Esc>", 'xt')
+  assert.equals(store.Load(path).pinned[json_encode(['か', ''])], '科')
 }
 
 suite.automatic_candidate_demotion_is_saved_without_waiting_for_exit = (): void => {
@@ -145,8 +145,8 @@ suite.automatic_candidate_demotion_is_saved_without_waiting_for_exit = (): void 
   Caskk.Config({state_path: path, state_auto: true,
     dictionaries: [fixture.directory .. '/system'], mappings: {s: 'Convert', b: 'ToggleDemote'}})
   Caskk.Enable('persistence')
-  feedkeys("aKasb\<Esc>", 'xt')
-  assert.equals(store.Load(path).demoted[json_encode(['か', ''])], ['蚊'])
+  feedkeys("aKasb2\<Esc>", 'xt')
+  assert.equals(store.Load(path).demoted[json_encode(['か', ''])], ['科'])
 }
 
 suite.automatic_saving_disabled_keeps_learning_in_memory_only = (): void => {

@@ -4,20 +4,35 @@ import autoload 'caskk/conversion.vim' as conversion
 import autoload 'caskk/config.vim' as configuration
 import autoload 'caskk/presentation/mode_popup.vim' as mode_popup
 
-export def Format(info: conversion.CandidateListInfo): list<string>
+export def PageKeys(inline: bool = false): list<string>
+  const keys = configuration.GetCandidateSelectKeys()
+  # Reserve one unwrapped line for the rank prompt, plus the inline editor's
+  # two header lines when it shares the candidate popup.
+  const available = inline ? min([10, &lines - &cmdheight]) - 3 : &lines - &cmdheight - 1
+  return available <= 0 ? [] : keys[: available - 1]
+enddef
+
+export def Format(info: conversion.CandidateListInfo, keys: list<string> = [], rank_action: string = ''): list<string>
   if info is null_object
     return []
   endif
   final lines: list<string> = []
-  for candidate in info.candidates
+  const start = empty(keys) ? 0 : conversion.PageStart(info.selected_index, len(keys))
+  const candidates = empty(keys) ? info.candidates : info.candidates[start : start + len(keys) - 1]
+  for candidate in candidates
     const tier = candidate.tier ==# 'pinned' ? '★ ' : candidate.tier ==# 'demoted' ? '↓ ' : ''
-    var line = (candidate.index + 1) .. '/' .. candidate.count .. ' ' .. tier .. candidate.text
+    const label = empty(keys) ? (candidate.index + 1) .. '/' .. candidate.count : keys[candidate.index - start]
+    var line = label .. ' ' .. tier .. candidate.text
     if !empty(candidate.annotations)
       const annotation = substitute(join(candidate.annotations, ' / '), "\n", ' ', 'g')
       line ..= ' — ' .. annotation
     endif
     lines->add(line)
   endfor
+  if !empty(keys) && rank_action !=# ''
+    const operation = rank_action ==# 'TogglePin' ? '固定' : '降格'
+    lines->add(operation .. 'する候補のラベルを入力（Escで取消）')
+  endif
   return lines
 enddef
 
@@ -51,7 +66,8 @@ export class View
     this._confirmation = false
   enddef
 
-  def Render(info: conversion.CandidateListInfo, message: string = '', commandline: bool = false)
+  def Render(info: conversion.CandidateListInfo, message: string = '', commandline: bool = false,
+      keys: list<string> = [], rank_action: string = '')
     if info is null_object || empty(info.candidates) || !configuration.GetCandidatePopup()
       this.Close()
       return
@@ -69,7 +85,32 @@ export class View
     elseif this._confirmation
       this.Close()
     endif
-    const lines = Format(info)
+    const lines = Format(info, keys, rank_action)
+    if !empty(keys)
+      const selected = info.selected_index - conversion.PageStart(info.selected_index, len(keys)) + 1
+      const previous = this._window == 0 ? {} : popup_getpos(this._window)
+      const last_top = max([1, &lines - &cmdheight - len(keys)])
+      const anchor = screenpos(win_getid(), line('.'), col('.'))
+      const below = anchor.row + 1
+      const initial = below <= last_top ? below : max([1, anchor.row - len(keys) - 1])
+      const top = min([get(previous, 'line', initial), last_top])
+      const width = min([60, max(mapnew(lines, (_, line) => strdisplaywidth(line)))]) + 2
+      const left = min([max([1, get(previous, 'col', anchor.col)]), max([1, &columns - width + 1])])
+      const options = {
+        line: top, col: left, pos: 'topleft', posinvert: false, firstline: 1,
+        minheight: 0, maxheight: 0, minwidth: 0,
+        padding: [0, 1, 0, 1], maxwidth: 60, wrap: false, highlight: 'Pmenu',
+        moved: 'any',
+      }
+      if empty(previous)
+        this._window = popup_create(lines, options)
+      else
+        popup_setoptions(this._window, options)
+        popup_settext(this._window, lines)
+      endif
+      HighlightSelection(this._window, selected)
+      return
+    endif
     const previous = this._window == 0 ? {} : popup_getpos(this._window)
     if !empty(previous)
       # Preserve the initial screen rectangle as selection scrolls toward the end.
