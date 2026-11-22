@@ -45,9 +45,9 @@ suite.small_kana_rows = (): void => {
   assert.equals(kana.Generate('xy', output_pattern.Parse('e')).text, 'ぇ')
   assert.equals(kana.Generate('xy', output_pattern.Parse('o')).text, 'ょ')
   assert.equals(kana.Generate('xw', output_pattern.Parse('a')).text, 'ゎ')
-  assert.equals(kana.Generate('xw', output_pattern.Parse('i')).text, 'ぃ')
+  assert.equals(kana.Generate('xw', output_pattern.Parse('i')).text, 'ゐ')
   assert.equals(kana.Generate('xw', output_pattern.Parse('u')).text, 'ぅ')
-  assert.equals(kana.Generate('xw', output_pattern.Parse('e')).text, 'ぇ')
+  assert.equals(kana.Generate('xw', output_pattern.Parse('e')).text, 'ゑ')
   assert.equals(kana.Generate('xw', output_pattern.Parse('o')).text, 'ぉ')
 }
 

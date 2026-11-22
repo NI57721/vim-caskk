@@ -222,7 +222,7 @@ suite.roman_is_available_without_registration = (): void => {
     ['shi', 'し'], ['chi', 'ち'], ['tsu', 'つ'], ['fu', 'ふ'], ['ji', 'じ'],
     ['kyi', 'き'], ['nyi', 'に'], ['dhi', 'でぃ'], ['tha', 'てゃ'],
     ['xtu', 'っ'], ['xtsu', 'っ'], ['ltu', 'っ'], ['ltsu', 'っ'],
-    ['lalyalwa', 'ぁゃゎ'], ['xwixwe', 'ぃぇ'], ['whu', 'う'],
+    ['lalyalwa', 'ぁゃゎ'], ['xwixwe', 'ゐゑ'], ['lwilwe', 'ゐゑ'], ['whu', 'う'],
     ['.,-;[]', '。、ー；「」']]
     assert.equals(TypeText('roman', keys), expected, keys)
   endfor
