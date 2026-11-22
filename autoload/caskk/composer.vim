@@ -46,6 +46,7 @@ export class Composer
   var _special_pending: list<input.Event> = []
   var _consonant: list<input.Event> = []
   var _carried_row: string = ''
+  var _special_row: string = ''
 
   def new(compiled: scheme.CompiledScheme)
     this._table = compiled.table
@@ -143,14 +144,20 @@ export class Composer
     return false
   enddef
 
+  def _CarriedSpecialStart(): bool
+    return this._carried_row != '' && len(this._consonant) == 1
+      && this.IsSpecialStart(this._consonant[0].key)
+  enddef
+
   # Let an already pending special consume the next key before the binding
   # layer interprets that key as an action such as Convert.
   def IsSpecialContinuation(key: string): bool
-    if empty(this._special_pending)
+    const pending = this._CarriedSpecialStart() ? this._consonant : this._special_pending
+    if empty(pending)
       return false
     endif
     final keys: list<string> = []
-    for event in this._special_pending
+    for event in pending
       keys->add(event.key)
     endfor
     keys->add(key)
@@ -367,7 +374,7 @@ export class Composer
   enddef
 
   def CompletesPendingCombination(event: input.Event): bool
-    if empty(this._consonant) || !empty(this._special_pending)
+    if empty(this._consonant) || !empty(this._special_pending) || this._CarriedSpecialStart()
         || !has_key(this._table.combinations, event.key)
       return false
     endif
@@ -379,10 +386,35 @@ export class Composer
     this._special_pending = []
     final results: list<Result> = []
     while !empty(remaining)
+      # A retained physical key starts a fresh special match, keeping its row
+      # available if that special later fails.
+      if this._CarriedSpecialStart()
+        remaining = this._consonant + remaining
+        this._special_row = this._carried_row
+        this._ClearConsonant()
+      endif
       const match = special.MatchEvents(this._rules, remaining, end_of_input)
       for replayed in match.replay
-        this._Replay(replayed, results)
+        if this._special_row != ''
+          this._consonant = [replayed]
+          this._carried_row = this._special_row
+          this._special_row = ''
+        else
+          this._Replay(replayed, results)
+        endif
       endfor
+      if !empty(this._consonant)
+        const tail = match.output isnot null_object ? match.events + match.rest : match.pending
+        if !empty(tail) && (this._HasConsonantPrefix(this._consonant + [tail[0]])
+            || this.CompletesPendingCombination(tail[0]))
+          this._Replay(tail[0], results)
+          remaining = tail[1 :]
+          continue
+        endif
+      endif
+      if match.output isnot null_object
+        this._special_row = ''
+      endif
       if match.output isnot null_object && len(match.events) == 1
           && match.events[0].modified && this._SymbolKey(match.events) != ''
         # A Modified N/T consonant starts an okuri boundary even when its
@@ -452,6 +484,9 @@ export class Composer
   def Backspace(): bool
     if !empty(this._special_pending)
       remove(this._special_pending, -1)
+      if empty(this._special_pending)
+        this._special_row = ''
+      endif
       return true
     endif
     if !empty(this._consonant)

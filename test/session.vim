@@ -491,3 +491,17 @@ suite.sokuon_prefix_consumes_modified_input_and_keeps_okuri_pending = (): void =
   ime.Feed('a')
   assert.equals(ime.GetSnapshot().okuri, 'っか')
 }
+
+suite.sokuon_and_suffix_special_preserve_modified_okuri_input = (): void => {
+  const compiled = scheme.Compile({t: 't', tt: 'Tt'}, {a: 'a'},
+    [scheme.SpecialDefinition.new(['t', 'a'], 'だ')])
+  for keys in ['Tta', 'tTa', ';tta']
+    const ime = session.Session.new(compiled, ';', {}, null_object, 'か')
+    for key in split(keys, '\zs')
+      ime.Feed(key)
+    endfor
+    assert.equals(ime.GetSnapshot().reading, 'か')
+    assert.equals(ime.GetSnapshot().okuri, 'っだ')
+    assert.equals(ime.Pending(), [])
+  endfor
+}

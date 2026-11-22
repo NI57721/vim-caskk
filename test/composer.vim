@@ -361,7 +361,7 @@ suite.failure_keeps_suffix_that_can_start_another_special = (): void => {
   assert.equals(engine.Pending(), [])
 }
 
-suite.suffix_special_takes_precedence_over_replayed_consonant = (): void => {
+suite.replayed_combination_precedes_a_special_starting_at_its_suffix = (): void => {
   const definitions = [
     scheme.SpecialDefinition.new(['k', 'a', 'z'], '甲'),
     scheme.SpecialDefinition.new(['a', 'b'], '乙'),
@@ -374,10 +374,10 @@ suite.suffix_special_takes_precedence_over_replayed_consonant = (): void => {
   assert.equals(engine.Feed(second), [])
   const results = engine.Feed(third)
   assert.equals(len(results), 2)
-  assert.equals(results[0].output is null_object, true)
-  assert.equals(results[0].events, [first])
-  assert.equals(results[1].output.text, '乙')
-  assert.equals(results[1].events, [second, third])
+  assert.equals(results[0].output.text, 'か')
+  assert.equals(results[0].events, [first, second])
+  assert.equals(results[1].output is null_object, true)
+  assert.equals(results[1].events, [third])
   assert.equals(engine.Pending(), [])
 }
 
@@ -695,4 +695,69 @@ suite.special_continuation_does_not_capture_an_action_after_a_shorter_match = ()
   const symbol = composer.Composer.new(compiled)
   symbol.Feed(input.Event.new('z'))
   assert.equals(symbol.IsSpecialContinuation('<Space>'), true)
+}
+
+suite.sokuon_retained_consonant_is_matched_against_specials = (): void => {
+  const compiled = scheme.Compile({t: 't', tt: 'Tt'}, {a: 'a'},
+    [scheme.SpecialDefinition.new(['t', 'a'], 'だ')])
+  const engine = composer.Composer.new(compiled)
+  engine.Feed(input.Event.new('t'))
+  const doubled = engine.Feed(input.Event.new('t'))
+  assert.equals(len(doubled), 1)
+  assert.equals(doubled[0].output.text, 'っ')
+  assert.equals(engine.Pending()[0].key, 't')
+  const ending = engine.Feed(input.Event.new('a'))
+  assert.equals(ending[0].output.text, 'だ')
+  assert.equals(ending[0].is_special, true)
+  assert.equals(engine.Pending(), [])
+}
+
+suite.same_start_special_delays_and_overrides_sokuon = (): void => {
+  const engine = composer.Composer.new(scheme.Compile({t: 't', tt: 'Tt'}, {a: 'a'},
+    [scheme.SpecialDefinition.new(['t', 'a'], 'だ'),
+     scheme.SpecialDefinition.new(['t', 't', 'a'], '特別')]))
+  engine.Feed(input.Event.new('t'))
+  assert.equals(engine.Feed(input.Event.new('t')), [])
+  assert.equals(engine.Feed(input.Event.new('a'))[0].output.text, '特別')
+}
+
+suite.sokuon_row_survives_a_failed_same_start_special = (): void => {
+  const compiled = scheme.Compile({q: 'Tky'}, {a: 'a', i: 'i'},
+    [scheme.SpecialDefinition.new(['q', 'a', 'z'], '特別')])
+  const engine = composer.Composer.new(compiled)
+  # A longer same-start special initially delays the output prefix.
+  engine.Feed(input.Event.new('q'))
+  const failed = engine.Feed(input.Event.new('i'))
+  assert.equals(mapnew(failed, (_, r) => r.output.text), ['っ', 'き'])
+  assert.equals(engine.Pending(), [])
+}
+
+suite.multi_key_consonant_precedes_a_suffix_special = (): void => {
+  const engine = composer.Composer.new(scheme.Compile({k: 'k', ky: 'ky'}, {a: 'a'},
+    [scheme.SpecialDefinition.new(['y', 'a'], '別')]))
+  engine.Feed(input.Event.new('k'))
+  assert.equals(engine.Feed(input.Event.new('y')), [])
+  assert.equals(engine.Feed(input.Event.new('a'))[0].output.text, 'きゃ')
+}
+
+suite.retained_consonant_keeps_its_row_while_a_special_is_pending = (): void => {
+  for finish in ['fail', 'backspace', 'flush']
+    const engine = composer.Composer.new(scheme.Compile({t: 't', tt: 'Tt'}, {a: 'a', i: 'i'},
+      [scheme.SpecialDefinition.new(['t', 'a', 'z'], '特別')]))
+    engine.Feed(input.Event.new('t'))
+    assert.equals(engine.Feed(input.Event.new('t'))[0].output.text, 'っ')
+    assert.equals(engine.Feed(input.Event.new('a')), [])
+    assert.equals(mapnew(engine.Pending(), (_, e) => e.key), ['t', 'a'])
+    if finish == 'backspace'
+      assert.equals(engine.Backspace(), true)
+      assert.equals(engine.Feed(input.Event.new('i'))[0].output.text, 'ち')
+    elseif finish == 'flush'
+      assert.equals(engine.Flush()[0].output.text, 'た')
+    else
+      const results = engine.Feed(input.Event.new('b'))
+      assert.equals(results[0].output.text, 'た')
+      assert.equals(results[1].events[0].key, 'b')
+    endif
+    assert.equals(engine.Pending(), [])
+  endfor
 }

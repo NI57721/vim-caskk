@@ -516,3 +516,22 @@ suite.typed_adjective_suffix_preview_cancel_commit_and_undo = (): void => {
   normal! u
   assert.equals(getline(1), '前おいしくなりました後')
 }
+
+suite.sokuon_and_suffix_special_convert_commit_and_undo_in_vim = (): void => {
+  const source = tempname()
+  defer delete(source)
+  writefile(['かt /勝/'], source)
+  Setup({dictionaries: [source], completion_min_length: 20, mappings: {"\<F10>": 'Commit'}})
+  defer Cleanup()
+  Caskk.Disable()
+  Caskk.RegisterInputScheme({name: 'sokuon-special', consonants: {t: 't', tt: 'Tt'},
+    combinations: {a: 'a'}, specials: {x: 'か', ta: 'だ'}})
+  Caskk.Enable('sokuon-special')
+  feedkeys("aXTta\<F12>\<F10>\<Esc>", 'xt')
+  assert.equals(captures, ['前勝っだ後'])
+  assert.equals(getline(1), '前勝っだ後')
+  normal! u
+  assert.equals(getline(1), '前かっだ後')
+  normal! u
+  assert.equals(getline(1), '前後')
+}
