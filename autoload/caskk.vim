@@ -3,7 +3,6 @@ vim9script
 import autoload 'caskk/config.vim' as configuration
 import autoload 'caskk/scheme.vim' as scheme
 import autoload 'caskk/scheme/registry.vim' as registry
-import autoload 'caskk/scheme/roman.vim' as roman
 import autoload 'caskk/binding.vim' as binding
 import autoload 'caskk/commandline.vim' as commandline
 import autoload 'caskk/user_state/runtime.vim' as user_runtime
@@ -68,10 +67,7 @@ export def RegisterInputScheme(definition: dict<any>)
     if type(definition.base) != v:t_string
       throw 'caskk: invalid input scheme: base must be a string'
     endif
-    if definition.base !=# 'roman'
-      throw 'caskk: unknown base input scheme: ' .. definition.base
-    endif
-    extend(defaults, roman.Definition(), 'force')
+    extend(defaults, registry.BuiltinDefinition(definition.base), 'force')
   endif
   const consonants = scheme.ValidateConsonants(
     ReadSchemeMap(definition, 'consonants', defaults.consonants, inherit))

@@ -342,3 +342,42 @@ suite.roman_n_rows_respect_overrides_and_n_fallback_is_validated = (): void => {
     assert.equals(TypeText('roman-no-fallback', 'anka'), 'あnか')
   endfor
 }
+
+suite.azik_is_available_without_registration = (): void => {
+  for [keys, expected] in [
+    ['aiueo', 'あいうえお'], ['aq', 'あん'], ['q', 'ん'], ['nn', 'ん'],
+    ['kzkkkjkdkl', 'かんきんくんけんこん'], ['kqkhkwkp', 'かいくうけいこう'],
+    ['shchthdh', 'すうちゅうつうづう'],
+    ['xaxa', 'しゃしゃ'], ['caxupga', 'ちゃしゅぴゃ'], ['lalyulwa', 'ぁゅゎ'],
+    [';:', 'っー'], ['kga', 'きゃ'], ['nghjpkd', 'にゅうじょうけん'],
+    ['kgphaga;kpheikfms', 'きょうはがっこうへいきます'],
+    ['dnsnwnngn', 'だんさんわんにゃん'], ['ktmnttds', 'ことものたちです'],
+    ['wsotgidciwpfp', 'うぉてぃでぃうぉーふぉー'],
+    ['wfsszvzx', 'わいせいざいぜい']]
+    assert.equals(TypeText('azik', keys), expected, keys)
+  endfor
+  assert.equals(TypeText('roman', 'xa;:'), 'ぁ；：')
+}
+
+suite.azik_model_uses_consonants_and_shared_combinations = (): void => {
+  for [keys, expected] in [
+    ['tgudcu', 'とぅどぅ'], ['tgjdcj', 'とぅんどぅん'],
+    ['knhnfnbnpn', 'かんはんふぁんばんぱん'],
+    ['kgnpgnryn', 'きゃんぴゃんりゃん'], ['wl', 'うぉん'],
+    ['fyacya.', 'fやcや.'], ['yi', 'い'], ['wj', 'うん'],
+    ['ci', 'ち'], ['n', 'ん']]
+    assert.equals(TypeText('azik', keys), expected, keys)
+  endfor
+}
+
+suite.azik_can_be_used_as_a_base = (): void => {
+  const azik = Caskk.GetInputScheme('azik')
+  assert.equals(azik.table.consonants.kg, 'ky')
+  assert.equals(azik.table.consonants.pg, 'py')
+  assert.equals(azik.table.consonants.n, 'n')
+  Caskk.RegisterInputScheme({name: 'azik-custom', base: 'azik',
+    combinations: {z: 'o*N'}, specials: {':': '：', kt: v:null}})
+  assert.equals(TypeText('azik-custom', 'kzkgzpgz:'), 'こんきょんぴょん：')
+  assert.equals(TypeText('azik-custom', 'kt'), 'kt')
+  assert.equals(TypeText('azik', 'kz:kt'), 'かんーこと')
+}

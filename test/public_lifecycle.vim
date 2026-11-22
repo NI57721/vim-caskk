@@ -208,3 +208,13 @@ suite.builtin_roman_converts_nasal_and_sokuon_input_without_registration = (): v
     endtry
   endfor
 }
+
+suite.builtin_azik_routes_extended_keys_in_insert_mode = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  Caskk.Config({})
+  Caskk.Enable('azik')
+  defer Caskk.Disable()
+  feedkeys("aKz;kp:\<Esc>", 'xt')
+  assert.equals(getline(1), '前かんっこうー後')
+}

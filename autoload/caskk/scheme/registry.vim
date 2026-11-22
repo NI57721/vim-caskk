@@ -2,15 +2,27 @@ vim9script
 
 import autoload 'caskk/scheme.vim' as scheme
 import autoload 'caskk/scheme/roman.vim' as roman
+import autoload 'caskk/scheme/azik.vim' as azik
+
+export def BuiltinDefinition(name: string): dict<dict<string>>
+  if name ==# 'roman'
+    return roman.Definition()
+  elseif name ==# 'azik'
+    return azik.Definition()
+  endif
+  throw 'caskk: unknown base input scheme: ' .. name
+enddef
 
 # Registration belongs to input grammar, independently of ordinary IME settings.
 export class Registry
   var _schemes: dict<scheme.CompiledScheme> = {}
 
   def new()
-    const definition = roman.Definition()
-    this.Register('roman', definition.consonants, definition.combinations,
-      scheme.SpecialDefinitions(definition.specials))
+    for name in ['roman', 'azik']
+      const definition = BuiltinDefinition(name)
+      this.Register(name, definition.consonants, definition.combinations,
+        scheme.SpecialDefinitions(definition.specials))
+    endfor
   enddef
 
   # Compile before replacement so failed registration leaves the old entry intact.
