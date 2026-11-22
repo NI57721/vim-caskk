@@ -2,6 +2,7 @@ vim9script
 
 import autoload 'caskk/scheme.vim' as scheme
 import autoload 'caskk/session.vim' as session
+import autoload 'caskk/conversion.vim' as conversion
 import autoload 'caskk/config.vim' as configuration
 import autoload 'caskk/user_state/runtime.vim' as user_runtime
 import autoload 'caskk/input/mapping.vim' as mapping
@@ -21,6 +22,8 @@ var finish = 0
 var changing = false
 var saved: dict<dict<any>> = {}
 var installed: dict<dict<any>> = {}
+var page_labels: list<string> = []
+var temporary_labels: list<string> = []
 const view = mode_popup.View.new()
 const candidates = candidate_popup.View.new()
 
@@ -32,7 +35,51 @@ export def IsEnabled(): bool
   return active && IsTarget()
 enddef
 
+def CeditLhs(): string
+  const cedit = &cedit =~# '^\^.$' ? nr2char(char2nr(strpart(&cedit, 1)) - 64) : &cedit
+  return cedit == '' ? '' : mapping.Lhs(cedit)
+enddef
+
+def InstallMapping(key: string, lhs: string)
+  saved[lhs] = maparg(lhs, 'c', false, true)
+  var argument = substitute(string(key), '<', '<lt>', 'g')
+  argument = substitute(argument, '\\', '<Bslash>', 'g')
+  argument = substitute(argument, '|', '<Bar>', 'g')
+  # <silent> suppresses command-line redraw, hiding setcmdline() updates.
+  execute 'cnoremap <buffer> ' .. lhs .. ' <ScriptCmd>Dispatch(' .. argument .. ')<CR>'
+  installed[lhs] = maparg(lhs, 'c', false, true)
+enddef
+
+def RestoreMapping(lhs: string)
+  const native = remove(saved, lhs)
+  if has_key(installed, lhs) && maparg(lhs, 'c', false, true) == remove(installed, lhs)
+    execute 'silent! cunmap <buffer> ' .. lhs
+    if get(native, 'buffer', 0)
+      mapset('c', false, native)
+    endif
+  endif
+enddef
+
+def SetPageKeys(keys: list<string>)
+  page_labels = mapnew(keys, (_, key) => mapping.Lhs(key))
+  for lhs in copy(temporary_labels)
+    if index(page_labels, lhs) < 0
+      RestoreMapping(lhs)
+      temporary_labels->remove(index(temporary_labels, lhs))
+    endif
+  endfor
+  for key in keys
+    const lhs = mapping.Lhs(key)
+    if !has_key(saved, lhs)
+      InstallMapping(key, lhs)
+      temporary_labels->add(lhs)
+    endif
+  endfor
+enddef
+
 def Reset()
+  SetPageKeys([])
+  candidates.Close()
   const options = configuration.GetInput()
   const previous_mode = current is null_object ? input_mode.HIRAGANA : current.GetInputMode()
   current = session.Session.new(compiled, options.sticky_key, {}, user_runtime.Get(), '',
@@ -98,7 +145,12 @@ def Refresh()
   if IsEnabled()
     const marker = current.InCandidate() ? 'candidate'
       : current.GetSnapshot().in_preedit || current.HasPendingModifier() ? 'modified' : ''
-    candidates.Render(current.GetCandidatesInfo(), '', true)
+    const keys = current.InCandidate() ? candidate_popup.CommandlinePageKeys(CeditLhs()) : []
+    if empty(keys) && current.CandidateRankAction() !=# ''
+      current.SetCandidateRankAction('')
+    endif
+    SetPageKeys(keys)
+    candidates.RenderCommandline(current.GetCandidatesInfo(), keys, current.CandidateRankAction())
     view.ShowCommandline(current.GetInputMode(), marker)
     redraw
   endif
@@ -125,16 +177,10 @@ export def Disable()
   current = null_object
   candidates.Close()
   view.Close()
-  for [lhs, native] in items(saved)
-    if has_key(installed, lhs) && maparg(lhs, 'c', false, true) == installed[lhs]
-      execute 'silent! cunmap <buffer> ' .. lhs
-      if get(native, 'buffer', 0)
-        mapset('c', false, native)
-      endif
-    endif
+  SetPageKeys([])
+  for lhs in keys(saved)
+    RestoreMapping(lhs)
   endfor
-  saved = {}
-  installed = {}
 enddef
 
 export def Enable(definition: scheme.CompiledScheme)
@@ -167,8 +213,7 @@ export def Enable(definition: scheme.CompiledScheme)
   endif
   # Vim handles 'cedit' before dispatching ordinary editing keys. Leave
   # that key native; CmdlineLeavePre commits before the window takes over.
-  const cedit = &cedit =~# '^\^.$' ? nr2char(char2nr(strpart(&cedit, 1)) - 64) : &cedit
-  const cedit_lhs = cedit == '' ? '' : mapping.Lhs(cedit)
+  const cedit_lhs = CeditLhs()
   active = true
   try
     for key in keys_to_map
@@ -176,13 +221,7 @@ export def Enable(definition: scheme.CompiledScheme)
       if lhs ==# cedit_lhs || has_key(saved, lhs)
         continue
       endif
-      saved[lhs] = maparg(lhs, 'c', false, true)
-      var argument = substitute(string(key), '<', '<lt>', 'g')
-      argument = substitute(argument, '\\', '<Bslash>', 'g')
-      argument = substitute(argument, '|', '<Bar>', 'g')
-      # <silent> suppresses command-line redraw, hiding setcmdline() updates.
-      execute 'cnoremap <buffer> ' .. lhs .. ' <ScriptCmd>Dispatch(' .. argument .. ')<CR>'
-      installed[lhs] = maparg(lhs, 'c', false, true)
+      InstallMapping(key, lhs)
     endfor
     Refresh()
   catch
@@ -232,10 +271,7 @@ def Fallback(key: string)
     const revision = user_runtime.Get().Revision()
     Apply(current.Feed(literal))
     Pending()
-    if configuration.GetStateAuto() && revision != user_runtime.Get().Revision()
-      user_runtime.SaveAutomaticIfChanged(configuration.GetStatePath())
-    endif
-    Refresh()
+    SaveAndRefresh(revision)
   else
     Native(key)
   endif
@@ -248,6 +284,53 @@ export def Resume()
   endif
 enddef
 
+def ToggleRank(action: string, index: number = -1)
+  if action ==# 'TogglePin'
+    current.TogglePin(index)
+  else
+    current.ToggleDemote(index)
+  endif
+enddef
+
+def HandleCandidateKey(key: string, action: string): bool
+  if !current.InCandidate()
+    return false
+  endif
+  const pending = current.CandidateRankAction()
+  const label = index(page_labels, mapping.Lhs(key))
+  if label >= 0
+    const target = conversion.PageStart(current.CandidateIndex(), len(page_labels)) + label
+    if target < len(current.GetCandidates().candidates)
+      if pending ==# ''
+        Apply(current.SelectAndCommitCandidate(target))
+        Reset()
+      else
+        current.SetCandidateRankAction('')
+        ToggleRank(pending, target)
+      endif
+    endif
+    return true
+  endif
+  if pending !=# ''
+    current.SetCandidateRankAction('')
+    if key ==# '<Esc>'
+      return true
+    endif
+  endif
+  if index(['<Esc>', '<C-C>', '<CR>', '<C-M>'], key) >= 0
+    return false
+  endif
+  if action ==# 'TogglePin' || action ==# 'ToggleDemote'
+    if empty(page_labels)
+      ToggleRank(action)
+    else
+      current.SetCandidateRankAction(action)
+    endif
+    return true
+  endif
+  return false
+enddef
+
 def Dispatch(key: string)
   if !IsEnabled()
     feedkeys(keycode.Encode(key), 'in')
@@ -257,6 +340,10 @@ def Dispatch(key: string)
   const revision = user_runtime.Get().Revision()
   const actions = configuration.GetInput().mappings
   const action = get(actions, key, get(actions, mapping.Lhs(key), ''))
+  if HandleCandidateKey(key, action)
+    SaveAndRefresh(revision)
+    return
+  endif
   const busy = current.GetSnapshot().in_preedit || current.InCandidate()
     || !empty(current.Pending()) || current.HasPendingModifier()
   if key ==# '<Esc>' || key ==# '<C-C>'
@@ -273,10 +360,11 @@ def Dispatch(key: string)
     Apply(current.Feed(key))
     Pending()
   elseif (action ==# 'Convert' || action ==# 'NextCandidate') && busy
-    Apply(current.InCandidate() ? [current.NextCandidate()]
+    Apply(current.InCandidate() ? [current.MoveCandidatePage(
+      action ==# 'Convert' ? len(page_labels) : 0, 1)]
       : current.StartConversion({}, user_runtime.Get()))
   elseif action ==# 'PreviousCandidate' && current.InCandidate()
-    Apply([current.PreviousCandidate()])
+    Apply([current.MoveCandidatePage(len(page_labels), -1)])
   elseif (key ==# '<BS>' || key ==# '<C-H>') && (action == '' || current.InCandidate())
     if current.BackspacePending()
       Pending()
@@ -308,6 +396,10 @@ def Dispatch(key: string)
     Native(key)
     return
   endif
+  SaveAndRefresh(revision)
+enddef
+
+def SaveAndRefresh(revision: number)
   if configuration.GetStateAuto() && revision != user_runtime.Get().Revision()
     user_runtime.SaveAutomaticIfChanged(configuration.GetStatePath())
   endif
@@ -350,6 +442,6 @@ augroup caskk_commandline
   autocmd CmdlineEnter * Enter()
   autocmd CmdlineLeavePre * BeforeLeave()
   autocmd CmdlineLeave * Leave()
-  autocmd CmdlineChanged * Changed()
+  autocmd CmdlineChanged,VimResized * Changed()
   autocmd CmdwinEnter * Disable()
 augroup END

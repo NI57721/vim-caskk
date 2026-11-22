@@ -3,6 +3,7 @@ vim9script
 import autoload 'caskk.vim' as Caskk
 import autoload 'caskk/user_state.vim' as user_state
 import autoload 'caskk/user_state/runtime.vim' as user_runtime
+import autoload 'caskk/user_state/store.vim' as user_store
 
 final suite = themis#suite('command-line input')
 const assert = themis#helper('assert')
@@ -68,8 +69,22 @@ suite.native_motion_closes_the_range_and_preserves_surrounding_text = (): void =
 def Dictionary(): string
   const path = tempname()
   writefile(['か /蚊/家/', 'かk /書/'], path)
-  Caskk.Config({dictionaries: [path], sticky_key: ';', mappings: {"\<Space>": 'Convert',
+  Caskk.Config({candidate_select_keys: [], dictionaries: [path], sticky_key: ';', mappings: {"\<Space>": 'Convert',
     "\<C-N>": 'NextCandidate', "\<C-P>": 'PreviousCandidate', "\<F4>": 'KatakanaMode'}})
+  return path
+enddef
+
+def LabelDictionary(extra: dict<any> = {}): string
+  const path = tempname()
+  writefile(['か /蚊/家/科/課/歌/'], path)
+  final options = extend({dictionaries: [path], candidate_select_keys: ['a', '界', '3'],
+    candidate_page_size: 2, mode_popup: false, mappings: {'a': 'KatakanaMode',
+    'p': 'TogglePin', 'd': 'ToggleDemote', "\<Space>": 'Convert',
+    "\<C-N>": 'NextCandidate', "\<C-P>": 'PreviousCandidate'}}, extra)
+  if empty(options.candidate_select_keys)
+    remove(options, 'candidate_page_size')
+  endif
+  Caskk.Config(options)
   return path
 enddef
 
@@ -236,6 +251,11 @@ suite.native_completion_commits_and_closes_preedit = (): void => {
   try
     feedkeys(":CaskkCommandlineTest \<F2>Ka\<Tab>\<F3>\<C-C>", 'xt')
     assert.equals(captured, 'CaskkCommandlineTest か完了')
+    const path = LabelDictionary()
+    defer delete(path)
+    feedkeys(":CaskkCommandlineTest \<F2>Ka \<Tab>界\<F3>\<C-C>", 'xt')
+    assert.equals(captured, 'CaskkCommandlineTest か完了界')
+    assert.equals(maparg('界', 'c'), '')
   finally
     &wildmode = old_wildmode
     delcommand CaskkCommandlineTest
@@ -245,6 +265,9 @@ suite.native_completion_commits_and_closes_preedit = (): void => {
 suite.input_prompt_is_native_in_an_interactive_vim = (): void => {
   const script = tempname() .. '.vim'
   const output = tempname()
+  const dictionary = tempname()
+  writefile(['か /蚊/家/'], dictionary)
+  defer delete(dictionary)
   defer delete(script)
   defer delete(output)
   writefile([
@@ -252,7 +275,8 @@ suite.input_prompt_is_native_in_an_interactive_vim = (): void => {
     '&cedit = "\<C-F>"',
     'set rtp^=' .. escape(getcwd(), ' ,'),
     "import autoload 'caskk.vim' as C",
-    "C.Config({})",
+    'C.Config({dictionaries: [' .. string(dictionary) .. '], candidate_select_keys: ["界"],'
+      .. ' mappings: {"\<Space>": "Convert", "\<C-F>": "TogglePin"}})',
     "C.RegisterInputScheme({name: 'nested', consonants: {k: 'k'}, combinations: {a: 'a'}})",
     'def Enable()', "  C.Enable('nested')", 'enddef',
     'var answer = ""',
@@ -279,7 +303,7 @@ suite.input_prompt_is_native_in_an_interactive_vim = (): void => {
         break
       endif
     endfor
-    term_sendkeys(terminal, ":\<F2>Ka\<C-F>")
+    term_sendkeys(terminal, ":\<F2>Ka \<C-F>")
     term_wait(terminal, 100)
     term_sendkeys(terminal, "\<F9>")
     for _ in range(100)
@@ -296,7 +320,7 @@ suite.input_prompt_is_native_in_an_interactive_vim = (): void => {
       endif
     endfor
     assert.equals(filereadable(output), 1)
-    assert.equals(readfile(output), ['ka', 'かか', 'ready', 'false', ':', 'か'])
+    assert.equals(readfile(output), ['ka', 'かか', 'ready', 'false', ':', '蚊'])
   finally
     if job_status(term_getjob(terminal)) == 'run'
       job_stop(term_getjob(terminal), 'kill')
@@ -362,13 +386,15 @@ suite.typed_text_remains_visible_on_the_terminal = (): void => {
     'vim9script',
     'set rtp^=' .. escape(getcwd(), ' ,'),
     "import autoload 'caskk.vim' as C",
-    'C.Config({mode_popup_time: 0, dictionaries: [' .. string(dictionary) .. '], mappings: {"\<Space>": "Convert"}})',
+    'C.Config({mode_popup_time: 0, dictionaries: [' .. string(dictionary) .. '], candidate_select_keys: ["1", "界"], mappings: {"\<Space>": "Convert", p: "TogglePin"}})',
     "C.RegisterInputScheme({name: 'visible', consonants: {k: 'k'}, combinations: {a: 'a'}})",
     "cnoremap <F2> <ScriptCmd>C.Enable('visible')<CR>",
+    'cnoremap <F5> <Cmd>call setcmdline(repeat("あ", 49))<CR>',
+    'autocmd VimResized * writefile([&lines .. "x" .. &columns], ' .. string(ready) .. ')',
     'writefile(["ready"], ' .. string(ready) .. ')',
   ], script)
   const terminal = term_start([v:progpath, '-Nu', 'NONE', '-i', 'NONE', '-n', '-N', '-S', script],
-    {hidden: true, term_rows: 12, term_cols: 40})
+    {hidden: true, term_rows: 8, term_cols: 24})
   try
     for _ in range(100)
       term_wait(terminal, 10)
@@ -378,21 +404,48 @@ suite.typed_text_remains_visible_on_the_terminal = (): void => {
     endfor
     term_sendkeys(terminal, ":\<F2>K")
     term_wait(terminal, 100)
-    assert.equals(trim(term_getline(terminal, 12)), ':k')
+    assert.equals(trim(term_getline(terminal, 8)), ':k')
     term_sendkeys(terminal, 'a')
     term_wait(terminal, 100)
-    assert.equals(trim(term_getline(terminal, 12)), ':か')
+    assert.equals(trim(term_getline(terminal, 8)), ':か')
     term_sendkeys(terminal, ' ')
     term_wait(terminal, 100)
-    assert.equals(trim(term_getline(terminal, 12)), ':蚊')
-    const screen = join(mapnew(range(1, 11), (_, row) => term_getline(terminal, row)), "\n")
-    assert.equals(stridx(screen, '1/2 蚊') >= 0, true)
-    assert.equals(stridx(screen, '2/2 家') >= 0, true)
+    assert.equals(trim(term_getline(terminal, 8)), ':蚊')
+    const screen = join(mapnew(range(1, 7), (_, row) => term_getline(terminal, row)), "\n")
+    assert.equals(stridx(screen, '1 蚊') >= 0, true)
+    assert.equals(stridx(screen, '界 家') >= 0, true)
     for kind in ['/', '?']
       term_sendkeys(terminal, "\<C-C>" .. kind .. "\<F2>ka")
       term_wait(terminal, 100)
-      assert.equals(trim(term_getline(terminal, 12)), kind .. 'か')
+      assert.equals(trim(term_getline(terminal, 8)), kind .. 'か')
     endfor
+    term_sendkeys(terminal, "\<C-C>:\<F5>")
+    term_wait(terminal, 100)
+    term_sendkeys(terminal, "\<F2>Ka p")
+    term_wait(terminal, 100)
+    const small_screen = join(mapnew(range(1, 8), (_, row) => term_getline(terminal, row)), "\n")
+    assert.match(small_screen, '1 蚊')
+    assert.match(small_screen, '固定する候補')
+    assert.match(small_screen, 'Escで取消')
+    assert.equals(stridx(small_screen, '界 家'), -1)
+    assert.match(term_getline(terminal, 8), '蚊')
+    term_setsize(terminal, 6, 24)
+    for _ in range(100)
+      term_wait(terminal, 10)
+      if readfile(ready) == ['6x24']
+        break
+      endif
+    endfor
+    assert.equals(readfile(ready), ['6x24'])
+    const resized_screen = join(mapnew(range(1, 6), (_, row) => term_getline(terminal, row)), "\n")
+    assert.equals(stridx(resized_screen, '固定する候補'), -1)
+    assert.equals(stridx(resized_screen, '1 蚊'), -1)
+    term_sendkeys(terminal, ' p')
+    term_wait(terminal, 100)
+    assert.match(term_getline(terminal, 6), '家')
+    term_sendkeys(terminal, "\<C-C>:\<F2>Ka ")
+    term_wait(terminal, 100)
+    assert.equals(trim(term_getline(terminal, 6)), ':家')
   finally
     job_stop(term_getjob(terminal), 'kill')
     execute 'silent! bwipeout! ' .. terminal
@@ -459,4 +512,105 @@ suite.empty_preedit_backspace_preserves_confirmed_prefix = (): void => {
   defer Cleanup()
   feedkeys(":前\<F2>Ka\<BS>\<BS>ka\<F3>\<C-C>", 'xt')
   assert.equals(captured, '前か')
+}
+
+suite.labels_commit_without_executing_and_restore_custom_mappings = (): void => {
+  Setup()
+  defer Cleanup()
+  const path = LabelDictionary()
+  defer delete(path)
+  cnoremap <buffer> 界 旧
+  defer execute('cunmap <buffer> 界')
+  const original = maparg('界', 'c', false, true)
+  g:caskk_label_command = ''
+  feedkeys(":g:caskk_label_command = '\<F2>Ka 界'\<F3>\<CR>", 'xt')
+  assert.equals(captured, "g:caskk_label_command = '家'")
+  assert.equals(g:caskk_label_command, '家')
+  assert.equals(maparg('界', 'c', false, true), original)
+  feedkeys(":\<F2>界\<F3>\<C-C>", 'xt')
+  assert.equals(captured, '旧')
+  cnoremap <F5> <ScriptCmd>ExternalChange()<CR>
+  defer execute('cunmap <F5>')
+  feedkeys(":\<F2>Ka \<F5>界\<F3>\<C-C>", 'xt')
+  assert.equals(captured, '旧外部')
+  assert.equals(maparg('界', 'c', false, true), original)
+  new
+  defer execute('bwipeout!')
+  setline(1, ['先', '家', '中', '後'])
+  for [kind, origin] in [['/', 1], ['?', 4]]
+    cursor(origin, 1)
+    feedkeys(kind .. "\<F2>Ka a\<F3>\<CR>", 'xt')
+    assert.equals(captured, '家')
+    assert.equals(line('.'), 2)
+  endfor
+}
+
+suite.labels_follow_pages_and_ignore_empty_slots = (): void => {
+  Setup()
+  defer Cleanup()
+  const path = LabelDictionary()
+  defer delete(path)
+  for [keys, expected] in [
+    [" \<C-N>", '家'], ['  ', '科'], ["  \<C-P>", '蚊'],
+    [" \<C-P>", 'か'], ['    ', 'か'], ['   界', '歌'], ['   界a', '歌']]
+    feedkeys(":\<F2>Ka" .. keys .. "\<F3>\<C-C>", 'xt')
+    assert.equals(captured, expected)
+  endfor
+}
+
+suite.rank_labels_keep_preview_and_update_the_next_conversion = (): void => {
+  Setup()
+  defer Cleanup()
+  const state_path = tempname()
+  defer delete(state_path)
+  const path = LabelDictionary({state_auto: true, state_path: state_path})
+  defer delete(path)
+  cnoremap <F6> <ScriptCmd>CapturePopup()<CR>
+  defer execute('cunmap <F6>')
+  feedkeys(":\<F2>Ka p\<Esc>\<F6>a\<F3>\<C-C>", 'xt')
+  assert.equals(popup_text, ['a 蚊', '界 家'])
+  assert.equals(captured, '蚊')
+  assert.equals(user_runtime.Get().GetSnapshot().pinned, {})
+
+  feedkeys(":\<F2>Ka p\<F6>\<Esc>p界\<F3>\<C-C>", 'xt')
+  assert.equals(popup_text, ['a 蚊', '界 家', '固定する候補のラベルを入力（Escで取消）'])
+  assert.equals(captured, '蚊')
+  feedkeys(":\<F2>Ka d\<C-N>\<F6>\<F3>\<C-C>", 'xt')
+  assert.equals(popup_text, ['a ★ 家', '界 蚊'])
+  assert.equals(captured, '蚊')
+  feedkeys(":\<F2>Ka d\<C-N>d界\<F6>\<F3>\<C-C>", 'xt')
+  assert.equals(popup_text, ['a ★ 家', '界 ↓ 蚊'])
+  assert.equals(captured, '蚊')
+  feedkeys(":\<F2>Ka \<F3>\<C-C>", 'xt')
+  assert.equals(captured, '家')
+  const saved = user_store.Load(state_path)
+  assert.equals(saved.pinned, user_runtime.Get().GetSnapshot().pinned)
+  assert.equals(saved.demoted, user_runtime.Get().GetSnapshot().demoted)
+}
+
+suite.disabled_labels_rank_the_preview_directly = (): void => {
+  Setup()
+  defer Cleanup()
+  const path = LabelDictionary({candidate_select_keys: []})
+  defer delete(path)
+  feedkeys(":\<F2>Ka  p\<F3>\<C-C>", 'xt')
+  assert.equals(captured, '家')
+  feedkeys(":\<F2>Ka d\<F3>\<C-C>", 'xt')
+  assert.equals(captured, '家')
+  feedkeys(":\<F2>Ka \<F3>\<C-C>", 'xt')
+  assert.equals(captured, '蚊')
+}
+
+suite.abort_keys_keep_their_native_meaning_with_rank_actions_configured = (): void => {
+  Setup()
+  defer Cleanup()
+  const path = LabelDictionary({mappings: {"\<Space>": 'Convert', p: 'TogglePin',
+    "\<Esc>": 'TogglePin', "\<C-C>": 'ToggleDemote'}})
+  defer delete(path)
+  for keys in ["\<Esc>", "p\<C-C>"]
+    feedkeys(":\<F2>Ka " .. keys, 'xt')
+    assert.equals(Caskk.IsEnabled(), false)
+    assert.equals(popup_list(), [])
+    assert.equals(user_runtime.Get().GetSnapshot().demoted, {})
+  endfor
 }

@@ -362,7 +362,7 @@ export class Editor
   enddef
 
   def RefreshCandidatePopup()
-    this._candidate_view.Render(this.GetDisplayCandidatesInfo(), '', false,
+    this._candidate_view.Render(this.GetDisplayCandidatesInfo(), '',
       this.IsInCandidate() ? candidate_view.PageKeys() : [], this._session.CandidateRankAction())
   enddef
 

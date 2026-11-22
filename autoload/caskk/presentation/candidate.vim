@@ -2,7 +2,7 @@ vim9script
 
 import autoload 'caskk/conversion.vim' as conversion
 import autoload 'caskk/config.vim' as configuration
-import autoload 'caskk/presentation/mode_popup.vim' as mode_popup
+import autoload 'caskk/input/mapping.vim' as mapping
 
 export def PageKeys(inline: bool = false): list<string>
   const keys = configuration.GetCandidateSelectKeys()
@@ -10,6 +10,54 @@ export def PageKeys(inline: bool = false): list<string>
   # two header lines when it shares the candidate popup.
   const available = inline ? min([10, &lines - &cmdheight]) - 3 : &lines - &cmdheight - 1
   return available <= 0 ? [] : keys[: available - 1]
+enddef
+
+# Leave the wrapped command line and its end cursor below the popup.
+def CommandlineRoom(): number
+  var row = 1
+  var column = 1
+  for char in split(getcmdline(), '\zs')
+    const width = strdisplaywidth(char, column)
+    if column + width > &columns
+      row += 1
+      column = 0
+    endif
+    column += width
+  endfor
+  return &lines - max([&cmdheight, row + column / &columns])
+enddef
+
+def CommandlineWidth(): number
+  return min([60, &columns - 2])
+enddef
+
+def RankPrompt(action: string): string
+  const operation = action ==# 'TogglePin' ? '固定' : '降格'
+  return operation .. 'する候補のラベルを入力（Escで取消）'
+enddef
+
+def CommandlinePrompt(action: string): list<string>
+  const width = CommandlineWidth()
+  final rows: list<string> = ['']
+  for char in split(RankPrompt(action), '\zs')
+    if strdisplaywidth(rows[-1] .. char) > width
+      rows->add('')
+    endif
+    rows[-1] ..= char
+  endfor
+  return rows
+enddef
+
+export def CommandlinePageKeys(excluded: string): list<string>
+  if CommandlineWidth() < 4
+    return []
+  endif
+  const available = CommandlineRoom() - len(CommandlinePrompt('TogglePin'))
+  if available <= 0
+    return []
+  endif
+  return configuration.GetCandidateSelectKeys()
+    ->filter((_, key) => mapping.Lhs(key) !=# excluded)[: available - 1]
 enddef
 
 export def Format(info: conversion.CandidateListInfo, keys: list<string> = [], rank_action: string = ''): list<string>
@@ -30,8 +78,7 @@ export def Format(info: conversion.CandidateListInfo, keys: list<string> = [], r
     lines->add(line)
   endfor
   if !empty(keys) && rank_action !=# ''
-    const operation = rank_action ==# 'TogglePin' ? '固定' : '降格'
-    lines->add(operation .. 'する候補のラベルを入力（Escで取消）')
+    lines->add(RankPrompt(rank_action))
   endif
   return lines
 enddef
@@ -66,7 +113,36 @@ export class View
     this._confirmation = false
   enddef
 
-  def Render(info: conversion.CandidateListInfo, message: string = '', commandline: bool = false,
+  def RenderCommandline(info: conversion.CandidateListInfo, keys: list<string>, rank_action: string)
+    const room = CommandlineRoom()
+    const width = CommandlineWidth()
+    if info is null_object || room <= 0 || width <= 0 || !configuration.GetCandidatePopup()
+      this.Close()
+      return
+    endif
+    final lines = Format(info, keys)
+    if !empty(keys) && rank_action !=# ''
+      lines->extend(CommandlinePrompt(rank_action))
+    endif
+    const first = empty(keys) ? min([info.selected_index, max([0, len(lines) - room])]) : 0
+    const selected = empty(keys) ? info.selected_index
+      : info.selected_index - conversion.PageStart(info.selected_index, len(keys))
+    # Vim scrolls the popup with the screen when the command line wraps.
+    const options = {
+      line: &lines - &cmdheight, col: 1, pos: 'botleft', posinvert: false,
+      maxheight: room, maxwidth: width, wrap: false,
+      padding: [0, 1, 0, 1], highlight: 'Pmenu', firstline: first + 1,
+    }
+    if this._window == 0 || empty(popup_getpos(this._window))
+      this._window = popup_create(lines, options)
+    else
+      popup_settext(this._window, lines)
+      popup_setoptions(this._window, options)
+    endif
+    HighlightSelection(this._window, selected + 1)
+  enddef
+
+  def Render(info: conversion.CandidateListInfo, message: string = '',
       keys: list<string> = [], rank_action: string = '')
     if info is null_object || empty(info.candidates) || !configuration.GetCandidatePopup()
       this.Close()
@@ -121,10 +197,8 @@ export class View
         minwidth: previous.core_width, maxwidth: previous.core_width,
         firstline: max([1, info.selected_index - info.candidates[0].index + 1]),
       })
-      if !commandline
-        # Candidate replacement may move the buffer cursor; track its new position.
-        popup_setoptions(this._window, {moved: 'any'})
-      endif
+      # Candidate replacement may move the buffer cursor; track its new position.
+      popup_setoptions(this._window, {moved: 'any'})
       HighlightSelection(this._window, info.selected_index - info.candidates[0].index + 1)
       return
     endif
@@ -134,14 +208,6 @@ export class View
       padding: [0, 1, 0, 1], maxwidth: 60,
       wrap: true, highlight: 'Pmenu', moved: 'any',
     }
-    if commandline
-      const anchor = mode_popup.CommandlineAnchor()
-      position.line = max([1, anchor[0] - 1])
-      position.col = anchor[1]
-      position.pos = 'botleft'
-      position.maxheight = max([1, anchor[0] - 1])
-      remove(position, 'moved')
-    endif
     this._window = popup_create(lines, position)
     HighlightSelection(this._window, info.selected_index - info.candidates[0].index + 1)
   enddef
