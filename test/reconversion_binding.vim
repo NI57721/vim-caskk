@@ -223,3 +223,26 @@ suite.disabled_reconversion_exhaustion_can_open_either_registration_field = (): 
     endtry
   endfor
 }
+
+suite.registration_cancel_restores_reconversion_with_or_without_the_ime_enabled = (): void => {
+  for enabled in [true, false]
+    for inline in [true, false]
+      const fixture = Setup({candidate_select_keys: ['1'], candidate_page_size: 1,
+        registration_inline: inline, registration_prefill: false})
+      try
+        ConvertAndCommit()
+        if !enabled
+          Caskk.Disable()
+        endif
+        cursor(1, 4)
+        feedkeys("\<F12>nn\<Esc>1\<Esc>", 'xt')
+        assert.equals(getline(1), '前科後', string([enabled, inline]))
+        assert.equals(Caskk.IsEnabled(), enabled)
+        undo
+        assert.equals(getline(1), '前蚊後', string([enabled, inline]))
+      finally
+        Cleanup(fixture)
+      endtry
+    endfor
+  endfor
+}

@@ -116,7 +116,7 @@ enddef
 def Apply(results: list<session.Result>)
   for result in results
     if result.registration_requested
-      Apply([current.CancelRegistration()])
+      Apply([current.CancelRegistration(false)])
     elseif result.commit_preedit
       Replace(result.text, true)
     elseif result.replace_preedit

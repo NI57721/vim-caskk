@@ -53,6 +53,8 @@ def Handle(key: string)
       editor.StartConversion()
     elseif key ==# 'n'
       editor.NextCandidate()
+    elseif key ==# 'p'
+      editor.PreviousCandidate()
     elseif key ==# 'close'
       editor.Close()
     else
@@ -79,7 +81,7 @@ def Setup(): list<number>
   texts = []
   initial_reading = ''
   highlight_counts = []
-  for key in ['k', 'a', 'K', 'Z', 'X', 's', 'n']
+  for key in ['k', 'a', 'K', 'Z', 'X', 's', 'n', 'p']
     execute 'inoremap <buffer> ' .. key .. " <ScriptCmd>Handle('" .. key .. "')<CR>"
   endfor
   inoremap <buffer> <F2> <ScriptCmd>Handle('attach')<CR>
@@ -195,16 +197,17 @@ suite.cancelling_registration_keeps_reading_editable_without_learning = (): void
   assert.equals(codec.Encode(preferences.GetSnapshot()), before)
 }
 
-suite.cancelling_exhausted_okuri_registration_preserves_full_reading_for_following_input = (): void => {
+suite.cancelling_exhausted_okuri_registration_restores_the_candidate_and_preserves_full_reading = (): void => {
   const context = Setup()
   defer Cleanup(context)
   entries = merger.Merge([[parser.ParseLine('いk /行/')]])
   const before = codec.Encode(preferences.GetSnapshot())
-  feedkeys("a\<F2>ZXn\<F6>\<F5>\<F6>ka\<Esc>", 'xt')
+  feedkeys("a\<F2>ZXn\<F6>\<F5>\<F6>pka\<Esc>", 'xt')
   assert.equals(errors, [])
   assert.equals(requests[0].query.exact_okuri, 'く')
   assert.equals(requests[0].okuri, 'くらい')
   assert.equals(len(requests[0].candidates), 1)
+  assert.equals(texts, ['前いくらい後', '前行くらい後'])
   assert.equals(requests[1] is null_object, true)
   assert.equals(getline(1), '前いくらいか後')
   assert.equals(codec.Encode(preferences.GetSnapshot()), before)

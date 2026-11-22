@@ -108,7 +108,8 @@ CompleteRegistration(text [, annotations])     *caskk-complete-registration*
     annotations is a list of strings, default [].
 
 CancelRegistration()                            *caskk-cancel-registration*
-    Cancels the request and returns to the editable reading.
+    Cancels the request and restores the previous candidate selection.  If
+    there were no candidates, returns to the editable reading and okuri.
 
 Call completion/cancellation in the original buffer in Insert mode, for example
 from a <ScriptCmd> mapping.  Both require a pending request.
@@ -171,8 +172,16 @@ Completion                                            *caskk-completion*
 Registration                                        *caskk-registration*
     Missing words open registration by default.  Enter registers the candidate
     body; Escape cancels.  Enter '本文;注釈' to register an annotation; only
-    the first ';' separates fields.  Input modes are unchanged.  With inline registration, Escape during candidate
-    selection first commits that candidate into the draft.
+    the first ';' separates fields.  Input modes are unchanged.
+
+    Cancelling after the last candidate restores the previous candidate and
+    page, including when labels are disabled.  If there were no candidates,
+    Escape restores the reading and okuri.  Closing the registration split
+    also cancels when the original input session can resume.
+
+    In inline registration, PreviousCandidate moves among draft candidates.
+    Escape during draft candidate selection commits that candidate into the
+    draft.  Press Escape again to cancel registration.
 
 Command-line input                                   *caskk-commandline*
     Enable it separately in :, / or ?.  Enter commits pending input; press it

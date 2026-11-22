@@ -352,9 +352,9 @@ export class Editor
     return this._registration_suspended
   enddef
 
-  def CancelRegistration(): session.Result
+  def CancelRegistration(restore_candidate: bool = true): session.Result
     this._CheckInput()
-    return this._Apply([this._session.CancelRegistration()])[0]
+    return this._Apply([this._session.CancelRegistration(restore_candidate)])[0]
   enddef
 
   def CandidateSession(): session.Session

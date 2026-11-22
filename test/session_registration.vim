@@ -34,7 +34,7 @@ suite.cancel_registration_keeps_preedit_and_preferences_without_registering = ()
   assert.equals(codec.Encode(preferences.GetSnapshot()), before)
 }
 
-suite.cancel_registration_after_exhaustion_keeps_okuri_for_plain_commit = (): void => {
+suite.cancel_registration_after_exhaustion_restores_the_candidate_with_okuri = (): void => {
   const entries = merger.Merge([[parser.ParseLine('いk /行/')]])
   const preferences = user_state.State.new()
   const compiled = scheme.Compile({k: 'k'}, {a: 'a'}, [scheme.SpecialDefinition.new(['z', 'x'], 'い*くらい')])
@@ -44,16 +44,14 @@ suite.cancel_registration_after_exhaustion_keeps_okuri_for_plain_commit = (): vo
   ime.NextCandidate()
   const before = codec.Encode(preferences.GetSnapshot())
   const result = ime.CancelRegistration()
-  assert.equals(result.text, 'いくらい')
+  assert.equals(result.text, '行くらい')
   assert.equals(result.state.reading, 'い')
   assert.equals(result.state.okuri, 'くらい')
   assert.equals(result.state.okuri_started, true)
-  assert.equals(ime.InCandidate(), false)
-  const committed = ime.Feed('k')
-  assert.equals(committed[0].text, 'いくらい')
-  assert.equals(committed[0].commit_preedit, true)
-  assert.equals(ime.Feed('a')[0].text, 'か')
+  assert.equals(ime.InCandidate(), true)
+  assert.equals(ime.CandidateIndex(), 0)
   assert.equals(codec.Encode(preferences.GetSnapshot()), before)
+  assert.equals(ime.Commit()[0].text, '行くらい')
   assert.equals(entries['いk'].candidates[0].text, '行')
 }
 

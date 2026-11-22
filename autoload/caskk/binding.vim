@@ -205,7 +205,8 @@ export class Binding
       this._SyncCandidateMappings()
       execute 'autocmd caskk_input InsertEnter <buffer=' .. this._buffer .. '> OnInsertEnter(' .. this._buffer .. ')'
       execute 'autocmd caskk_input InsertCharPre <buffer=' .. this._buffer .. '> BeforeCharacter(' .. this._buffer .. ')'
-      execute 'autocmd caskk_input InsertLeave,BufLeave,WinLeave <buffer=' .. this._buffer .. '> Leave(' .. this._buffer .. ')'
+      execute 'autocmd caskk_input InsertLeave <buffer=' .. this._buffer .. '> Leave(' .. this._buffer .. ')'
+      execute 'autocmd caskk_input BufLeave,WinLeave <buffer=' .. this._buffer .. '> Leave(' .. this._buffer .. ', true)'
       execute 'autocmd caskk_input BufWipeout <buffer=' .. this._buffer .. '> Forget(' .. this._buffer .. ')'
       execute 'autocmd! caskk_reconversion_history * <buffer=' .. this._buffer
         .. '>'
@@ -491,7 +492,7 @@ export class Binding
   def _CancelInlineRegistration()
     this._CloseInlineInput(false)
     this._editor.ResumeRegistration()
-    this._Record([this._editor.CancelRegistration()])
+    this._Record([this._editor.CancelRegistration(!this._disabled_during_inline_registration)])
     this._FinishDeferredDisable()
     feedkeys("\<Cmd>call caskk#binding#RestoreInlineEscape(" .. this._buffer .. ")\<CR>", 'in')
   enddef
@@ -981,12 +982,12 @@ export class Binding
     endif
   enddef
 
-  def Leave(force: bool = false)
+  def Leave(force: bool = false, leaving_window: bool = false)
     this._StopCompletionSearch()
     const previous_revision = this._preferences.Revision()
     const temporary_inline = this._disable_after_registration && this._inline_editor isnot null_object
     try
-      this._LeaveInternal(force)
+      this._LeaveInternal(force, leaving_window)
     finally
       if temporary_inline && this._inline_editor is null_object
         this._FinishDeferredDisable()
@@ -995,7 +996,7 @@ export class Binding
     endtry
   enddef
 
-  def _LeaveInternal(force: bool)
+  def _LeaveInternal(force: bool, leaving_window: bool)
     this._CloseAnnotation()
     this._delete_user_entry_pending = false
     this._RestoreDeleteEscape()
@@ -1011,7 +1012,11 @@ export class Binding
     endif
     try
       const active_mode = this._editor.GetInputMode()
-      this._Record(this._editor.Close())
+      # Window closure can fire leave events before the registration owner's
+      # cancellation callback. Only explicit draft commits should learn here.
+      if !leaving_window || !this._registration_input || !this._editor.IsInCandidate()
+        this._Record(this._editor.Close())
+      endif
       this._input_mode = !this._persist_input_mode && mode(1) !~# '^i'
         ? input_mode.HIRAGANA : active_mode
     finally
@@ -1036,6 +1041,7 @@ export class Binding
       this._DispatchInput(key)
     finally
       if this._enabled && this._reconversion_record isnot null_object && !this.HasActiveReconversion()
+          && this.GetRegistrationRequest() is null_object
         this._CloseReconversion()
       endif
       this._SaveChangedUserState(previous_revision)
@@ -1482,8 +1488,6 @@ export class Binding
       # editor use the regular mappings until that request is resolved.
       this.RestoreReconversionMappings()
       execute 'autocmd! caskk_reconversion * <buffer=' .. this._buffer .. '>'
-      this._reconversion_record = null_object
-      this._reconversion_start = []
       this.Enable()
       this._disable_after_registration = true
       try
@@ -1733,7 +1737,11 @@ export class Binding
     endif
     this._Record([this._editor.CancelRegistration()])
     if !this._enabled && this._reconversion_record isnot null_object
-      this._CloseReconversion()
+      if this.HasActiveReconversion()
+        this._InstallReconversionActionMappings()
+      else
+        this._CloseReconversion()
+      endif
     endif
   enddef
 endclass
@@ -1881,9 +1889,9 @@ export def IsEnabled(): bool
   return has_key(bindings, string(bufnr('%'))) && bindings[string(bufnr('%'))].IsEnabled()
 enddef
 
-def Leave(number: number)
+def Leave(number: number, leaving_window: bool = false)
   if has_key(bindings, string(number))
-    bindings[string(number)].Leave()
+    bindings[string(number)].Leave(false, leaving_window)
   endif
 enddef
 

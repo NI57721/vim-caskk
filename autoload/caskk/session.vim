@@ -54,6 +54,7 @@ export class Session
   var _completion_index: number = 0
   var _completion_request: completion.Search = null_object
   var _prepared: conversion.Candidates = null_object
+  var _registration_selection: conversion.Selection = null_object
   var _selection: conversion.Selection = null_object
   var _request_preferences: user_state.State = null_object
   var _reading_after_cancel: bool = false
@@ -84,6 +85,12 @@ export class Session
     endif
   enddef
 
+  def _ClearPrepared()
+    this._prepared = null_object
+    this._request_preferences = null_object
+    this._registration_selection = null_object
+  enddef
+
   def _PrepareConversion(entries: dict<dictionary.Entry>, preferences: user_state.State): Result
     this._reading_after_cancel = false
     this._prepared = conversion.Prepare(entries, preferences, this._state.reading, this._state.okuri,
@@ -91,7 +98,7 @@ export class Session
     this._request_preferences = preferences
     if empty(this._prepared.candidates)
       if this._dictionary_index isnot null_object && !this._dictionary_index.IsReady()
-        this._prepared = null_object
+        this._ClearPrepared()
         return Result.new('', [], this._state.GetSnapshot(), false, false, false, false, false,
           this._DisplayPreedit(), true)
       endif
@@ -203,14 +210,14 @@ export class Session
           return results
         endif
       endif
-      this._prepared = null_object
+      this._ClearPrepared()
       results->add(this._FeedAbbreviation(key))
       return results
     endif
     if this.InCandidate() || (this._reading_after_cancel && this._state.okuri != '')
       results->extend(this.Commit())
     endif
-    this._prepared = null_object
+    this._ClearPrepared()
     if !this._state.in_preedit && empty(this._composer.Pending())
         && !this._normalizer.HasPendingModifier() && !this._composer.IsSpecialStart(key)
         && this._normalizer.IsShiftedSymbol(key)
@@ -265,6 +272,7 @@ export class Session
     if !this._state.Backspace()
       return null_object
     endif
+    this._ClearPrepared()
     const snapshot = this._state.GetSnapshot()
     const display = snapshot.in_preedit ? this._DisplayPreedit() : ''
     return Result.new(display, [], snapshot, !snapshot.in_preedit, false, true, false, false,
@@ -282,7 +290,7 @@ export class Session
       this.CancelCompletion()
       this._state.Commit()
       this._normalizer.Reset()
-      this._prepared = null_object
+      this._ClearPrepared()
       this._direct_input_continuation = true
       this._reading_after_cancel = false
       this._RestoreAbbreviationMode()
@@ -295,12 +303,12 @@ export class Session
       this._state.Commit()
       this._normalizer.Reset()
       this._selection = null_object
-      this._prepared = null_object
+      this._ClearPrepared()
       this._direct_input_continuation = true
       this._RestoreAbbreviationMode()
       return [Result.new(text, [], this._state.GetSnapshot(), true)]
     endif
-    this._prepared = null_object
+    this._ClearPrepared()
     final results = this._Apply(this._composer.Flush(), false)
     this._normalizer.Reset()
     if this._state.in_preedit
@@ -474,7 +482,7 @@ export class Session
     this._prepared = prepared
     if empty(prepared.candidates)
       this._selection = null_object
-      this._prepared = null_object
+      this._ClearPrepared()
       return Result.new(this._DisplayPreedit(), [], this._state.GetSnapshot(), false, false, true,
         false, false, this._DisplayPreedit())
     endif
@@ -495,7 +503,7 @@ export class Session
     if this.InCandidate()
       throw 'caskk: conversion selection is active'
     endif
-    this._prepared = null_object
+    this._ClearPrepared()
     final results = this._Apply(this._composer.Flush(), false)
     this._normalizer.Reset()
     for result in results
@@ -539,20 +547,23 @@ export class Session
     endif
     this._state.Commit()
     this._normalizer.Reset()
-    this._prepared = null_object
-    this._request_preferences = null_object
+    this._ClearPrepared()
     this._reading_after_cancel = false
     this._RestoreAbbreviationMode()
     return Result.new(text, [], this._state.GetSnapshot(), true, false, true)
   enddef
 
-  def CancelRegistration(): Result
+  def CancelRegistration(restore_candidate: bool = true): Result
     if this._prepared is null_object || this.InCandidate()
       throw 'caskk: no current dictionary registration request'
     endif
+    if restore_candidate && this._registration_selection isnot null_object
+      this._selection = this._registration_selection
+      this._registration_selection = null_object
+      return this.SelectCandidate(this.CandidateIndex())
+    endif
     const text = this._Render(this._prepared.query.reading .. this._prepared.okuri)
-    this._prepared = null_object
-    this._request_preferences = null_object
+    this._ClearPrepared()
     this._reading_after_cancel = true
     return Result.new(text, [], this._state.GetSnapshot(), false, false, true)
   enddef
@@ -563,7 +574,7 @@ export class Session
     endif
     const text = this._Render(this._selection.Cancel())
     this._selection = null_object
-    this._prepared = null_object
+    this._ClearPrepared()
     this._reading_after_cancel = true
     return Result.new(text, [], this._state.GetSnapshot(), false, false, true,
       false, false, this._DisplayPreedit())
@@ -594,7 +605,8 @@ export class Session
   def _ExhaustCandidates(): Result
     # Exhaustion requests registration rather than committing or wrapping.
     # Keep the prepared query and full okuri for the separate registration UI.
-    const text = this._Render(this._selection.Cancel())
+    const text = this._Render(this._prepared.query.reading .. this._prepared.okuri)
+    this._registration_selection = this._selection
     this._selection = null_object
     this._reading_after_cancel = false
     return Result.new(text, [], this._state.GetSnapshot(), false, false, true, true, false,

@@ -21,13 +21,15 @@ class Observation
   const window: number
   const position: dict<number>
   const cursor: list<number>
+  const preview: string
 
-  def new(this.popups, this.buffers, this.lines, this.firstline, this.height, this.buffer, this.window, this.cursor, this.position)
+  def new(this.popups, this.buffers, this.lines, this.firstline, this.height, this.buffer, this.window, this.cursor, this.position, this.preview)
   enddef
 endclass
 
 var observations: list<Observation> = []
 var selected_rows: list<number> = []
+var preference_revisions: list<number> = []
 var registration_readings: list<string> = []
 var selection_groups: list<string> = []
 var ignored_popups: list<number> = []
@@ -36,6 +38,7 @@ const CAPTURE = "\<Cmd>call CaskkTestCandidatePopupCapture()\<CR>"
 const WIPE = "\<Cmd>call CaskkTestCandidatePopupWipe()\<CR>"
 
 def g:CaskkTestCandidatePopupCapture()
+  preference_revisions->add(user_runtime.Get().Revision())
   const request = Caskk.GetRegistrationRequest()
   registration_readings->add(request is null_object ? '' : request.reading)
   const popups = filter(popup_list(), (_, id) => index(ignored_popups, id) < 0)
@@ -54,7 +57,7 @@ def g:CaskkTestCandidatePopupCapture()
   selection_groups->add(len(buffers) == 1
     ? get(prop_type_get('caskk_candidate_selected', {bufnr: buffers[0]}), 'highlight', '') : '')
   observations->add(Observation.new(popups, buffers, lines, get(position, 'firstline', 0),
-    get(position, 'height', 0), bufnr('%'), win_getid(), [line('.'), col('.')], position))
+    get(position, 'height', 0), bufnr('%'), win_getid(), [line('.'), col('.')], position, getline(1)))
 enddef
 
 def g:CaskkTestCandidatePopupWipe()
@@ -101,6 +104,7 @@ def Setup(candidate_popup: bool = true, extra_mappings: dict<string> = {}, candi
   observations = []
   selected_rows = []
   registration_readings = []
+  preference_revisions = []
   selection_groups = []
   Caskk.RegisterInputScheme({name: 'candidate-popup', consonants: {k: 'k'},
     combinations: {a: 'a'}, specials: {d: '漢字', zx: 'い*くらい'}})
@@ -250,7 +254,63 @@ suite.exhaustion_closes_candidate_popup_before_opening_registration = (): void =
   assert.equals(observations[1].popups, [])
   assert.equals(observations[1].buffer != fixture.buffer, true)
   assert.equals(bufexists(observations[0].buffers[0]), 0)
-  assert.equals(getline(1), '前か後')
+  assert.equals(getline(1), '前科後')
+}
+
+suite.registration_escape_restores_the_last_page_and_its_label = (): void => {
+  for inline in [false, true]
+    const fixture = Setup(true, {}, 3, true,
+      {candidate_page_size: 2, registration_inline: inline, registration_prefill: false})
+    try
+      feedkeys('aKass' .. CAPTURE .. 's' .. "\<Esc>" .. CAPTURE .. 'p' .. CAPTURE
+        .. "s1\<Esc>", 'xt')
+      assert.equals(observations[0].lines, ['1 候補3'])
+      assert.equals(observations[1].lines, observations[0].lines)
+      assert.equals(observations[1].preview, '前候補3後')
+      assert.equals(observations[1].buffer, fixture.buffer)
+      assert.equals(registration_readings[1], '')
+      assert.equals(preference_revisions[1], preference_revisions[0])
+      assert.equals(observations[2].lines, ['1 蚊 — 昆虫', '2 科 — 学科'])
+      assert.equals(getline(1), '前候補3後')
+      assert.equals(user_runtime.Get().GetSnapshot().entries, {})
+      normal! u
+      assert.equals(getline(1), '前か後')
+      normal! u
+      assert.equals(getline(1), '前後')
+    finally
+      Cleanup(fixture)
+    endtry
+  endfor
+}
+
+suite.closing_the_split_restores_the_unlabelled_candidate = (): void => {
+  const fixture = Setup(true, {}, 2, true, {candidate_select_keys: [], registration_prefill: false})
+  defer Cleanup(fixture)
+  feedkeys('aKasnnKas' .. "\<Cmd>close\<CR>" .. CAPTURE .. "c\<Esc>", 'xt')
+  assert.equals(observations[0].buffer, fixture.buffer)
+  assert.equals(selected_rows, [2])
+  assert.equals(getline(1), '前科後')
+  assert.equals(user_runtime.Get().GetSnapshot().mru[json_encode(['か', ''])], ['科'])
+}
+
+suite.public_cancel_restores_the_candidate_without_opening_registration = (): void => {
+  const fixture = Setup(true, {}, 2, true, {candidate_select_keys: [], registration_auto: false})
+  defer Cleanup(fixture)
+  feedkeys('aKasnn' .. "\<Cmd>call caskk#CancelRegistration()\<CR>" .. CAPTURE .. "c\<Esc>", 'xt')
+  assert.equals(registration_readings, [''])
+  assert.equals(selected_rows, [2])
+  assert.equals(getline(1), '前科後')
+}
+
+suite.inline_escape_commits_the_draft_candidate_before_restoring_the_source_page = (): void => {
+  const fixture = Setup(true, {}, 3, true,
+    {candidate_page_size: 2, registration_inline: true, registration_prefill: false})
+  defer Cleanup(fixture)
+  feedkeys('aKasssKassp' .. "\<Esc>" .. CAPTURE .. "\<Esc>" .. CAPTURE .. "1\<Esc>", 'xt')
+  assert.equals(registration_readings, ['か', ''])
+  assert.equals(observations[1].lines, ['1 候補3'])
+  assert.equals(getline(1), '前候補3後')
+  assert.equals(user_runtime.Get().GetSnapshot().entries, {})
 }
 
 suite.cancelling_registration_discards_the_inner_candidate_popup_without_learning = (): void => {
