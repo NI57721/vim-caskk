@@ -277,3 +277,11 @@ suite.roman_omits_optional_special_spellings_and_symbols = (): void => {
     assert.equals(index(keys, key), -1, key)
   endfor
 }
+
+suite.roman_fy_uses_the_consonant_row_and_allows_combination_overrides = (): void => {
+  assert.equals(Caskk.GetInputScheme('roman').table.consonants.fy, 'fy')
+  assert.equals(TypeText('roman', 'fyafyifyufyefyo'), 'ふゃふぃふゅふぇふょ')
+  assert.equals(TypeText('roman', 'ffya'), 'っふゃ')
+  Caskk.RegisterInputScheme({name: 'roman-fy-custom', base: 'roman', combinations: {a: 'o'}})
+  assert.equals(TypeText('roman-fy-custom', 'fya'), 'ふょ')
+}

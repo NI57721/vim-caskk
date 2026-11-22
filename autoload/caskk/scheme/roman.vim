@@ -8,7 +8,7 @@ export def Definition(): dict<dict<string>>
     j: 'zy', c: 'k', x: 'x', l: 'x',
     ky: 'ky', gy: 'gy', sy: 'sy', zy: 'zy', ty: 'ty', dy: 'dy', ny: 'ny',
     hy: 'hy', by: 'by', py: 'py', my: 'my', ry: 'ry',
-    sh: 'sy', ch: 'ty', cy: 'ty', jy: 'zy',
+    sh: 'sy', ch: 'ty', cy: 'ty', jy: 'zy', fy: 'fy',
     wh: 'wh', xy: 'xy', xw: 'xw', ly: 'xy', lw: 'xw', ts: 'ts', th: 'th', dh: 'dh',
   }
   for key in split('bcdfghjklmprstvwxyz', '\zs')

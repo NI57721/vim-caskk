@@ -234,3 +234,12 @@ suite.sokuon_prefix_accepts_exactly_one_existing_nonempty_row = (): void => {
     assert.equals(caught, true, value)
   endfor
 }
+
+suite.fy_row_generates_each_vowel_and_keeps_okuri_boundaries = (): void => {
+  const consonants = scheme.ValidateConsonants({q: 'fy'})
+  const table = scheme.Compile(consonants, {a: 'a', i: 'i', u: 'u', e: 'e', o: 'o', z: 'u*N'}).table
+  for [key, expected] in items({a: 'ふゃ', i: 'ふぃ', u: 'ふゅ', e: 'ふぇ', o: 'ふょ'})
+    assert.equals(ComposeInput(table, 'q', key).reading, expected)
+  endfor
+  assert.equals(ComposeInput(table, 'q', 'z', true), {reading: 'ふゅ', okuri: 'ん'})
+}
