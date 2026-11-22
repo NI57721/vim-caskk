@@ -14,6 +14,7 @@ import autoload 'caskk/presentation/candidate.vim' as candidate_popup
 var depth = getcmdtype() == '' ? 0 : 1
 var active = false
 var compiled: scheme.CompiledScheme = null_object
+var options: configuration.Input = null_object
 var current: session.Session = null_object
 var expected = ''
 var position = 1
@@ -80,12 +81,11 @@ enddef
 def Reset()
   SetPageKeys([])
   candidates.Close()
-  const options = configuration.GetInput()
   const previous_mode = current is null_object ? input_mode.HIRAGANA : current.GetInputMode()
   current = session.Session.new(compiled, options.sticky_key, {}, user_runtime.Get(), '',
     options.small_tsu_okuri_as_t, options.keyboard_layout, options.keyboard_layout_overrides,
     previous_mode, options.register_mode_conversions, options.dictionary_index, '',
-    options.keep_preedit_on_backspace)
+    options.keep_preedit_on_backspace, options.affix_key)
   expected = getcmdline()
   position = getcmdpos()
   start = position - 1
@@ -188,9 +188,16 @@ export def Enable(definition: scheme.CompiledScheme)
     return
   endif
   compiled = definition
+  options = configuration.GetInput()
   current = null_object
   Reset()
   final keys_to_map: list<string> = []
+  if options.affix_key !=# ''
+    keys_to_map->add(options.sticky_key)
+    if options.affix_key !=# repeat(options.sticky_key, 2)
+      keys_to_map->add(options.affix_key)
+    endif
+  endif
   for code in range(0x20, 0x7e)
     keys_to_map->add(nr2char(code))
   endfor
@@ -199,7 +206,7 @@ export def Enable(definition: scheme.CompiledScheme)
   endfor
   keys_to_map->extend(['<CR>', '<BS>', '<Del>', '<Left>', '<Right>', '<Up>', '<Down>',
     '<Home>', '<End>', '<S-Tab>', '<PageUp>', '<PageDown>', '<Insert>', '<Esc>', '<C-Bslash>'])
-  for key in keys(configuration.GetInput().mappings)
+  for key in keys(options.mappings)
     keys_to_map->add(key)
   endfor
   for key in keys(definition.table.combinations)
@@ -208,8 +215,8 @@ export def Enable(definition: scheme.CompiledScheme)
   for rule in definition.specials
     keys_to_map->extend(rule.keys)
   endfor
-  if configuration.GetInput().sticky_key != ''
-    keys_to_map->add(configuration.GetInput().sticky_key)
+  if options.sticky_key != ''
+    keys_to_map->add(options.sticky_key)
   endif
   # Vim handles 'cedit' before dispatching ordinary editing keys. Leave
   # that key native; CmdlineLeavePre commits before the window takes over.
@@ -337,8 +344,9 @@ def Dispatch(key: string)
     return
   endif
   Check()
+  current.InterruptAffixSequence(key)
   const revision = user_runtime.Get().Revision()
-  const actions = configuration.GetInput().mappings
+  const actions = options.mappings
   const action = get(actions, key, get(actions, mapping.Lhs(key), ''))
   if HandleCandidateKey(key, action)
     SaveAndRefresh(revision)
@@ -388,7 +396,7 @@ def Dispatch(key: string)
   elseif action != ''
     Fallback(key)
     return
-  elseif strchars(key) == 1 && char2nr(key) >= 0x20
+  elseif current.HandlesAffixInput(key) || (strchars(key) == 1 && char2nr(key) >= 0x20)
     Apply(current.Feed(key))
     Pending()
   else

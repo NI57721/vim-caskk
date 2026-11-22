@@ -327,3 +327,29 @@ suite.closing_origin_during_nested_registration_preserves_plain_reading = (): vo
   assert.equals(winnr('$'), windows)
   assert.equals(codec.Encode(user_runtime.Get().GetSnapshot()), before)
 }
+
+suite.affix_registration_prefills_the_reading_without_marker_and_reuses_the_saved_entry = (): void => {
+  const fixture = Setup()
+  defer Cleanup(fixture)
+  const path = fixture.directory .. '/state.jsonl'
+  for [inline, keys, reading] in [[false, ';ka1', 'か>'], [true, ';1ka', '>か']]
+    Caskk.Disable()
+    Caskk.Config({sticky_key: ';', affix_key: '1', registration_inline: inline,
+      state_path: path, mappings: {s: 'Convert'}, mode_popup: false})
+    Caskk.Enable('automatic-registration')
+    setline(1, '前後')
+    cursor(1, 1)
+    feedkeys('a' .. keys .. "s\<BS>d\<CR>\<Esc>", 'xt')
+    assert.equals(getline(1), '前漢字後')
+    Caskk.SaveState()
+    const entries = store.Load(path).entries
+    const key = json_encode([reading, ''])
+    assert.equals(mapnew(get(entries, key, []), (_, candidate) => candidate.text), ['漢字'])
+    user_runtime.Get().Restore(user_state.State.new().GetSnapshot())
+    Caskk.LoadState()
+    setline(1, '前後')
+    cursor(1, 1)
+    feedkeys('a' .. keys .. "s\<Esc>", 'xt')
+    assert.equals(getline(1), '前漢字後')
+  endfor
+}

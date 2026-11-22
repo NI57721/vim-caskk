@@ -35,6 +35,7 @@ export class Binding
   const _buffer: number
   const _compiled: scheme.CompiledScheme
   const _sticky: string
+  const _affix_key: string
   const _entries: dict<dictionary.Entry>
   const _dictionary_index: dict_index.Database
   const _preferences: user_state.State
@@ -62,6 +63,7 @@ export class Binding
   var _completion_editor: insert.Editor = null_object
   var _editor: insert.Editor = null_object
   var _enabled: bool = false
+  var _replaying_native_affix_key: bool = false
   var _registration_reply: dictionary.Candidate = null_object
   var _registration_ticket: number = 0
   var _initial_reading: string = ''
@@ -91,10 +93,11 @@ export class Binding
       small_tsu_okuri_as_t: bool = true, keyboard_layout: string = '',
       keyboard_layout_overrides: dict<string> = {}, persist_input_mode: bool = false,
       register_mode_conversions: bool = true, dictionary_index: dict_index.Database = null_object,
-      reconversion_history: reconversion.History = null_object, keep_preedit_on_backspace: bool = true)
+      reconversion_history: reconversion.History = null_object, keep_preedit_on_backspace: bool = true, affix_key: string = '')
     this._buffer = bufnr('%')
     this._compiled = compiled
     this._sticky = sticky_key
+    this._affix_key = affix_key
     this._entries = copy(entries)
     this._dictionary_index = dictionary_index
     this._preferences = preferences is null_object ? user_state.State.new() : preferences
@@ -145,6 +148,16 @@ export class Binding
     for key in keys(tokens)
       lhs[key] = mapping.Lhs(key)
     endfor
+    final native: dict<bool> = {}
+    if affix_key !=# '' && affix_key !=# repeat(sticky_key, 2)
+      const physical = mapping.Lhs(affix_key)
+      if index(values(lhs), physical) < 0
+        lhs[affix_key] = physical
+        if strchars(affix_key) > 1
+          native[affix_key] = true
+        endif
+      endif
+    endif
     # Capture ordinary punctuation and letters too, so native insertion does
     # not bypass an active Preedit. Explicit named aliases keep precedence.
     for code in range(0x20, 0x7e)
@@ -154,7 +167,6 @@ export class Binding
         lhs[key] = physical
       endif
     endfor
-    final native: dict<bool> = {}
     for key in NATIVE_KEYS
       const physical = mapping.Lhs(key)
       if index(values(lhs), physical) < 0
@@ -460,6 +472,16 @@ export class Binding
       .. this._buffer .. ', ' .. argument .. ')<CR>')
   enddef
 
+  def _RegistrationInitialReading(request: registration.Request, prefill: bool): string
+    if !prefill
+      return ''
+    endif
+    if this._affix_key !=# '' && request.okuri ==# ''
+      return substitute(request.reading, '^>\|>$', '', 'g')
+    endif
+    return request.reading
+  enddef
+
   def _OpenInlineRegistration(prefill: bool)
     if this._inline_editor isnot null_object
       throw 'caskk: inline registration is already open'
@@ -469,9 +491,9 @@ export class Binding
     try
       this._mode_view.Close()
       this._inline_editor = registration_editor.Editor.new(session.Session.new(this._compiled, this._sticky, this._entries,
-        this._preferences, prefill ? request.reading : '', this._small_tsu_okuri_as_t,
+        this._preferences, this._RegistrationInitialReading(request, prefill), this._small_tsu_okuri_as_t,
         this._keyboard_layout, this._keyboard_layout_overrides, this._input_mode,
-        this._register_mode_conversions, this._dictionary_index, '', this._keep_preedit_on_backspace))
+        this._register_mode_conversions, this._dictionary_index, '', this._keep_preedit_on_backspace, this._affix_key))
       this._InstallInlineEscape()
       const interrupt_lhs = mapping.Lhs('<C-C>')
       var interrupt_argument = substitute(string('<C-C>'), '<', '<lt>', 'g')
@@ -654,6 +676,7 @@ export class Binding
   enddef
 
   def _DispatchInline(key: string)
+    this._inline_editor.input.InterruptAffixSequence(key)
     if this._HandleCandidateKey(key)
       return
     endif
@@ -701,7 +724,7 @@ export class Binding
       this._inline_editor.Delete(false)
       this._RefreshInlinePopup()
       return
-    elseif has_key(this._native, key)
+    elseif has_key(this._native, key) && !this._inline_editor.input.HandlesAffixInput(key)
       # Native editing and motion outside the supported registration editor
       # are consumed so they cannot alter the suspended source buffer.
       return
@@ -898,6 +921,10 @@ export class Binding
         || this._editor.IsRegistrationSuspended() || this._editor.IsInCompletion()
       return
     endif
+    if this._affix_key !=# '' && this._editor.GetSnapshot().reading =~# '^>\|>$'
+      this._StopCompletionSearch()
+      return
+    endif
     this._StartCompletionSearch()
   enddef
 
@@ -948,7 +975,7 @@ export class Binding
       this._dictionary_index,
       reconverting ? this._reconversion_record.okuri : '',
       reconverting ? this._reconversion_record.text : '',
-      configuration.GetUndoRevertToReading(), this._keep_preedit_on_backspace)
+      configuration.GetUndoRevertToReading(), this._keep_preedit_on_backspace, this._affix_key)
     this._initial_reading = ''
     this._mode_marker = ''
     this._mode_view.Show(this._input_mode, this._mode_marker)
@@ -976,7 +1003,12 @@ export class Binding
     endif
   enddef
 
+  def IsReplayingNativeAffixKey(): bool
+    return this._replaying_native_affix_key
+  enddef
+
   def ResumeAfterNativeInput()
+    this._replaying_native_affix_key = false
     if this._enabled && mode(1) =~# '^i' && bufnr('%') == this._buffer
       this.Enter()
     endif
@@ -1161,6 +1193,9 @@ export class Binding
       this._DispatchInline(key)
       return
     endif
+    if this._editor isnot null_object
+      this._editor.CandidateSession().InterruptAffixSequence(key)
+    endif
     if this._HandleCandidateKey(key)
       return
     endif
@@ -1219,7 +1254,8 @@ export class Binding
     if this._editor isnot null_object
       this._editor.RestorePreeditCursor()
     endif
-    if has_key(this._native, key)
+    if has_key(this._native, key) && (this._editor is null_object
+        || !this._editor.CandidateSession().HandlesAffixInput(key))
       if (key ==# '<BS>' || key ==# '<C-H>') && this._editor isnot null_object && this._editor.Backspace()
         this._SyncCandidateMappings()
         this._reconversion_pending = null_object
@@ -1230,6 +1266,7 @@ export class Binding
       # End the IME transaction before native motion or editing. Replay ahead
       # of later input without remapping back into this binding.
       this.Leave()
+      this._replaying_native_affix_key = key ==# this._affix_key
       feedkeys(keycode.Encode(key) .. "\<Cmd>call caskk#binding#ResumeAfterNativeInput("
         .. this._buffer .. ")\<CR>", 'in')
       return
@@ -1518,9 +1555,9 @@ export class Binding
       this._registration_window = window
       registration_owners[string(this._buffer)] = this
       const child = Binding.new(this._compiled, this._sticky, this._entries,
-        this._preferences, this._actions, prefill ? request.reading : '', this._registration_auto,
+        this._preferences, this._actions, this._RegistrationInitialReading(request, prefill), this._registration_auto,
         this._small_tsu_okuri_as_t, this._keyboard_layout, this._keyboard_layout_overrides,
-        false, this._register_mode_conversions, this._dictionary_index, null_object, this._keep_preedit_on_backspace)
+        false, this._register_mode_conversions, this._dictionary_index, null_object, this._keep_preedit_on_backspace, this._affix_key)
       child._registration_input = true
       child.Enable()
       const arguments = this._buffer .. ', ' .. window.buffer
@@ -1819,7 +1856,7 @@ export def Enable(compiled: scheme.CompiledScheme, sticky_key: string = '', acti
     registration_auto: bool = false, small_tsu_okuri_as_t: bool = true, keyboard_layout: string = '',
     keyboard_layout_overrides: dict<string> = {}, persist_input_mode: bool = false,
     register_mode_conversions: bool = true, dictionary_index: dict_index.Database = null_object,
-    keep_preedit_on_backspace: bool = true)
+    keep_preedit_on_backspace: bool = true, affix_key: string = '')
   const id = string(bufnr('%'))
   if has_key(bindings, id)
     bindings[id].Enable()
@@ -1834,7 +1871,7 @@ export def Enable(compiled: scheme.CompiledScheme, sticky_key: string = '', acti
     const history = previous_owner is null_object ? null_object : previous_owner.GetReconversionHistory()
     const current = Binding.new(compiled, sticky_key, entries, preferences, actions, '', registration_auto,
       small_tsu_okuri_as_t, keyboard_layout, keyboard_layout_overrides, persist_input_mode,
-      register_mode_conversions, dictionary_index, history, keep_preedit_on_backspace)
+      register_mode_conversions, dictionary_index, history, keep_preedit_on_backspace, affix_key)
     current.Enable()
     reconversion_owners[id] = current
   endif
@@ -1955,6 +1992,10 @@ enddef
 
 def BeforeCharacter(number: number)
   if !has_key(bindings, string(number)) || char2nr(v:char) < 0x80
+    return
+  endif
+  # Vim can deliver a replayed function key through InsertCharPre.
+  if bindings[string(number)].IsReplayingNativeAffixKey()
     return
   endif
   const text = v:char

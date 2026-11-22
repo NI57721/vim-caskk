@@ -1,6 +1,7 @@
 vim9script
 
 import autoload 'caskk/input/mapping.vim' as mapping
+import autoload 'caskk/input/keycode.vim' as keycode
 import autoload 'caskk/input/mode.vim' as input_mode
 import autoload 'caskk/dictionary/loader.vim' as loader
 import autoload 'caskk/dictionary/index.vim' as dict_index
@@ -25,6 +26,7 @@ endclass
 
 export class Input
   const sticky_key: string
+  const affix_key: string = ''
   const keyboard_layout: string
   const keyboard_layout_overrides: dict<string>
   const mappings: dict<string>
@@ -38,7 +40,7 @@ export class Input
   def new(this.sticky_key, this.keyboard_layout, keyboard_layout_overrides: dict<string>,
       mappings: dict<string>, dictionary_index: dict_index.Database,
       this.small_tsu_okuri_as_t, this.persist_input_mode, this.register_mode_conversions, this.completion_min_length = v:none,
-      this.keep_preedit_on_backspace = v:none)
+      this.keep_preedit_on_backspace = v:none, this.affix_key = v:none)
     this.keyboard_layout_overrides = copy(keyboard_layout_overrides)
     this.mappings = copy(mappings)
     this.dictionary_index = dictionary_index
@@ -141,6 +143,30 @@ def ReadStickyKey(raw: any): string
     mapping.Lhs(key)
   endif
   return key
+enddef
+
+def CanonicalInputKey(key: string): string
+  const encoded = strchars(key) == 1 ? key : keycode.Encode(mapping.Lhs(key))
+  return strchars(encoded) == 1 && char2nr(encoded) >= 0x20 && char2nr(encoded) != 0x7f
+    ? encoded : keytrans(encoded)
+enddef
+
+def ReadAffixKey(raw: any, sticky_key: string): string
+  if type(raw) != v:t_string
+    throw 'affix_key must be a string'
+  endif
+  const key: string = raw
+  if key ==# ''
+    return ''
+  elseif sticky_key ==# ''
+    throw 'affix_key requires sticky_key'
+  elseif key ==# repeat(sticky_key, 2)
+    return repeat(CanonicalInputKey(sticky_key), 2)
+  endif
+  if mapping.Lhs(key) ==# mapping.Lhs(sticky_key)
+    throw 'affix_key must differ from sticky_key or repeat it twice'
+  endif
+  return CanonicalInputKey(key)
 enddef
 
 def ReadKeyboardLayout(raw: any): string
@@ -273,7 +299,7 @@ enddef
 
 def Parse(options: dict<any>, shared_index: dict_index.Database = null_object): Settings
   for section in keys(options)
-    if index(['highlight', 'sticky_key', 'keyboard_layout', 'keyboard_layout_overrides', 'mappings', 'dictionaries', 'state_path', 'state_auto',
+    if index(['highlight', 'sticky_key', 'affix_key', 'keyboard_layout', 'keyboard_layout_overrides', 'mappings', 'dictionaries', 'state_path', 'state_auto',
         'small_tsu_okuri_as_t',
         'registration_prefill', 'registration_auto', 'registration_inline', 'candidate_popup',
         'candidate_select_keys', 'persist_input_mode',
@@ -284,7 +310,9 @@ def Parse(options: dict<any>, shared_index: dict_index.Database = null_object): 
     endif
   endfor
   const highlight = ParseHighlight(ReadHighlight(get(options, 'highlight', {})))
-  const sticky_key = ReadStickyKey(get(options, 'sticky_key', ''))
+  const configured_sticky = ReadStickyKey(get(options, 'sticky_key', ''))
+  const affix_key = ReadAffixKey(get(options, 'affix_key', ''), configured_sticky)
+  const sticky_key = affix_key ==# '' ? configured_sticky : CanonicalInputKey(configured_sticky)
   const keyboard_layout = ReadKeyboardLayout(get(options, 'keyboard_layout', 'US'))
   const keyboard_layout_overrides = ReadKeyboardLayoutOverrides(get(options, 'keyboard_layout_overrides', {}))
   if type(get(options, 'completion_min_length', 2)) != v:t_number
@@ -367,7 +395,8 @@ def Parse(options: dict<any>, shared_index: dict_index.Database = null_object): 
   const dictionary_index = shared_index is null_object ? loader.Open(sources) : shared_index
   const destination = state_path == '' ? '' : fnamemodify(state_path, ':p')
   return Settings.new(highlight, Input.new(sticky_key, keyboard_layout, keyboard_layout_overrides,
-    actions, dictionary_index, small_tsu_okuri_as_t, persist_input_mode, register_mode_conversions, completion_min_length, keep_preedit_on_backspace), destination, state_auto,
+    actions, dictionary_index, small_tsu_okuri_as_t, persist_input_mode, register_mode_conversions, completion_min_length,
+    keep_preedit_on_backspace, affix_key), destination, state_auto,
     registration_prefill, registration_auto, registration_inline, undo_revert_to_reading,
     candidate_popup, candidate_select_keys, mode_popup, mode_popup_labels,
     mode_popup_markers, mode_popup_time, sources)
@@ -389,6 +418,7 @@ def SameDictionaryIndependentSettings(left: Settings, right: Settings): bool
   const a = left.input
   const b = right.input
   return a.sticky_key ==# b.sticky_key
+    && a.affix_key ==# b.affix_key
     && a.keyboard_layout ==# b.keyboard_layout
     && a.keyboard_layout_overrides == b.keyboard_layout_overrides
     && a.mappings == b.mappings
@@ -477,7 +507,7 @@ export def GetInput(): Input
     current.input.keyboard_layout_overrides, current.input.mappings, current.input.dictionary_index,
     current.input.small_tsu_okuri_as_t, current.input.persist_input_mode,
     current.input.register_mode_conversions, current.input.completion_min_length,
-    current.input.keep_preedit_on_backspace)
+    current.input.keep_preedit_on_backspace, current.input.affix_key)
 enddef
 
 export def GetStatePath(): string

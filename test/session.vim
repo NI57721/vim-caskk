@@ -505,3 +505,13 @@ suite.sokuon_and_suffix_special_preserve_modified_okuri_input = (): void => {
     assert.equals(ime.Pending(), [])
   endfor
 }
+
+suite.affix_key_uses_normal_input_after_okuri_has_started = (): void => {
+  const compiled = scheme.Compile({k: 'k'}, {a: 'a'})
+  const ime = session.Session.new(compiled, ';', {}, null_object, 'か',
+    true, '', {}, 'Hiragana', true, null_object, 'か', true, '1')
+  ime.Feed('1')
+  const snapshot = ime.GetSnapshot()
+  assert.equals(snapshot.reading, 'か')
+  assert.equals(snapshot.okuri, 'か1')
+}

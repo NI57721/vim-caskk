@@ -761,3 +761,123 @@ suite.reconfigured_retention_applies_when_input_is_enabled_again = (): void => {
   feedkeys("aKa\<BS>\<BS>\<Esc>", 'xt')
   assert.equals(getline(1), 'か後')
 }
+
+suite.affix_readings_wait_for_explicit_conversion = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  Caskk.RegisterInputScheme({name: 'configured', consonants: {m: 'm', t: 't', k: 'k'},
+    combinations: {e: 'e', i: 'i'}})
+  const dictionary = tempname()
+  defer delete(dictionary)
+  writefile(['み /身/', 'み> /御/', 'てき /敵/', '>てき /的/'], dictionary)
+  inoremap <buffer> <F12> <ScriptCmd>CaptureCurrentLine()<CR>
+  for [key, prefix, suffix] in [['1', ';mi1', ';1teki'], [';;', ';mi;;', ';;teki']]
+    Caskk.Config({sticky_key: ';', affix_key: key, dictionaries: [dictionary],
+      mode_popup: false, mappings: {"\<Space>": 'Convert'}})
+    Caskk.Enable('configured')
+    for [keys, reading, candidate] in [[prefix, 'み>', '御'], [suffix, '>てき', '的']]
+      setline(1, '前後')
+      cursor(1, 1)
+      g:caskk_captured_lines = []
+      feedkeys('a' .. keys .. "\<F12>\<Space>\<F12>\<Esc>", 'xt')
+      assert.equals(g:caskk_captured_lines, ['前' .. reading .. '後', '前' .. candidate .. '後'])
+    endfor
+    Caskk.Disable()
+  endfor
+}
+
+suite.affix_key_preserves_literal_input_backspace_and_candidate_labels = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const dictionary = tempname()
+  defer delete(dictionary)
+  writefile(['か /蚊/', 'か> /御/', '>か /化/'], dictionary)
+  const mappings = {"\<Space>": 'Convert', "\<F4>": 'AbbreviationMode',
+    "\<F5>": 'FullwidthAlphanumericMode'}
+  Caskk.Config({sticky_key: ';', affix_key: '1', dictionaries: [dictionary],
+    candidate_select_keys: ['1'], mode_popup: false, mappings: mappings})
+  Caskk.Enable('configured')
+  inoremap <buffer> <F12> <ScriptCmd>CaptureCurrentLine()<CR>
+  g:caskk_captured_lines = []
+  feedkeys("a1;ka1\<BS>\<F12>\<Space>1ka\<Esc>", 'xt')
+  assert.equals(g:caskk_captured_lines, ['前1か後'])
+  assert.equals(getline(1), '前1蚊か後')
+  setline(1, '前後')
+  cursor(1, 1)
+  feedkeys("a\<F4>1\<CR>\<F5>1\<Esc>", 'xt')
+  assert.equals(getline(1), '前1１後')
+}
+
+suite.double_sticky_affix_requires_consecutive_input_and_is_opt_in = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const dictionary = tempname()
+  defer delete(dictionary)
+  writefile(['か /蚊/', '>か /化/'], dictionary)
+  const options = {sticky_key: ';', dictionaries: [dictionary], mode_popup: false,
+    mappings: {"\<Space>": 'Convert', "\<F8>": 'ShowCompletion'}}
+  Caskk.Config(options)
+  Caskk.Enable('configured')
+  feedkeys("a;;ka\<Space>\<Esc>", 'xt')
+  assert.equals(getline(1), '前蚊後')
+  setline(1, '前後')
+  cursor(1, 1)
+  Caskk.Config(extendnew(options, {affix_key: ';;'}))
+  Caskk.Enable('configured')
+  feedkeys("a;ka;\<F8>;\<Space>\<Esc>", 'xt')
+  assert.equals(getline(1), '前蚊後')
+}
+
+suite.affix_configuration_rejects_invalid_keys_atomically = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  Caskk.Config({sticky_key: ';', affix_key: '1'})
+  for options in [{affix_key: '1'}, {sticky_key: ';', affix_key: ';'},
+      {sticky_key: ';', affix_key: ';;;'}, {sticky_key: ';', affix_key: 'ab'},
+      {sticky_key: ';', affix_key: '<UnknownKey>'}, {sticky_key: ';', affix_key: 1},
+      {sticky_key: '<F9>', affix_key: "\<F9>"}]
+    var rejected = false
+    try
+      Caskk.Config(options)
+    catch /^caskk: invalid configuration:/
+      rejected = true
+    endtry
+    assert.equals(rejected, true)
+    assert.equals(configuration.GetInput().affix_key, '1')
+  endfor
+  Caskk.Config({})
+  assert.equals(configuration.GetInput().affix_key, '')
+}
+
+suite.affix_prefix_flushes_unfinished_spelling_and_yields_to_actions = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const dictionary = tempname()
+  defer delete(dictionary)
+  writefile(['かk> /御/', 'か /蚊/'], dictionary)
+  const options = {sticky_key: ';', affix_key: '1', dictionaries: [dictionary],
+    mode_popup: false, mappings: {"\<Space>": 'Convert'}}
+  Caskk.Config(options)
+  Caskk.Enable('configured')
+  feedkeys("a;kak1\<Space>\<Esc>", 'xt')
+  assert.equals(getline(1), '前御後')
+  setline(1, '前後')
+  cursor(1, 1)
+  Caskk.Config(extendnew(options, {mappings: {'1': 'Convert'}}))
+  Caskk.Enable('configured')
+  feedkeys("a;ka1\<Esc>", 'xt')
+  assert.equals(getline(1), '前蚊後')
+}
+
+suite.named_affix_key_uses_normal_vim_input_outside_preedit = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  const dictionary = tempname()
+  defer delete(dictionary)
+  writefile(['か> /御/'], dictionary)
+  Caskk.Config({sticky_key: "\<F9>", affix_key: "\<F10>", dictionaries: [dictionary],
+    mode_popup: false, mappings: {"\<Space>": 'Convert'}})
+  Caskk.Enable('configured')
+  feedkeys("a\<F10>\<F9>ka\<F10>\<Space>\<Esc>", 'xt')
+  assert.equals(getline(1), '前<F10>御後')
+}

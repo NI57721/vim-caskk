@@ -430,3 +430,17 @@ suite.split_registration_commits_the_candidate_by_label_before_submission = (): 
   normal! u
   assert.equals(getline(1), '前か後')
 }
+
+suite.affix_keys_convert_inside_registration_window = (): void => {
+  const fixture = Setup(false)
+  defer Cleanup(fixture)
+  const path = fixture.directory .. '/system'
+  writefile(['>か /化/'], path)
+  Caskk.Disable()
+  Caskk.Config({registration_auto: false, registration_prefill: false,
+    dictionaries: [path], sticky_key: ';', affix_key: '1', mappings: {s: 'Convert'}})
+  Caskk.Enable('registration-window')
+  feedkeys("aKas\<F3>;1kas\<CR>\<Esc>", 'xt')
+  assert.equals(errors, [])
+  assert.equals(getline(1), '前化後')
+}

@@ -42,6 +42,10 @@ endclass
 
 # Connect core input stages without depending on Vim buffers or presentation.
 export class Session
+  const _sticky_key: string
+  const _affix_key: string
+  const _double_sticky_affix: bool
+  var _previous_was_sticky: bool = false
   const _normalizer: normalize.Normalizer
   const _composer: composer.Composer
   const _state: state_types.State
@@ -67,7 +71,10 @@ export class Session
       initial_reading: string = '', small_tsu_okuri_as_t: bool = true, keyboard_layout: string = '',
       keyboard_layout_overrides: dict<string> = {}, input_mode_name: string = input_mode.HIRAGANA,
       register_mode_conversions: bool = true, dictionary_index: dict_index.Database = null_object,
-      initial_okuri: string = '', keep_preedit_on_backspace: bool = true)
+      initial_okuri: string = '', keep_preedit_on_backspace: bool = true, affix_key: string = '')
+    this._sticky_key = sticky_key
+    this._double_sticky_affix = sticky_key !=# '' && affix_key ==# repeat(sticky_key, 2)
+    this._affix_key = this._double_sticky_affix ? sticky_key : affix_key
     this._normalizer = normalize.Normalizer.new(sticky_key, keyboard_layout, keyboard_layout_overrides)
     this._composer = composer.Composer.new(compiled)
     this._state = state_types.State.new(keep_preedit_on_backspace)
@@ -195,8 +202,32 @@ export class Session
     return results
   enddef
 
+  # A key handled by Vim or an explicit action can interrupt a sticky pair.
+  def InterruptAffixSequence(key: string)
+    if key !=# this._sticky_key
+      this._previous_was_sticky = false
+    endif
+  enddef
+
+  def _CanAddAffix(key: string): bool
+    return this._affix_key !=# '' && key ==# this._affix_key
+      && (!this._double_sticky_affix || this._previous_was_sticky)
+      && !this._state.okuri_started
+      && (this._state.reading !=# ''
+        || (this._normalizer.HasPendingModifier() && empty(this._composer.Pending())))
+  enddef
+
+  # Named keys otherwise go through Vim's native command-line dispatch.
+  def HandlesAffixInput(key: string): bool
+    return this._affix_key !=# '' && !this.InCandidate()
+      && this._input_mode !=# input_mode.ABBREVIATION
+      && this._input_mode !=# input_mode.FULLWIDTH_ALPHANUMERIC
+      && (key ==# this._sticky_key || this._CanAddAffix(key))
+  enddef
+
   # Input is one physical KeyToken, already named by the integration layer.
   def Feed(key: string): list<Result>
+    this.InterruptAffixSequence(key)
     this.CancelCompletion()
     final results: list<Result> = []
     if this._input_mode == input_mode.FULLWIDTH_ALPHANUMERIC
@@ -218,6 +249,16 @@ export class Session
       results->extend(this.Commit())
     endif
     this._ClearPrepared()
+    if this._CanAddAffix(key)
+      results->extend(this._Apply(this._composer.Flush(), false))
+      if !this._state.okuri_started
+        this._normalizer.Reset()
+        this._previous_was_sticky = false
+        results->add(this._ApplyOutput(composition.Result.new(true, '>', '', false), false))
+        return results
+      endif
+    endif
+    this._previous_was_sticky = this._double_sticky_affix && key ==# this._sticky_key
     if !this._state.in_preedit && empty(this._composer.Pending())
         && !this._normalizer.HasPendingModifier() && !this._composer.IsSpecialStart(key)
         && this._normalizer.IsShiftedSymbol(key)
@@ -248,6 +289,7 @@ export class Session
 
   # Delete only unfinished input; reading and candidate editing are separate.
   def BackspacePending(): bool
+    this._previous_was_sticky = false
     this.CancelCompletionSearch()
     if this._normalizer.Backspace()
       return true
@@ -264,6 +306,7 @@ export class Session
   enddef
 
   def BackspacePreedit(): Result
+    this._previous_was_sticky = false
     this.CancelCompletion()
     if this.InCandidate()
       this.CancelConversion()
@@ -280,6 +323,7 @@ export class Session
   enddef
 
   def Commit(): list<Result>
+    this._previous_was_sticky = false
     this.CancelCompletionSearch()
     if this.InCompletion() && this._completion_index >= 0
       const chosen = this._completions[this._completion_index]
@@ -499,6 +543,7 @@ export class Session
   enddef
 
   def StartConversion(entries: dict<dictionary.Entry>, preferences: user_state.State): list<Result>
+    this._previous_was_sticky = false
     this.CancelCompletion()
     if this.InCandidate()
       throw 'caskk: conversion selection is active'

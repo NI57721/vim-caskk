@@ -248,6 +248,18 @@ sticky_key                                      *caskk-config-sticky-key*
     string, ''.  Marks the next key as Modified, like uppercase input.
     Use a printable character such as ';' or a named key such as '<F9>'.
 
+affix_key                                        *caskk-config-affix-key*
+    string, ''.  Adds > to an affix reading for SKK dictionary lookup.
+    Requires sticky_key. Use a different single key or the sticky key
+    repeated exactly twice. A double press must be consecutive and has no
+    time limit.
+
+    With sticky_key: ';' and affix_key: '1', type ;mi1 for み> or ;1teki
+    for >てき. With affix_key: ';;', type ;mi;; or ;;teki. Press your
+    usual conversion key to look up the reading. Backspace removes >
+    like any other reading character. Dictionary registration keeps > in
+    the lookup key and omits it from the prefilled candidate text.
+
 keyboard_layout                            *caskk-config-keyboard-layout*
     string, 'US'.  Shifted-symbol layout: 'US' or 'JIS'.
 

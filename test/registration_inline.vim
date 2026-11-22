@@ -70,7 +70,8 @@ def g:CaskkTestInlineReloadConfig()
   Caskk.Config({})
 enddef
 
-def Setup(prefill: bool = false, with_candidates: bool = false, extra_mappings: dict<string> = {}, second_okuri: bool = false): list<number>
+def Setup(prefill: bool = false, with_candidates: bool = false, extra_mappings: dict<string> = {}, second_okuri: bool = false,
+    extra_options: dict<any> = {}): list<number>
   previous_state = user_runtime.Get().GetSnapshot()
   user_runtime.Get().Restore(user_state.State.new().GetSnapshot())
   const previous = bufnr('%')
@@ -92,7 +93,7 @@ def Setup(prefill: bool = false, with_candidates: bool = false, extra_mappings: 
     writefile(['か /蚊/科/', second_okuri ? 'かk /行/書/' : 'かk /行/'], dictionary_directory .. '/system')
     options.dictionaries = [dictionary_directory .. '/system']
   endif
-  Caskk.Config(options)
+  Caskk.Config(extend(options, extra_options))
   Caskk.RegisterInputScheme({name: 'registration-inline', consonants: {k: 'k'},
     combinations: {a: 'a*', i: 'i', u: 'u'}, specials: {z: '漢字'}})
   Caskk.Enable('registration-inline')
@@ -585,4 +586,15 @@ suite.inline_label_commits_an_okuri_candidate_into_the_registration_text = (): v
   assert.equals(getline(1), '前書く後')
   normal! u
   assert.equals(getline(1), '前き後')
+}
+
+suite.affix_keys_convert_inside_inline_registration = (): void => {
+  const path = tempname()
+  defer delete(path)
+  writefile(['>か /化/'], path)
+  const context = Setup(false, false, {}, false,
+    {sticky_key: ';', affix_key: ';;', dictionaries: [path]})
+  defer Cleanup(context)
+  feedkeys("aKas\<F6>;;kas1\<CR>\<Esc>", 'xt')
+  assert.equals(getline(1), '前化後')
 }

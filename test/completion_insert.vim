@@ -535,3 +535,17 @@ suite.sokuon_and_suffix_special_convert_commit_and_undo_in_vim = (): void => {
   normal! u
   assert.equals(getline(1), '前後')
 }
+
+suite.affix_readings_stay_out_of_automatic_candidate_popup = (): void => {
+  Setup()
+  defer Cleanup()
+  writefile(['か> /御/'], dictionary_path)
+  Caskk.Disable()
+  Caskk.Config({dictionaries: [dictionary_path], sticky_key: ';', affix_key: '1',
+    mode_popup: false, mappings: {"\<Space>": 'Convert'}})
+  Caskk.Enable('completion-test')
+  feedkeys("a;ka1\<F12>\<Space>\<F12>\<Esc>", 'xt')
+  assert.equals(captures, ['前か>後', '前御後'])
+  assert.equals(popup_lines[0], [])
+  assert.equals(empty(popup_lines[1]), false)
+}

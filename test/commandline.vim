@@ -620,3 +620,22 @@ suite.abort_keys_keep_their_native_meaning_with_rank_actions_configured = (): vo
     assert.equals(user_runtime.Get().GetSnapshot().demoted, {})
   endfor
 }
+
+suite.affix_keys_work_in_commandline_input = (): void => {
+  Setup()
+  defer Cleanup()
+  const path = tempname()
+  defer delete(path)
+  writefile(['か> /御/', '>か /化/'], path)
+  for [sticky, affix, keys, reading, candidate] in [
+      [';', ';;', ';;ka', '>か', '化'],
+      ['<F9>', '<F10>', "\<F9>ka\<F10>", 'か>', '御'],
+      ['<F9>', '<F9><F9>', "\<F9>\<F9>ka", '>か', '化']]
+    Caskk.Config({dictionaries: [path], sticky_key: sticky, affix_key: affix,
+      mappings: {"\<Space>": 'Convert'}, mode_popup: false})
+    feedkeys(":\<F2>" .. keys .. "\<F3>\<C-C>", 'xt')
+    assert.equals(captured, reading)
+    feedkeys(":\<F2>" .. keys .. "\<Space>\<F3>\<C-C>", 'xt')
+    assert.equals(captured, candidate)
+  endfor
+}
