@@ -131,7 +131,7 @@ suite.automatic_candidate_preference_changes_are_saved_without_waiting_for_exit 
   const fixture = Setup()
   defer Cleanup(fixture)
   const path = fixture.directory .. '/state.jsonl'
-  Caskk.Config({state_path: path, state_auto: true,
+  Caskk.Config({state_path: path, state_auto: true, candidate_select_keys: ['1', '2'],
     dictionaries: [fixture.directory .. '/system'], mappings: {s: 'Convert', v: 'TogglePin'}})
   Caskk.Enable('persistence')
   feedkeys("aKasv2\<Esc>", 'xt')
@@ -142,7 +142,7 @@ suite.automatic_candidate_demotion_is_saved_without_waiting_for_exit = (): void 
   const fixture = Setup()
   defer Cleanup(fixture)
   const path = fixture.directory .. '/state.jsonl'
-  Caskk.Config({state_path: path, state_auto: true,
+  Caskk.Config({state_path: path, state_auto: true, candidate_select_keys: ['1', '2'],
     dictionaries: [fixture.directory .. '/system'], mappings: {s: 'Convert', b: 'ToggleDemote'}})
   Caskk.Enable('persistence')
   feedkeys("aKasb2\<Esc>", 'xt')

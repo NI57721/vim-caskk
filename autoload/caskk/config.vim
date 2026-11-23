@@ -363,7 +363,7 @@ def Parse(options: dict<any>, shared_index: dict_index.Database = null_object): 
   if type(get(options, 'candidate_popup', true)) != v:t_bool
     throw 'candidate_popup must be a bool'
   endif
-  const keys_option = get(options, 'candidate_select_keys', ['1', '2', '3', '4', '5'])
+  const keys_option = get(options, 'candidate_select_keys', [])
   if type(keys_option) != v:t_list
     throw 'candidate_select_keys must be a list'
   endif

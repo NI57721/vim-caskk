@@ -33,7 +33,7 @@ CancelRegistration()				*caskk-cancel-registration*
 候補選択ラベル                     *caskk-config-candidate-select-keys*
 
 candidate_select_keys には、重複しない印字可能な単一キーを指定する。
-既定は ['1', '2', '3', '4', '5']。1 ページの最大件数はラベル数で決まり、
+既定は []。1 ページの最大件数はラベル数で決まり、
 画面に収まる件数と残りの候補数でさらに制限する。空リストでは一候補ずつ移動する。
 
 1 ページ最大 4 件にする設定例: >

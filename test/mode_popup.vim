@@ -162,7 +162,7 @@ suite.candidate_popup_replaces_the_transient_mode_popup = (): void => {
   const dictionary = tempname()
   defer delete(dictionary)
   writefile(['か /蚊/家/'], dictionary)
-  Setup({dictionaries: [dictionary], mode_popup_time: 10000})
+  Setup({dictionaries: [dictionary], candidate_select_keys: ['1', '2'], mode_popup_time: 10000})
   defer Cleanup()
   feedkeys("aKa\<Space>\<F12>\<Esc>", 'xt')
   assert.equals(captures, [[['▼あ'], ['1 蚊', '2 家']]])
@@ -205,7 +205,7 @@ suite.modified_and_candidate_markers_can_be_customized = (): void => {
   const dictionary = tempname()
   defer delete(dictionary)
   writefile(['か /蚊/'], dictionary)
-  Setup({dictionaries: [dictionary], mode_popup_markers: {modified: '＊', candidate: '●'},
+  Setup({dictionaries: [dictionary], candidate_select_keys: ['1'], mode_popup_markers: {modified: '＊', candidate: '●'},
     mode_popup_time: 10000})
   defer Cleanup()
   feedkeys("aKa\<F12>\<Space>\<F12>\<Esc>", 'xt')

@@ -335,7 +335,7 @@ candidate_popup                           *caskk-config-candidate-popup*
     ↓ marks demoted candidates.
 
 candidate_select_keys               *caskk-config-candidate-select-keys*
-    List of unique, printable single keys.  Defaults to ['1', '2', '3', '4', '5'].
+    List of unique, printable single keys.  Defaults to [].
     The number of labels sets the maximum candidates per page.  Each page
     also fits the available screen space and the remaining candidates.
     An empty list moves through candidates one at a time.

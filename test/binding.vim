@@ -390,6 +390,8 @@ suite.enable_installs_keys_and_actions_and_insertleave_closes_preedit = (): void
 suite.convert_mapping_starts_advances_and_requests_registration_after_last_candidate = (): void => {
   const context = Setup()
   defer Cleanup(context)
+  Caskk.Config({candidate_select_keys: ['1', '2', '3', '4', '5']})
+  defer Caskk.Config({})
   const entries = merger.Merge([[parser.ParseLine('か /蚊/科/家/化/課/可/')]])
   const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries,
     user_state.State.new(), {'<Space>': 'Convert'})

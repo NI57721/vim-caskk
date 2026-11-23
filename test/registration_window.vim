@@ -69,7 +69,7 @@ enddef
 
 defcompile Handle
 
-def Setup(prefill: bool = true, with_candidates: bool = false): Fixture
+def Setup(prefill: bool = true, with_candidates: bool = false, candidate_select_keys: list<string> = []): Fixture
   const existing_buffers = mapnew(getbufinfo(), (_, info) => info.bufnr)
   const previous = bufnr('%')
   origin_buffer = bufadd('')
@@ -100,7 +100,8 @@ def Setup(prefill: bool = true, with_candidates: bool = false): Fixture
   if with_candidates
     writefile(['か /蚊/科/'], dictionary)
   endif
-  Caskk.Config({dictionaries: with_candidates ? [dictionary] : [], registration_auto: false, registration_prefill: prefill,
+  Caskk.Config({dictionaries: with_candidates ? [dictionary] : [], candidate_select_keys: candidate_select_keys,
+    registration_auto: false, registration_prefill: prefill,
     state_path: directory .. '/state.jsonl',
     mappings: {s: 'Convert', n: 'NextCandidate'}})
   Caskk.RegisterInputScheme({name: 'registration-window', consonants: {k: 'k'}, combinations: {a: 'a'},
@@ -421,7 +422,7 @@ suite.annotation_selection_highlights_the_visible_row_after_scrolling = (): void
 }
 
 suite.split_registration_commits_the_candidate_by_label_before_submission = (): void => {
-  const fixture = Setup(true, true)
+  const fixture = Setup(true, true, ['1', '2'])
   defer Cleanup(fixture)
   feedkeys("aKass\<F3>s2\<F4>\<CR>\<Esc>", 'xt')
   assert.equals(errors, [])

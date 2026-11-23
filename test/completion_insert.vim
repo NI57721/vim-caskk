@@ -163,7 +163,7 @@ suite.accepted_completion_is_one_commit_with_undo_reading_disabled = (): void =>
 }
 
 suite.typing_and_conversion_close_the_completion_menu = (): void => {
-  Setup()
+  Setup({candidate_select_keys: ['1']})
   defer Cleanup()
   feedkeys("aKanaki\<F12>\<Esc>", 'xt')
   assert.equals(captures, ['前かなき後'])

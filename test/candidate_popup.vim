@@ -365,7 +365,7 @@ suite.candidate_popup_keeps_its_position_and_height_near_the_end = (): void => {
 }
 
 suite.short_labelled_list_touches_the_conversion_row_near_the_bottom = (): void => {
-  const fixture = Setup(true, {}, 2, true, {})
+  const fixture = Setup(true, {}, 2, true, {candidate_select_keys: ['1', '2', '3']})
   defer Cleanup(fixture)
   botright split
   defer execute('close')
@@ -471,8 +471,8 @@ suite.unavailable_backspace_actions_cancel_conversion_without_learning = (): voi
   endfor
 }
 
-suite.default_labels_commit_and_digits_remain_literal_afterward = (): void => {
-  const fixture = Setup(true, {}, 2, true, {})
+suite.numeric_labels_commit_and_digits_remain_literal_afterward = (): void => {
+  const fixture = Setup(true, {}, 2, true, {candidate_select_keys: ['1', '2', '3']})
   defer Cleanup(fixture)
   feedkeys('aKas' .. CAPTURE .. "23\<Esc>", 'xt')
   assert.equals(observations[0].lines, ['1 蚊 — 昆虫', '2 科 — 学科'])
@@ -539,7 +539,7 @@ suite.page_edges_restore_reading_and_request_registration = (): void => {
 }
 
 suite.demotion_affects_the_next_conversion_and_navigation_dismisses_the_prompt = (): void => {
-  const fixture = Setup(true, {t: 'TogglePin', d: 'ToggleDemote'}, 3, true, {})
+  const fixture = Setup(true, {t: 'TogglePin', d: 'ToggleDemote'}, 3, true, {candidate_select_keys: ['1', '2', '3']})
   defer Cleanup(fixture)
   feedkeys('aKasd' .. CAPTURE .. '2' .. CAPTURE .. 'tc' .. CAPTURE .. "\<Esc>AKas" .. CAPTURE .. "1\<Esc>", 'xt')
   assert.equals(observations[0].lines[-1], '降格する候補のラベルを入力（Escで取消）')

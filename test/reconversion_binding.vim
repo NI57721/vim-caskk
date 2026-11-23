@@ -182,7 +182,7 @@ suite.reenabling_caskk_during_reconversion_preserves_selection_and_resumes_ime_a
 
 suite.labels_commit_reconversion_and_restore_disabled_mappings = (): void => {
   for enabled in [true, false]
-    const fixture = Setup()
+    const fixture = Setup({candidate_select_keys: ['1', '2']})
     try
       ConvertAndCommit()
       if !enabled
@@ -208,7 +208,7 @@ suite.labels_commit_reconversion_and_restore_disabled_mappings = (): void => {
 
 suite.disabled_reconversion_exhaustion_can_open_either_registration_field = (): void => {
   for inline in [false, true]
-    const fixture = Setup({registration_inline: inline, registration_prefill: true})
+    const fixture = Setup({candidate_select_keys: ['1', '2'], registration_inline: inline, registration_prefill: true})
     try
       ConvertAndCommit()
       Caskk.Disable()

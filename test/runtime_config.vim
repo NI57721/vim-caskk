@@ -881,3 +881,14 @@ suite.named_affix_key_uses_normal_vim_input_outside_preedit = (): void => {
   feedkeys("a\<F10>\<F9>ka\<F10>\<Space>\<Esc>", 'xt')
   assert.equals(getline(1), '前<F10>御後')
 }
+
+suite.candidate_selection_keys_default_to_empty = (): void => {
+  try
+    Caskk.Config({candidate_select_keys: ['1']})
+    assert.equals(configuration.GetCandidateSelectKeys(), ['1'])
+    Caskk.Config({})
+    assert.equals(configuration.GetCandidateSelectKeys(), [])
+  finally
+    Caskk.Config({})
+  endtry
+}
