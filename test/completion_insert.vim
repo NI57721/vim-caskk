@@ -50,7 +50,7 @@ def Setup(options: dict<any> = {})
   user_runtime.Get().Restore(user_state.State.new().GetSnapshot())
   dictionary_path = tempname()
   writefile(['かな /仮名;文字/', 'かなた /彼方/', 'かなもの /金物/',
-    'apple /林檎/', 'application /アプリ/', 'ABC123 /英数字/'], dictionary_path)
+    'shrimp /シュリンプ/', 'apple /林檎/', 'application /アプリ/', 'ABC123 /英数字/'], dictionary_path)
   Caskk.RegisterInputScheme({name: 'completion-test', consonants: {k: 'k', n: 'n', t: 't'},
     combinations: {a: 'a', i: 'i'}})
   Caskk.Config(extend({dictionaries: [dictionary_path], completion_min_length: 2,
@@ -370,6 +370,15 @@ suite.broad_prefix_search_keeps_terminal_input_responsive_and_discards_old_resul
     job_stop(term_getjob(terminal), 'kill')
     execute 'silent! bwipeout! ' .. terminal
   endtry
+}
+
+suite.abbreviation_enter_commits_selected_prefix_completion = (): void => {
+  Setup({mappings: {q: 'AbbreviationMode', "\<CR>": 'Commit'}})
+  defer Cleanup()
+  feedkeys("aqshrim" .. WAIT .. "\<Down>\<F12>\<CR>\<F12>\<Esc>", 'xt')
+  assert.equals(captures, ['前シュリンプ後', '前シュリンプ後'])
+  assert.equals(line('$'), 1)
+  assert.equals(user_runtime.Get().GetSnapshot().mru[json_encode(['shrimp', ''])], ['シュリンプ'])
 }
 
 suite.abbreviation_enter_keeps_literal_ascii_when_completions_are_visible = (): void => {

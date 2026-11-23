@@ -1205,6 +1205,7 @@ export class Binding
     if key ==# '<CR>' && this._editor isnot null_object
         && this._editor.GetInputMode() ==# input_mode.ABBREVIATION
         && this._editor.GetSnapshot().in_preedit && !this._editor.IsInCandidate()
+        && (!this._editor.IsInCompletion() || this._editor.GetDisplayCandidatesInfo().selected_index < 0)
       this._editor.CancelCompletion()
       this._Record(this._editor.Commit())
       return

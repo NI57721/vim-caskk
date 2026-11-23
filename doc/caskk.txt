@@ -189,9 +189,10 @@ Command-line input                                   *caskk-commandline*
     unavailable in command-line input.
 
 Abbreviation mode                               *caskk-abbreviation-mode*
-    Uses typed text directly as the dictionary reading.  Enter keeps the typed
-    abbreviation literally; use Commit to accept completion or Convert for
-    dictionary conversion.  Committing returns to the previous input mode.
+    Uses typed text directly as the dictionary reading.  Enter commits the
+    selected completion or, if none is selected, the typed abbreviation.
+    Use Convert for dictionary conversion.  Committing returns to the previous
+    input mode.
 
 Numeric conversion                              *caskk-numeric-conversion*
     Digit runs also search '#' dictionary keys.  Candidate placeholders:
