@@ -339,7 +339,12 @@ candidate_select_keys               *caskk-config-candidate-select-keys*
     The number of labels sets the maximum candidates per page.  Each page
     also fits the available screen space and the remaining candidates.
     An empty list hides candidate numbers and moves through candidates one at
-    a time.
+    a time.  In Insert mode and on the command line, the first three choices
+    keep the list stationary.  Moving forward beyond them scrolls with the
+    selection on the third row through the end of the list.  Moving backward
+    keeps the selection on the third row until the first two candidates.
+    Short popups and wrapped annotations scroll as needed to keep the
+    selection visible.
 
     For up to four candidates per page: >
       candidate_select_keys: ['1', '2', '3', '4']

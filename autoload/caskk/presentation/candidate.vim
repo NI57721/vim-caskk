@@ -97,6 +97,43 @@ export def HighlightSelection(window: number, line: number)
   endif
 enddef
 
+# Keep the selection within the first three rows, or fewer in a short popup.
+def FirstCandidateLine(selected: number, height: number): number
+  const selection_rows = min([3, max([1, height])])
+  return max([1, selected - selection_rows + 1])
+enddef
+
+# Count screen rows before the selected candidate, including wrapped text.
+def WrappedRows(text: string, width: number): number
+  if strdisplaywidth(text) <= width
+    return 1
+  endif
+  var cells = 0
+  for char in split(text, '\zs')
+    const size = strdisplaywidth(char, cells)
+    const column = cells % width
+    if size == 2 && column == width - 1 && char !=# "\t" && width > 1
+      cells += 1
+    endif
+    cells += size
+  endfor
+  return max([1, (cells + width - 1) / width])
+enddef
+
+def FitWrappedSelection(lines: list<string>, first: number, selected: number, viewport: dict<number>): number
+  const width = max([1, viewport.core_width])
+  var remaining = viewport.core_height - 1
+  var top = selected
+  while top > first
+    remaining -= WrappedRows(lines[top - 2], width)
+    if remaining < 0
+      break
+    endif
+    top -= 1
+  endwhile
+  return top
+enddef
+
 # A read-only information popup. Input and selection stay in the source window.
 export class View
   var _window: number = 0
@@ -125,24 +162,29 @@ export class View
     if !empty(keys) && rank_action !=# ''
       lines->extend(CommandlinePrompt(rank_action))
     endif
-    const first = empty(keys) ? min([info.selected_index, max([0, len(lines) - room])]) : 0
+    const unlabelled = empty(keys)
+    const previous = this._window == 0 ? {} : popup_getpos(this._window)
+    const height = min([room, len(lines)])
+    const selected = info.selected_index + 1
     # Vim scrolls the popup with the screen when the command line wraps.
     const options = {
       line: &lines - &cmdheight, col: 1, pos: 'botleft', posinvert: false,
       maxheight: room, maxwidth: width, wrap: false,
-      padding: [0, 1, 0, 1], highlight: 'Pmenu', firstline: first + 1,
+      padding: [0, 1, 0, 1], highlight: 'Pmenu',
+      minheight: unlabelled ? height : 0,
+      firstline: unlabelled ? FirstCandidateLine(selected, height) : 1,
     }
-    if this._window == 0 || empty(popup_getpos(this._window))
+    if empty(previous)
       this._window = popup_create(lines, options)
     else
       popup_settext(this._window, lines)
       popup_setoptions(this._window, options)
     endif
-    HighlightSelection(this._window, empty(keys) ? info.selected_index + 1 : 0)
+    HighlightSelection(this._window, unlabelled ? selected : 0)
   enddef
 
   def Render(info: conversion.CandidateListInfo, message: string = '',
-      keys: list<string> = [], rank_action: string = '')
+      keys: list<string> = [], rank_action: string = '', scroll_candidates: bool = false)
     if info is null_object || empty(info.candidates) || !configuration.GetCandidatePopup()
       this.Close()
       return
@@ -186,27 +228,35 @@ export class View
     endif
     this._labelled_above = false
     const previous = this._window == 0 ? {} : popup_getpos(this._window)
-    if !empty(previous)
-      # Preserve the initial screen rectangle as selection scrolls toward the end.
-      popup_settext(this._window, lines)
-      popup_setoptions(this._window, {
-        line: previous.line, col: previous.col, pos: 'topleft', posinvert: false,
-        minheight: previous.core_height, maxheight: previous.core_height,
-        minwidth: previous.core_width, maxwidth: previous.core_width,
-        firstline: max([1, info.selected_index - info.candidates[0].index + 1]),
+    const selected = info.selected_index - info.candidates[0].index + 1
+    if empty(previous)
+      this._window = popup_create(lines, {
+        line: 'cursor+1', col: 'cursor', pos: 'topleft', posinvert: true,
+        firstline: scroll_candidates ? 1 : selected,
+        padding: [0, 1, 0, 1], maxwidth: 60,
+        wrap: true, highlight: 'Pmenu', moved: 'any',
       })
-      # Candidate replacement may move the buffer cursor; track its new position.
-      popup_setoptions(this._window, {moved: 'any'})
-      HighlightSelection(this._window, info.selected_index - info.candidates[0].index + 1)
-      return
+    else
+      popup_settext(this._window, lines)
     endif
-    final position: dict<any> = {
-      line: 'cursor+1', col: 'cursor', pos: 'topleft', posinvert: true,
-      firstline: max([1, info.selected_index - info.candidates[0].index + 1]),
-      padding: [0, 1, 0, 1], maxwidth: 60,
-      wrap: true, highlight: 'Pmenu', moved: 'any',
-    }
-    this._window = popup_create(lines, position)
-    HighlightSelection(this._window, info.selected_index - info.candidates[0].index + 1)
+    const viewport = empty(previous) ? popup_getpos(this._window) : previous
+    var top = selected
+    if scroll_candidates
+      top = FirstCandidateLine(selected, viewport.core_height)
+      top = FitWrappedSelection(lines, top, selected, viewport)
+    endif
+    if !empty(previous) || (scroll_candidates && selected > 1)
+      # Preserve the initial screen rectangle as the list scrolls.
+      popup_setoptions(this._window, {
+        line: viewport.line, col: viewport.col, pos: 'topleft', posinvert: false,
+        minheight: viewport.core_height, maxheight: viewport.core_height,
+        minwidth: viewport.core_width, maxwidth: viewport.core_width, firstline: top,
+      })
+    endif
+    # Candidate replacement may move the buffer cursor; track its new position.
+    if !empty(previous)
+      popup_setoptions(this._window, {moved: 'any'})
+    endif
+    HighlightSelection(this._window, selected)
   enddef
 endclass

@@ -79,7 +79,8 @@ class Fixture
 endclass
 
 def Setup(candidate_popup: bool = true, extra_mappings: dict<string> = {}, candidate_count: number = 2,
-    keep_preedit_on_backspace: bool = true, options: dict<any> = {candidate_select_keys: []}): Fixture
+    keep_preedit_on_backspace: bool = true, options: dict<any> = {candidate_select_keys: []},
+    annotation: string = '昆虫'): Fixture
   const previous = bufnr('%')
   const existing_buffers = mapnew(getbufinfo(), (_, info) => info.bufnr)
   const existing_popups = popup_list()
@@ -94,7 +95,7 @@ def Setup(candidate_popup: bool = true, extra_mappings: dict<string> = {}, candi
   cursor(1, 1)
   const directory = tempname()
   mkdir(directory)
-  var dictionary_line = 'か /蚊;昆虫/科;学科'
+  var dictionary_line = 'か /蚊;' .. annotation .. '/科;学科'
   for index in range(3, candidate_count)
     dictionary_line ..= '/候補' .. index
   endfor
@@ -155,6 +156,27 @@ suite.navigation_updates_the_ranked_candidate_list_without_moving_the_input_curs
   assert.equals(getline(1), '前蚊後')
   assert.equals(selected_rows, [1, 2, 1])
   assert.equals(selection_groups, ['PmenuSel', 'PmenuSel', 'PmenuSel'])
+}
+
+suite.unlabelled_candidates_scroll_from_the_third_row = (): void => {
+  const fixture = Setup(true, {}, 4)
+  defer Cleanup(fixture)
+  feedkeys('aKas' .. CAPTURE .. repeat('n' .. CAPTURE, 3)
+    .. repeat('p' .. CAPTURE, 3) .. "c\<Esc>", 'xt')
+  assert.equals(mapnew(observations, (_, observed) => observed.firstline), [1, 1, 1, 2, 1, 1, 1])
+  assert.equals(mapnew(selected_rows, (i, row) => row - observations[i].firstline + 1),
+    [1, 2, 3, 3, 3, 2, 1])
+  assert.equals(mapnew(observations, (_, observed) => observed.height), repeat([4], 7))
+}
+
+suite.wrapped_annotation_keeps_the_selected_candidate_visible = (): void => {
+  const fixture = Setup(true, {}, 4, true, {candidate_select_keys: []}, repeat('昆虫', &lines * 16))
+  defer Cleanup(fixture)
+  feedkeys('aKas' .. CAPTURE .. repeat('n' .. CAPTURE, 2)
+    .. repeat('p' .. CAPTURE, 2) .. "c\<Esc>", 'xt')
+  assert.equals(selected_rows, [1, 2, 3, 2, 1])
+  assert.equals(mapnew(observations, (_, observed) => observed.firstline), [1, 2, 2, 2, 1])
+  assert.equals(mapnew(observations, (_, observed) => observed.height), repeat([observations[0].height], 5))
 }
 
 suite.selected_candidate_stays_inside_a_scrolled_popup_with_many_candidates = (): void => {

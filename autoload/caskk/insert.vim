@@ -363,7 +363,8 @@ export class Editor
 
   def RefreshCandidatePopup()
     this._candidate_view.Render(this.GetDisplayCandidatesInfo(), '',
-      this.IsInCandidate() ? candidate_view.PageKeys() : [], this._session.CandidateRankAction())
+      this.IsInCandidate() ? candidate_view.PageKeys() : [], this._session.CandidateRankAction(),
+      this.IsInCandidate())
   enddef
 
   def SelectAndCommitCandidate(index: number): list<session.Result>

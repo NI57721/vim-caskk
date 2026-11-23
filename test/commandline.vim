@@ -180,6 +180,7 @@ suite.buffer_local_command_mappings_are_restored = (): void => {
 var popup_text: list<string> = []
 var popup_position: dict<number> = {}
 var candidate_highlight = false
+var candidate_viewports: list<list<number>> = []
 
 def CapturePopup()
   redraw
@@ -189,11 +190,13 @@ def CapturePopup()
     const buf = winbufnr(id)
     const lines = getbufline(buf, 1, '$')
     popup_text->extend(lines)
-    for row in range(1, len(lines))
-      candidate_highlight = candidate_highlight
-        || !empty(filter(prop_list(row, {bufnr: buf}), (_, prop) => prop.type ==# 'caskk_candidate_selected'))
-    endfor
     const pos = popup_getpos(id)
+    for row in range(1, len(lines))
+      if !empty(filter(prop_list(row, {bufnr: buf}), (_, prop) => prop.type ==# 'caskk_candidate_selected'))
+        candidate_highlight = true
+        candidate_viewports->add([pos.firstline, row - pos.firstline + 1, pos.core_height])
+      endif
+    endfor
     popup_position = {line: pos.line, col: pos.col, width: pos.width, height: pos.height}
   endfor
 enddef
@@ -488,6 +491,32 @@ suite.candidate_list_is_visible_and_follows_selection = (): void => {
   finally
     cunmap <F6>
   endtry
+}
+
+suite.unlabelled_candidates_scroll_from_the_third_row = (): void => {
+  Setup()
+  defer Cleanup()
+  const path = tempname()
+  defer delete(path)
+  writefile(['か /蚊/家/科/課/'], path)
+  Caskk.Config({candidate_select_keys: [], dictionaries: [path], mode_popup: false,
+    mappings: {"\<Space>": 'Convert', "\<C-N>": 'NextCandidate', "\<C-P>": 'PreviousCandidate'}})
+  cnoremap <F6> <ScriptCmd>CapturePopup()<CR>
+  defer execute('cunmap <F6>')
+  candidate_viewports = []
+  feedkeys(":\<F2>Ka \<F6>" .. repeat("\<C-N>\<F6>", 3)
+    .. repeat("\<C-P>\<F6>", 3) .. "\<C-C>", 'xt')
+  assert.equals(candidate_viewports, [[1, 1, 4], [1, 2, 4], [1, 3, 4], [2, 3, 4],
+    [1, 3, 4], [1, 2, 4], [1, 1, 4]])
+
+  for height in [1, 2]
+    candidate_viewports = []
+    const prefix = repeat('x', (&lines - height - 1) * &columns)
+    feedkeys(':' .. prefix .. "\<F2>Ka \<F6>" .. repeat("\<C-N>\<F6>", 3) .. "\<C-C>", 'xt')
+    assert.equals(candidate_viewports, height == 1
+      ? [[1, 1, 1], [2, 1, 1], [3, 1, 1], [4, 1, 1]]
+      : [[1, 1, 2], [1, 2, 2], [2, 2, 2], [3, 2, 2]])
+  endfor
 }
 
 suite.backspace_cancels_conversion_and_deletes_one_reading_character = (): void => {
