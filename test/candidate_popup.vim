@@ -143,9 +143,9 @@ suite.navigation_updates_the_ranked_candidate_list_without_moving_the_input_curs
   const fixture = Setup()
   defer Cleanup(fixture)
   feedkeys('aKas' .. CAPTURE .. 'n' .. CAPTURE .. 'p' .. CAPTURE .. "c\<Esc>", 'xt')
-  assert.equals(observations[0].lines, ['1/2 蚊 — 昆虫', '2/2 科 — 学科'])
-  assert.equals(observations[1].lines, ['1/2 蚊 — 昆虫', '2/2 科 — 学科'])
-  assert.equals(observations[2].lines, ['1/2 蚊 — 昆虫', '2/2 科 — 学科'])
+  assert.equals(observations[0].lines, ['蚊 — 昆虫', '科 — 学科'])
+  assert.equals(observations[1].lines, ['蚊 — 昆虫', '科 — 学科'])
+  assert.equals(observations[2].lines, ['蚊 — 昆虫', '科 — 学科'])
   for observed in observations
     assert.equals(len(observed.popups), 1)
     assert.equals(observed.buffer, fixture.buffer)
@@ -178,7 +178,7 @@ suite.mapping_removes_the_selected_user_entry_and_refreshes_candidate_selection 
   assert.equals(has_key(user_runtime.Get().GetSnapshot().entries, identity), false)
   assert.equals(user_runtime.Get().GetSnapshot().entries, {})
   assert.equals(observations[1].lines,
-    ['1/2 蚊 — 昆虫', '2/2 科 — 学科'])
+    ['蚊 — 昆虫', '科 — 学科'])
   assert.equals(getline(1), '前科後')
 }
 
@@ -191,7 +191,7 @@ suite.cancelling_user_entry_deletion_keeps_the_entry_and_selected_candidate = ()
   assert.equals(has_key(user_runtime.Get().GetSnapshot().entries, identity), true)
   assert.equals(user_runtime.Get().GetSnapshot().entries[identity][0].text, '登録のみ')
   assert.equals(observations[0].lines[-1], 'ユーザー辞書から削除しますか？ y:削除 n/Esc:取消')
-  assert.equals(observations[1].lines[-1], '3/3 登録のみ')
+  assert.equals(observations[1].lines[-1], '登録のみ')
   assert.equals(getline(1), '前登録のみ後')
 }
 
@@ -202,7 +202,7 @@ suite.esc_cancels_user_entry_deletion_without_leaving_the_candidate = (): void =
   const identity = json_encode(['か', ''])
   feedkeys('aKasnnx' .. CAPTURE .. "\<Esc>" .. CAPTURE .. "c\<Esc>", 'xt')
   assert.equals(observations[0].lines[-1], 'ユーザー辞書から削除しますか？ y:削除 n/Esc:取消')
-  assert.equals(observations[1].lines[-1], '3/3 登録のみ')
+  assert.equals(observations[1].lines[-1], '登録のみ')
   assert.equals(has_key(user_runtime.Get().GetSnapshot().entries, identity), true)
   assert.equals(getline(1), '前登録のみ後')
 }
@@ -211,9 +211,9 @@ suite.mappings_toggle_pin_and_demote_for_the_selected_candidate = (): void => {
   const fixture = Setup(true, {v: 'TogglePin', b: 'ToggleDemote'})
   defer Cleanup(fixture)
   feedkeys("aKasv" .. CAPTURE .. "b" .. CAPTURE .. "b" .. CAPTURE .. "c\<Esc>", 'xt')
-  assert.equals(observations[0].lines, ['1/2 ★ 蚊 — 昆虫', '2/2 科 — 学科'])
-  assert.equals(observations[1].lines, ['1/2 ↓ 蚊 — 昆虫', '2/2 科 — 学科'])
-  assert.equals(observations[2].lines, ['1/2 蚊 — 昆虫', '2/2 科 — 学科'])
+  assert.equals(observations[0].lines, ['★ 蚊 — 昆虫', '科 — 学科'])
+  assert.equals(observations[1].lines, ['↓ 蚊 — 昆虫', '科 — 学科'])
+  assert.equals(observations[2].lines, ['蚊 — 昆虫', '科 — 学科'])
   const snapshot = user_runtime.Get().GetSnapshot()
   assert.equals(snapshot.pinned, {})
   assert.equals(snapshot.demoted, {})
@@ -318,7 +318,7 @@ suite.cancelling_registration_discards_the_inner_candidate_popup_without_learnin
   defer Cleanup(fixture)
   const before = codec.Encode(user_runtime.Get().GetSnapshot())
   feedkeys('aZX' .. "\<BS>Kas" .. CAPTURE .. "\<Esc>ka\<Esc>", 'xt')
-  assert.equals(observations[0].lines, ['1/2 蚊 — 昆虫', '2/2 科 — 学科'])
+  assert.equals(observations[0].lines, ['蚊 — 昆虫', '科 — 学科'])
   assert.equals(empty(popup_getpos(observations[0].popups[0])), true)
   assert.equals(bufexists(observations[0].buffers[0]), 0)
   assert.equals(getline(1), '前いくらいか後')
@@ -407,7 +407,7 @@ suite.deletion_confirmation_is_fully_visible_in_a_small_terminal = (): void => {
     "import 'caskk/dictionary.vim' as dictionary",
     "C.RegisterInputScheme({name: 'small-confirmation', consonants: {k: 'k'}, combinations: {a: 'a', i: 'i'}})",
     "C.Config({candidate_select_keys: [], mode_popup: false, registration_auto: false, registration_inline: inline, registration_prefill: false, mappings: {s: 'Convert', x: 'DeleteUserEntry', q: 'OpenRegistration'}})",
-    "runtime.Get().AddEntry(lookup.CreateQuery('か', ''), dictionary.Candidate.new('蚊', []))",
+    "runtime.Get().AddEntry(lookup.CreateQuery('か', ''), dictionary.Candidate.new('蚊', ['昆虫']))",
     "C.Enable('small-confirmation')",
     'def Capture(timer: number)',
     "  writefile([string(runtime.Get().HasEntryForLookup(lookup.CreateQuery('か', ''), '蚊'))], " .. string(report) .. ')',
@@ -436,7 +436,7 @@ suite.deletion_confirmation_is_fully_visible_in_a_small_terminal = (): void => {
       term_wait(terminal, 100)
       assert.equals(readfile(report), ['true'])
       const restored = join(mapnew(range(1, dimensions[0]), (_, row) => term_getline(terminal, row)), '')
-      assert.equals(stridx(restored, dimensions[2] ? '辞書登録' : '1/1 蚊') >= 0, true, restored)
+      assert.equals(stridx(restored, dimensions[2] ? '辞書登録' : '蚊 — 昆虫') >= 0, true, restored)
       term_sendkeys(terminal, 'xy')
       term_wait(terminal, 100)
       assert.equals(readfile(report), ['false'])
@@ -454,7 +454,7 @@ suite.explicit_backspace_delete_mapping_keeps_its_confirmation_behavior = (): vo
   feedkeys('aKasnn' .. "\<BS>" .. CAPTURE .. 'y' .. CAPTURE .. "c\<Esc>", 'xt')
   assert.equals(observations[0].lines[-1], 'ユーザー辞書から削除しますか？ y:削除 n/Esc:取消')
   assert.equals(user_runtime.Get().HasEntryForLookup(lookup.CreateQuery('か', ''), '登録のみ'), false)
-  assert.equals(observations[1].lines, ['1/2 蚊 — 昆虫', '2/2 科 — 学科'])
+  assert.equals(observations[1].lines, ['蚊 — 昆虫', '科 — 学科'])
 }
 
 suite.unavailable_backspace_actions_cancel_conversion_without_learning = (): void => {

@@ -69,8 +69,8 @@ export def Format(info: conversion.CandidateListInfo, keys: list<string> = [], r
   const candidates = empty(keys) ? info.candidates : info.candidates[start : start + len(keys) - 1]
   for candidate in candidates
     const tier = candidate.tier ==# 'pinned' ? '★ ' : candidate.tier ==# 'demoted' ? '↓ ' : ''
-    const label = empty(keys) ? (candidate.index + 1) .. '/' .. candidate.count : keys[candidate.index - start]
-    var line = label .. ' ' .. tier .. candidate.text
+    const label = empty(keys) ? '' : keys[candidate.index - start] .. ' '
+    var line = label .. tier .. candidate.text
     if !empty(candidate.annotations)
       const annotation = substitute(join(candidate.annotations, ' / '), "\n", ' ', 'g')
       line ..= ' — ' .. annotation

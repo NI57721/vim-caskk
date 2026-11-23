@@ -338,7 +338,8 @@ candidate_select_keys               *caskk-config-candidate-select-keys*
     List of unique, printable single keys.  Defaults to [].
     The number of labels sets the maximum candidates per page.  Each page
     also fits the available screen space and the remaining candidates.
-    An empty list moves through candidates one at a time.
+    An empty list hides candidate numbers and moves through candidates one at
+    a time.
 
     For up to four candidates per page: >
       candidate_select_keys: ['1', '2', '3', '4']

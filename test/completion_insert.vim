@@ -105,7 +105,7 @@ suite.previous_from_first_candidate_restores_unselected_reading = (): void => {
   feedkeys("aKana\<F12>\<Tab>\<F12>\<F6>\<F12>\<Tab>\<F12>\<Up>\<F12>\<CR>\<Esc>", 'xt')
   assert.equals(captures, ['前かな後', '前仮名後', '前かな後', '前仮名後', '前かな後'])
   assert.equals(selected_rows, [0, 1, 0, 1, 0])
-  assert.equals(index(popup_lines[2], '1/3 仮名 — 文字') >= 0, true)
+  assert.equals(index(popup_lines[2], '仮名 — 文字') >= 0, true)
   assert.equals(getline(1), '前かな')
   assert.equals(getline(2), '後')
   assert.equals(user_runtime.Get().GetSnapshot().mru, {})
@@ -117,8 +117,8 @@ suite.menu_previews_selection_and_enter_commits_the_selected_word = (): void => 
   feedkeys("aKana\<F12>\<Tab>\<F12>\<CR>\<F12>\<Esc>", 'xt')
   assert.equals(captures, ['前かな後', '前仮名後', '前仮名後'])
   assert.equals(selected_rows, [0, 1, 0])
-  assert.equals(index(popup_lines[0], '1/3 仮名 — 文字') >= 0, true)
-  assert.equals(index(popup_lines[1], '1/3 仮名 — 文字') >= 0, true)
+  assert.equals(index(popup_lines[0], '仮名 — 文字') >= 0, true)
+  assert.equals(index(popup_lines[1], '仮名 — 文字') >= 0, true)
   assert.equals(len(popup_lines[2]), 1)
   assert.equals(popup_list(), [])
   normal! u
@@ -211,7 +211,7 @@ suite.completion_is_visible_in_a_real_terminal = (): void => {
     term_wait(terminal, 100)
     assert.equals(trim(term_getline(terminal, 1)), 'かな')
     const screen = join(mapnew(range(2, 11), (_, row) => term_getline(terminal, row)), "\n")
-    assert.equals(stridx(screen, '1/3 仮名') >= 0, true)
+    assert.equals(stridx(screen, '仮名') >= 0, true)
     term_sendkeys(terminal, "\<Tab>\<CR>")
     term_wait(terminal, 100)
     assert.equals(trim(term_getline(terminal, 1)), '仮名')
@@ -227,7 +227,7 @@ suite.automatic_completion_requires_no_show_completion_mapping = (): void => {
   feedkeys("aKa\<F12>na\<F12>\<Down>\<CR>\<Esc>", 'xt')
   assert.equals(captures, ['前か後', '前かな後'])
   assert.equals(len(popup_lines[0]), 1)
-  assert.equals(index(popup_lines[1], '1/3 仮名 — 文字') >= 0, true)
+  assert.equals(index(popup_lines[1], '仮名 — 文字') >= 0, true)
   assert.equals(getline(1), '前仮名後')
   normal! u
   assert.equals(getline(1), '前かな後')
@@ -238,9 +238,9 @@ suite.automatic_completion_refreshes_after_typing_and_hides_for_pending_input = 
   defer Cleanup()
   feedkeys("aKana\<F12>t\<F12>a\<F12>;\<F12>\<Esc>", 'xt')
   assert.equals(captures, ['前かな後', '前かなt後', '前かなた後', '前かなた後'])
-  assert.equals(index(popup_lines[0], '1/3 仮名 — 文字') >= 0, true)
+  assert.equals(index(popup_lines[0], '仮名 — 文字') >= 0, true)
   assert.equals(len(popup_lines[1]), 1)
-  assert.equals(index(popup_lines[2], '1/1 彼方') >= 0, true)
+  assert.equals(index(popup_lines[2], '彼方') >= 0, true)
   assert.equals(len(popup_lines[3]), 1)
   assert.equals(user_runtime.Get().GetSnapshot().mru, {})
 }
@@ -251,9 +251,9 @@ suite.automatic_completion_uses_the_configured_minimum_and_returns_after_editing
   feedkeys("aKana\<F12>ta\<F12>c\<BS>\<F12>ta\<F12>\<Esc>", 'xt')
   assert.equals(captures, ['前かな後', '前かなた後', '前かな後', '前かなた後'])
   assert.equals(len(popup_lines[0]), 1)
-  assert.equals(index(popup_lines[1], '1/1 彼方') >= 0, true)
+  assert.equals(index(popup_lines[1], '彼方') >= 0, true)
   assert.equals(len(popup_lines[2]), 1)
-  assert.equals(index(popup_lines[3], '1/1 彼方') >= 0, true)
+  assert.equals(index(popup_lines[3], '彼方') >= 0, true)
 }
 
 suite.hidden_candidate_popup_does_not_automatically_select_completion = (): void => {
@@ -271,8 +271,8 @@ suite.backspace_deletes_reading_and_refreshes_automatic_completion = (): void =>
   defer Cleanup()
   feedkeys("aKanata\<F12>\<BS>\<F12>\<BS>\<F12>\<Esc>", 'xt')
   assert.equals(captures, ['前かなた後', '前かな後', '前か後'])
-  assert.equals(index(popup_lines[0], '1/1 彼方') >= 0, true)
-  assert.equals(index(popup_lines[1], '1/3 仮名 — 文字') >= 0, true)
+  assert.equals(index(popup_lines[0], '彼方') >= 0, true)
+  assert.equals(index(popup_lines[1], '仮名 — 文字') >= 0, true)
   assert.equals(len(popup_lines[2]), 1)
   assert.equals(user_runtime.Get().GetSnapshot().mru, {})
 }

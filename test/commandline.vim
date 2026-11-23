@@ -352,7 +352,7 @@ suite.popup_candidate_marker_and_mode_follow_the_session = (): void => {
   cnoremap <F6> <ScriptCmd>CapturePopup()<CR>
   try
     feedkeys(":\<F2>Ka \<F6>\<C-C>", 'xt')
-    assert.equals(popup_text, ['▼あ', '1/2 蚊', '2/2 家'])
+    assert.equals(popup_text, ['▼あ', '蚊', '家'])
     feedkeys(":\<F2>\<F4>ka\<F6>\<C-C>", 'xt')
     assert.equals(popup_text, ['ア'])
   finally
@@ -477,10 +477,10 @@ suite.candidate_list_is_visible_and_follows_selection = (): void => {
   cnoremap <F6> <ScriptCmd>CapturePopup()<CR>
   try
     feedkeys(":\<F2>Ka \<F6>\<C-C>", 'xt')
-    assert.equals(index(popup_text, '1/2 蚊') >= 0, true)
-    assert.equals(index(popup_text, '2/2 家') >= 0, true)
+    assert.equals(index(popup_text, '蚊') >= 0, true)
+    assert.equals(index(popup_text, '家') >= 0, true)
     feedkeys(":\<F2>Ka  \<F6>\<C-C>", 'xt')
-    assert.equals(index(popup_text, '2/2 家') >= 0, true)
+    assert.equals(index(popup_text, '家') >= 0, true)
     assert.equals(popup_list(), [])
     Caskk.Config({candidate_popup: false, dictionaries: [path], mappings: {"\<Space>": 'Convert'}})
     feedkeys(":\<F2>Ka \<F6>\<C-C>", 'xt')
