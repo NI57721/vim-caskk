@@ -1361,19 +1361,18 @@ export class Binding
         || this.HasActiveReconversion()
       return false
     endif
-    const current_line = getline('.')
-    const start_column = col('.')
-    const record = this._reconversion_history.Find(strpart(current_line, start_column - 1))
-    if record is null_object
+    const match = this._reconversion_history.Find(getline('.'), col('.') - 1)
+    if match is null_object
       return false
     endif
+    const record = match.record
     const prepared = conversion.Prepare(this._entries, this._preferences, record.reading, record.okuri,
       this._small_tsu_okuri_as_t, this._dictionary_index)
     if empty(prepared.candidates)
       return false
     endif
     this._reconversion_record = record
-    this._reconversion_start = [line('.'), start_column]
+    this._reconversion_start = [line('.'), match.start_byte + 1]
     this._initial_reading = record.reading
     if !this._enabled
       this._InstallReconversionActionMappings()

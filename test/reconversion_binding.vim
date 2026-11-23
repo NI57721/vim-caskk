@@ -32,7 +32,7 @@ def Setup(options: dict<any> = {}): Fixture
   nnoremap <buffer> <silent> <C-N> 2j
   const directory = tempname()
   mkdir(directory)
-  writefile(['か /蚊/科/', 'かk /書/'], directory .. '/system')
+  writefile(['か /蚊/科/', 'かk /書/描/'], directory .. '/system')
   Caskk.RegisterInputScheme({name: 'reconversion', consonants: {k: 'k'}, combinations: {a: 'a', u: 'u'}})
   Caskk.Config(extend({dictionaries: [directory .. '/system'], candidate_popup: true, mode_popup: false,
     mappings: {s: 'Convert', n: 'NextCandidate', t: 'TogglePin', c: 'Commit'}}, options))
@@ -134,6 +134,22 @@ suite.okuri_history_reconverts_using_its_exact_okuri_lookup = (): void => {
   cursor(1, 4)
   feedkeys("\<F12>c", 'xt')
   assert.equals(getline(1), '前書く後')
+}
+
+suite.reconverts_from_okuri_after_an_edit_before_the_match = (): void => {
+  const fixture = Setup({candidate_select_keys: ['1', '2']})
+  defer Cleanup(fixture)
+  feedkeys("aKaKuc\<Esc>", 'xt')
+  assert.equals(getline(1), '前書く後')
+  normal! 0rx
+  assert.equals(getline(1), 'x書く後')
+  cursor(1, 8)
+  assert.equals(Caskk.Reconvert(), false)
+  cursor(1, 5)
+  feedkeys("\<F12>2\<Esc>", 'xt')
+  assert.equals(getline(1), 'x描く後')
+  undo
+  assert.equals(getline(1), 'x書く後')
 }
 
 suite.confirmation_leaves_insert_mode_active_for_following_user_input = (): void => {

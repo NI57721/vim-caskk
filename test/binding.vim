@@ -301,7 +301,7 @@ suite.backspace_cancels_okuri_candidate_and_edits_reading_without_learning = ():
   feedkeys("aIKu\<BS>\<BS>ka\<Esc>", 'xt')
   assert.equals(getline(1), '前いか後')
   assert.equals(preferences.GetSnapshot().mru, {})
-  assert.equals(keys.GetReconversionHistory().Find('いか') is null_object, true)
+  assert.equals(keys.GetReconversionHistory().Find('いか', 0) is null_object, true)
   assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
   assert.equals(keys.GetEditor() is null_object, true)
   keys.Disable()

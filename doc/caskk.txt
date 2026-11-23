@@ -70,8 +70,13 @@ GetDictionaryLoadStatus() -> dict<string>      *caskk-dictionary-load-status*
     failed.  A failed reload keeps the previous dictionaries available.
 
 Reconvert() -> bool                                    *caskk-reconversion*
-    From Normal mode, reopens a recent conversion beginning at the cursor.
-    Enters Insert mode on success; returns false if no match is available.
+    From Normal mode, reopens a recent conversion whose confirmed text
+    exactly matches a range containing the cursor character on the current
+    line.  The longest match by character count wins, then the newest
+    history entry.  For overlapping occurrences of the same entry, the
+    start closest to the cursor wins.
+    Enters Insert mode on success.  Returns false if no history match or
+    dictionary candidate is available.
     Example: >vim9
         nnoremap <Leader>r <ScriptCmd>Caskk.Reconvert()<CR>
 <

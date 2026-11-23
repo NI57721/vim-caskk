@@ -11,8 +11,16 @@ export class Record
   enddef
 endclass
 
+export class Match
+  const record: Record
+  const start_byte: number
+
+  def new(this.record, this.start_byte)
+  enddef
+endclass
+
 # Recent history is intentionally in-memory and bounded. Newer records are
-# searched first so duplicate surface strings resolve to the latest reading.
+# searched first so equal-length matches resolve to the latest record.
 export class History
   const _limit: number
   var _records: list<Record> = []
@@ -34,14 +42,19 @@ export class History
     endif
   enddef
 
-  def Find(text: string): Record
-    var best: Record = null_object
+  # cursor_byte and start_byte are zero-based offsets within the line.
+  def Find(line_text: string, cursor_byte: number): Match
+    var best: Match = null_object
+    var best_length = 0
     for record in this._records
-      if stridx(text, record.text) != 0
+      const length = strchars(record.text)
+      if length <= best_length
         continue
       endif
-      if best is null_object || strchars(record.text) > strchars(best.text)
-        best = record
+      const start_byte = strridx(line_text, record.text, cursor_byte)
+      if start_byte >= 0 && cursor_byte < start_byte + strlen(record.text)
+        best = Match.new(record, start_byte)
+        best_length = length
       endif
     endfor
     return best
