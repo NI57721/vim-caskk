@@ -242,6 +242,12 @@ def CompareRows(left: RankedRow, right: RankedRow): number
   return 0
 enddef
 
+def MergeAnnotations(candidate: dictionary.Candidate, duplicate: dictionary.Candidate): dictionary.Candidate
+  const extra = filter(copy(duplicate.annotations), (_, annotation) => index(candidate.annotations, annotation) < 0)
+  return empty(extra) ? candidate : dictionary.Candidate.new(candidate.text, candidate.annotations + extra,
+    candidate.has_plain_source ? 1 : 0, candidate.source_reading)
+enddef
+
 # Prepare one conversion request without committing, learning, or buffer I/O.
 export def Prepare(entries: dict<dictionary.Entry>, preferences: user_state.State, reading: string,
     okuri: string = '', small_tsu_okuri_as_t: bool = true,
@@ -254,20 +260,28 @@ export def Prepare(entries: dict<dictionary.Entry>, preferences: user_state.Stat
     system_candidates->add(dictionary.Candidate.new('#6', []))
   endif
   final ranked = preferences.Rank(query, system_candidates)
-  if okuri == ''
-    ranked->map((_, candidate) => verb.WithStandaloneAnnotations(reading, candidate))
-  endif
+  const ordinary_texts = okuri == '' ? mapnew(ranked, (_, candidate) => candidate.text) : []
   final experimental = adjective.Lookup(entries, preferences, reading, okuri, database)
   final markers = repeat(['［adj］'], len(experimental))
   for candidate in verb.Lookup(entries, preferences, reading, okuri, database)
+    const ordinary_position = index(ordinary_texts, candidate.text)
+    if ordinary_position >= 0
+      ranked[ordinary_position] = MergeAnnotations(ranked[ordinary_position], candidate)
+      continue
+    endif
     const position = index(mapnew(experimental, (_, item) => item.text), candidate.text)
-    if position >= 0 && candidate.source_reading == ''
+    if okuri == '' && position >= 0
+      experimental[position] = MergeAnnotations(experimental[position], candidate)
+    elseif position >= 0 && candidate.source_reading == ''
       markers[position] = '［adj,verb］'
     else
       experimental->add(candidate)
       markers->add('［verb］')
     endif
   endfor
+  if okuri == ''
+    ranked->map((_, candidate) => verb.WithStandaloneAnnotations(reading, candidate))
+  endif
   if empty(experimental)
     return Candidates.new(query, okuri, ranked)
   endif

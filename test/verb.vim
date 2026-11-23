@@ -194,6 +194,38 @@ suite.ordinary_conversion_hides_nonstandalone_tags_from_merged_sources = (): voi
   endfor
 }
 
+suite.okuri_nashi_prefers_one_ordinary_candidate_over_the_same_verb_stem = (): void => {
+  const plain = dict_index.SourceFromLines(['とじ /戸締め/綴じ/', 'とじr /綴じ/'])
+  const tagged = dict_index.SourceFromLines(['とじ /綴じ;@verb-1/閉じ;@verb-1/'])
+  for sources in [[plain, tagged], [tagged, plain]]
+    const database = dict_index.Database.new(sources)
+    const preferences = state.State.new()
+    const prepared = conversion.Prepare({}, preferences, 'とじ', '', true, database)
+    assert.equals(sort(mapnew(prepared.candidates, (_, candidate) => candidate.text)), ['戸締め', '綴じ', '閉じ'])
+    const index_of_verb = index(mapnew(prepared.candidates, (_, candidate) => candidate.text), '綴じ')
+    const selection = conversion.Selection.new(prepared, preferences)
+    selection.Select(index_of_verb)
+    const stem_index = index(mapnew(prepared.candidates, (_, candidate) => candidate.text), '閉じ')
+    assert.equals(prepared.DisplayAt(stem_index), '閉じ［verb］')
+    assert.equals(selection.GetInfo().text, '綴じ')
+    assert.equals(selection.GetInfo().annotations, ['@verb-1'])
+    assert.equals(selection.Commit(), '綴じ')
+
+    const learned = conversion.Prepare({}, preferences, 'とじ', '', true, database)
+    assert.equals(learned.DisplayAt(0), '綴じ')
+    const ranked = conversion.Selection.new(learned, preferences)
+    assert.equals(ranked.TogglePin(), 'pinned')
+    assert.equals(conversion.Prepare({}, preferences, 'とじ', '', true, database).DisplayAt(0), '綴じ')
+    assert.equals(ranked.ToggleDemote(), 'demoted')
+    const demoted = conversion.Prepare({}, preferences, 'とじ', '', true, database)
+    assert.equals(demoted.DisplayAt(len(demoted.candidates) - 1), '綴じ')
+
+    const inflected = conversion.Prepare({}, state.State.new(), 'とじ', 'る', true, database)
+    assert.equals(sort(mapnew(inflected.candidates, (i, _) => inflected.DisplayAt(i))),
+      ['綴じる', '綴じる［verb］', '閉じる［verb］'])
+  endfor
+}
+
 suite.ordinary_conversion_keeps_other_annotation_tokens = (): void => {
   const annotation = '@verb-5-k;説明;@verb-5-k ; @adj @verb-unknown @verb-1;@verb-5-k @verb-5-g'
   const database = dict_index.Database.new([dict_index.SourceFromLines([
