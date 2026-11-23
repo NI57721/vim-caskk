@@ -329,7 +329,7 @@ export class Session
       const chosen = this._completions[this._completion_index]
       const text = this._Render(chosen.text)
       if chosen.learnable
-        conversion.LearnCandidate(this._preferences, chosen.query, chosen.candidate, chosen.is_stem)
+        conversion.LearnCandidate(this._preferences, chosen.query, chosen.candidate, chosen.is_stem, !chosen.is_stem && chosen.query.exact_okuri == '')
       endif
       this.CancelCompletion()
       this._state.Commit()

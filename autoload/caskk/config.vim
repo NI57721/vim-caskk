@@ -27,6 +27,7 @@ endclass
 export class Input
   const sticky_key: string
   const affix_key: string = ''
+  const prefer_direct_okuri_nashi_learning: bool = true
   const keyboard_layout: string
   const keyboard_layout_overrides: dict<string>
   const mappings: dict<string>
@@ -40,7 +41,7 @@ export class Input
   def new(this.sticky_key, this.keyboard_layout, keyboard_layout_overrides: dict<string>,
       mappings: dict<string>, dictionary_index: dict_index.Database,
       this.small_tsu_okuri_as_t, this.persist_input_mode, this.register_mode_conversions, this.completion_min_length = v:none,
-      this.keep_preedit_on_backspace = v:none, this.affix_key = v:none)
+      this.keep_preedit_on_backspace = v:none, this.affix_key = v:none, this.prefer_direct_okuri_nashi_learning = v:none)
     this.keyboard_layout_overrides = copy(keyboard_layout_overrides)
     this.mappings = copy(mappings)
     this.dictionary_index = dictionary_index
@@ -300,7 +301,7 @@ enddef
 def Parse(options: dict<any>, shared_index: dict_index.Database = null_object): Settings
   for section in keys(options)
     if index(['highlight', 'sticky_key', 'affix_key', 'keyboard_layout', 'keyboard_layout_overrides', 'mappings', 'dictionaries', 'state_path', 'state_auto',
-        'small_tsu_okuri_as_t',
+        'small_tsu_okuri_as_t', 'prefer_direct_okuri_nashi_learning',
         'registration_prefill', 'registration_auto', 'registration_inline', 'candidate_popup',
         'candidate_select_keys', 'persist_input_mode',
         'undo_revert_to_reading',
@@ -391,12 +392,16 @@ def Parse(options: dict<any>, shared_index: dict_index.Database = null_object): 
     throw 'small_tsu_okuri_as_t must be a bool'
   endif
   const small_tsu_okuri_as_t: bool = get(options, 'small_tsu_okuri_as_t', true)
+  if type(get(options, 'prefer_direct_okuri_nashi_learning', true)) != v:t_bool
+    throw 'prefer_direct_okuri_nashi_learning must be a bool'
+  endif
+  const prefer_direct: bool = get(options, 'prefer_direct_okuri_nashi_learning', true)
   const sources = ReadDictionaries(get(options, 'dictionaries', []))
   const dictionary_index = shared_index is null_object ? loader.Open(sources) : shared_index
   const destination = state_path == '' ? '' : fnamemodify(state_path, ':p')
   return Settings.new(highlight, Input.new(sticky_key, keyboard_layout, keyboard_layout_overrides,
     actions, dictionary_index, small_tsu_okuri_as_t, persist_input_mode, register_mode_conversions, completion_min_length,
-    keep_preedit_on_backspace, affix_key), destination, state_auto,
+    keep_preedit_on_backspace, affix_key, prefer_direct), destination, state_auto,
     registration_prefill, registration_auto, registration_inline, undo_revert_to_reading,
     candidate_popup, candidate_select_keys, mode_popup, mode_popup_labels,
     mode_popup_markers, mode_popup_time, sources)
@@ -419,6 +424,7 @@ def SameDictionaryIndependentSettings(left: Settings, right: Settings): bool
   const b = right.input
   return a.sticky_key ==# b.sticky_key
     && a.affix_key ==# b.affix_key
+    && a.prefer_direct_okuri_nashi_learning == b.prefer_direct_okuri_nashi_learning
     && a.keyboard_layout ==# b.keyboard_layout
     && a.keyboard_layout_overrides == b.keyboard_layout_overrides
     && a.mappings == b.mappings
@@ -507,7 +513,11 @@ export def GetInput(): Input
     current.input.keyboard_layout_overrides, current.input.mappings, current.input.dictionary_index,
     current.input.small_tsu_okuri_as_t, current.input.persist_input_mode,
     current.input.register_mode_conversions, current.input.completion_min_length,
-    current.input.keep_preedit_on_backspace, current.input.affix_key)
+    current.input.keep_preedit_on_backspace, current.input.affix_key, current.input.prefer_direct_okuri_nashi_learning)
+enddef
+
+export def PreferDirectOkuriNashiLearning(): bool
+  return current.input.prefer_direct_okuri_nashi_learning
 enddef
 
 export def GetStatePath(): string

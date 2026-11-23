@@ -1,12 +1,14 @@
 vim9script
 
 import 'caskk/dictionary.vim' as dictionary
+import autoload 'caskk.vim' as Caskk
 import autoload 'caskk/conversion.vim' as conversion
 import autoload 'caskk/dictionary/lookup.vim' as lookup
 import autoload 'caskk/dictionary/merge.vim' as merger
 import autoload 'caskk/dictionary/parser.vim' as parser
 import autoload 'caskk/user_state.vim' as user_state
 import autoload 'caskk/user_state/codec.vim' as codec
+import autoload 'caskk/user_state/store.vim' as store
 
 final suite = themis#suite('conversion candidates')
 const assert = themis#helper('assert')
@@ -126,4 +128,80 @@ suite.roman_numeric_candidate_is_unique_and_respects_user_ranking = (): void => 
   assert.equals(conversion.Prepare({}, user_state.State.new(), '12').TextAt(0), 'XII')
   assert.equals(conversion.Prepare({}, user_state.State.new(), '12じ').candidates, [])
   assert.equals(conversion.Prepare({}, user_state.State.new(), '12', 'こ').candidates, [])
+}
+
+suite.direct_okuri_nashi_learning_outranks_shared_stem_learning = (): void => {
+  const path = tempname()
+  defer delete(path)
+  for [reading, plain, stem, suffix, other, tag] in [
+    ['み', '身', '見', 'る', 'ます', '@verb-1'],
+    ['さむ', '佐武', '寒', 'い', 'く', '@adj']]
+    const entries = merger.Merge([[parser.ParseLine(reading .. ' /' .. plain .. '/誰/'),
+      parser.ParseLine(reading .. ' /' .. stem .. ';' .. tag .. '/')]])
+    const preferences = user_state.State.new()
+    assert.equals(conversion.Prepare(entries, preferences, reading).TextAt(0), plain)
+    conversion.Selection.new(conversion.Prepare(entries, preferences, reading), preferences).Commit()
+    conversion.Selection.new(conversion.Prepare(entries, preferences, reading, suffix), preferences).Commit()
+    assert.equals(conversion.Prepare(entries, preferences, reading).TextAt(0), plain)
+    assert.equals(conversion.Prepare(entries, preferences, reading, other).TextAt(0), stem .. other)
+    const prepared = conversion.Prepare(entries, preferences, reading)
+    const selection = conversion.Selection.new(prepared, preferences)
+    selection.Select(index(mapnew(prepared.candidates, (_, candidate) => candidate.text), stem))
+    selection.Commit()
+    conversion.Selection.new(conversion.Prepare(entries, preferences, reading, suffix), preferences).Commit()
+    store.Save(path, preferences.GetSnapshot())
+    const restored = user_state.State.new()
+    restored.Restore(store.Load(path))
+    assert.equals(conversion.Prepare(entries, restored, reading).TextAt(0), stem)
+    const query = lookup.CreateQuery(reading, '')
+    restored.Pin(query, '誰')
+    restored.Demote(query, stem)
+    assert.equals(mapnew(conversion.Prepare(entries, restored, reading).candidates, (_, candidate) => candidate.text),
+      ['誰', plain, stem])
+  endfor
+}
+
+suite.direct_learning_can_be_disabled_and_legacy_mru_is_only_fallback = (): void => {
+  defer Caskk.Config({})
+  const entries = {'み': parser.ParseLine('み /身/見;@verb-1/')}
+  const preferences = user_state.State.new()
+  preferences.Restore(codec.Decode(['["caskk-user-state","2"]',
+    '["mru","み","","見"]', '["recent","み","","見"]']))
+  assert.equals(conversion.Prepare(entries, preferences, 'み').TextAt(0), '見')
+  const direct = conversion.Selection.new(conversion.Prepare(entries, preferences, 'み'), preferences)
+  direct.Select(1)
+  direct.Commit()
+  conversion.Selection.new(conversion.Prepare(entries, preferences, 'み', 'る'), preferences).Commit()
+  assert.equals(conversion.Prepare(entries, preferences, 'み').TextAt(0), '身')
+  Caskk.Config({prefer_direct_okuri_nashi_learning: false})
+  assert.equals(conversion.Prepare(entries, preferences, 'み').TextAt(0), '見')
+  Caskk.Config({})
+  assert.equals(conversion.Prepare(entries, preferences, 'み').TextAt(0), '身')
+}
+
+suite.okuri_ari_keeps_latest_choice_across_endings = (): void => {
+  const entries = {'おも': parser.ParseLine('おも /思;@verb-5-w/想;@verb-5-w/')}
+  const preferences = user_state.State.new()
+  const first = conversion.Selection.new(conversion.Prepare(entries, preferences, 'おも', 'わ'), preferences)
+  first.Select(1)
+  first.Commit()
+  const second = conversion.Selection.new(conversion.Prepare(entries, preferences, 'おも', 'う'), preferences)
+  assert.equals(second.CurrentText(), '想う')
+  second.Select(1)
+  second.Commit()
+  assert.equals(conversion.Prepare(entries, preferences, 'おも', 'わ').TextAt(0), '思わ')
+}
+
+suite.kuru_shares_inflected_learning_without_creating_direct_history = (): void => {
+  const entries = {'く': parser.ParseLine('く /来;@verb-henkaku-k/來;@verb-henkaku-k/'),
+    'き': parser.ParseLine('き /気/来/')}
+  const preferences = user_state.State.new()
+  conversion.Selection.new(conversion.Prepare(entries, preferences, 'き'), preferences).Commit()
+  const inflected = conversion.Selection.new(conversion.Prepare(entries, preferences, 'こ', 'よう'), preferences)
+  inflected.Select(1)
+  inflected.Commit()
+  assert.equals(conversion.Prepare(entries, preferences, 'き').TextAt(0), '気')
+  assert.equals(conversion.Prepare(entries, preferences, 'き', 'ます').TextAt(0), '來ます')
+  assert.equals(conversion.Prepare(entries, preferences, 'く', 'る').TextAt(0), '來る')
+  assert.equals(preferences.GetSnapshot().direct, { [json_encode(['き', ''])]: ['気'] })
 }

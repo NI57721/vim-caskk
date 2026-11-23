@@ -5,20 +5,21 @@ import autoload 'caskk/dictionary/lookup.vim' as lookup
 import autoload 'caskk/dictionary/numeric.vim' as numeric
 import autoload 'caskk/dictionary/index.vim' as dict_index
 import autoload 'caskk/user_state.vim' as user_state
+import autoload 'caskk/config.vim' as configuration
 
 import autoload 'caskk/dictionary/verb.vim' as verb
 import autoload 'caskk/dictionary/adjective.vim' as adjective
 
 # Conversion and tagged completion share the source identity and kuru variants.
 export def LearnCandidate(preferences: user_state.State, query: dictionary.Query,
-    candidate: dictionary.Candidate, is_stem: bool)
+    candidate: dictionary.Candidate, is_stem: bool, direct: bool)
   final variants: list<string> = []
   if is_stem && query.reading =~# 'く$'
       && index(split(join(candidate.annotations, ';'), '[[:space:];]\+'), '@verb-henkaku-k') >= 0
     const prefix = strcharpart(query.reading, 0, strchars(query.reading) - 1)
     variants->extend([prefix .. 'こ', prefix .. 'き'])
   endif
-  preferences.Learn(query, candidate.text, variants)
+  preferences.Learn(query, candidate.text, variants, direct)
 enddef
 
 # Candidate text stays separate from the full okuri used for presentation.
@@ -203,7 +204,7 @@ export class Selection
     const text = this._prepared.TextAt(this._index)
     const query = this._prepared.PreferenceQuery(this._index)
     const candidate = this._prepared.candidates[this._index]
-    LearnCandidate(this._preferences, query, candidate, this._prepared.IsExperimental(this._index))
+    LearnCandidate(this._preferences, query, candidate, this._prepared.IsExperimental(this._index), this._prepared.okuri == '')
     this._active = false
     return text
   enddef
@@ -224,16 +225,17 @@ class RankedRow
   const candidate: dictionary.Candidate
   const marker: string
   const tier: number
+  const direct: number
   const recent: number
   const history: number
   const source: number
   const position: number
-  def new(this.candidate, this.marker, this.tier, this.recent, this.history, this.source, this.position)
+  def new(this.candidate, this.marker, this.tier, this.direct, this.recent, this.history, this.source, this.position)
   enddef
 endclass
 
 def CompareRows(left: RankedRow, right: RankedRow): number
-  for pair in [[left.tier, right.tier], [left.recent, right.recent], [left.history, right.history],
+  for pair in [[left.tier, right.tier], [left.direct, right.direct], [left.recent, right.recent], [left.history, right.history],
       [left.source, right.source], [left.position, right.position]]
     if pair[0] != pair[1]
       return pair[0] < pair[1] ? -1 : 1
@@ -246,6 +248,12 @@ def MergeAnnotations(candidate: dictionary.Candidate, duplicate: dictionary.Cand
   const extra = filter(copy(duplicate.annotations), (_, annotation) => index(candidate.annotations, annotation) < 0)
   return empty(extra) ? candidate : dictionary.Candidate.new(candidate.text, candidate.annotations + extra,
     candidate.has_plain_source ? 1 : 0, candidate.source_reading)
+enddef
+
+def DirectRank(preferences: user_state.State, query: dictionary.Query, candidate: dictionary.Candidate): number
+  const tier = preferences.GetCandidateTier(query, candidate.text)
+  return tier ==# 'pinned' ? -1 : tier ==# 'demoted' ? 2147483648
+    : preferences.DirectIndex(query.reading, candidate.text)
 enddef
 
 # Prepare one conversion request without committing, learning, or buffer I/O.
@@ -282,7 +290,12 @@ export def Prepare(entries: dict<dictionary.Entry>, preferences: user_state.Stat
   if okuri == ''
     ranked->map((_, candidate) => verb.WithStandaloneAnnotations(reading, candidate))
   endif
+  const prefer_direct = okuri == '' && configuration.PreferDirectOkuriNashiLearning()
   if empty(experimental)
+    if prefer_direct
+      # The existing rank is the tie-breaker for candidates without direct history.
+      ranked->sort((left, right) => DirectRank(preferences, query, left) - DirectRank(preferences, query, right))
+    endif
     return Candidates.new(query, okuri, ranked)
   endif
   const stem_query = lookup.CreateQuery(reading, '')
@@ -335,7 +348,7 @@ export def Prepare(entries: dict<dictionary.Entry>, preferences: user_state.Stat
     const learned = preferences.HistoryIndex(preference_query, candidate.text)
     const history = tier == 1 && learned >= 0 ? learned : 2147483647
     rows->add(RankedRow.new(candidate, is_stem ? markers[position - len(ranked)] : '',
-      tier, recent, history, get(source_ranks, RowIdentity(is_stem, candidate), len(sources)),
+      tier, prefer_direct && tier == 1 ? preferences.DirectIndex(reading, candidate.text) : 0, recent, history, get(source_ranks, RowIdentity(is_stem, candidate), len(sources)),
       get(source_positions, RowIdentity(is_stem, candidate), position)))
   endfor
   sort(rows, CompareRows)

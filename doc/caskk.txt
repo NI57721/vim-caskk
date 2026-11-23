@@ -83,10 +83,10 @@ SaveState()                                            *caskk-save-state*
     Saves user entries and preferences to state_path.  Both LoadState() and
     SaveState() require a nonempty path.  The state file is internal data;
     use ExportUserDictionary() for an SKK dictionary.
-    Saves schema v2 and accepts v1 files.  V2 retains a reading-wide selection
-    order across ordinary and tagged stem candidates, while ordinary learning
-    stays scoped to exact okuri and stem learning is shared across endings.
-    Legacy histories retain their former tie-breaking until new selections.
+    Saves schema v3 when direct okuri-nashi history exists, and v2 otherwise.
+    Accepts v1 and v2 files.  Legacy learning remains available as fallback
+    history; it does not establish direct selections.  Stem learning remains
+    shared across endings.
     Pinned and demoted tiers always take precedence over automatic learning.
 
 ExportUserDictionary(path)                  *caskk-export-user-dictionary*
@@ -274,6 +274,12 @@ mappings                                          *caskk-config-mappings*
 small_tsu_okuri_as_t                   *caskk-config-small-tsu-okuri-as-t*
     bool, true.  Okuri starting with っ uses the SKK lookup prefix 't'.
     Set false to use 'x'.
+
+prefer_direct_okuri_nashi_learning  *caskk-config-prefer-direct-okuri-nashi-learning*
+    bool, true.  Ranks direct okuri-nashi selections ahead of shared stem
+    learning within the normal tier, newest direct selection first.  Set
+    false to use the previous ranking.  Direct selections are still recorded
+    so their order is available when the option is enabled again.
 
 keep_preedit_on_backspace       *caskk-config-keep-preedit-on-backspace*
     bool, true.  BS deleting the last reading item keeps empty Modified input.

@@ -10,7 +10,7 @@ def Identity(query: dictionary.Query): string
   return json_encode([query.reading, query.exact_okuri])
 enddef
 
-const SCHEMA_VERSION = 2
+const SCHEMA_VERSION = 3
 
 def CopyEntries(entries: dict<list<dictionary.Candidate>>): dict<list<dictionary.Candidate>>
   final copied: dict<list<dictionary.Candidate>> = {}
@@ -30,10 +30,12 @@ export class Snapshot
   const mru: dict<list<string>>
   const pinned: dict<string>
   const recent: dict<list<string>>
+  const direct: dict<list<string>>
   const demoted: dict<list<string>>
 
-  def new(this.version, entries: dict<list<dictionary.Candidate>>, mru: dict<list<string>>, pinned: dict<string>, demoted: dict<list<string>>, recent: dict<list<string>> = {})
+  def new(this.version, entries: dict<list<dictionary.Candidate>>, mru: dict<list<string>>, pinned: dict<string>, demoted: dict<list<string>>, recent: dict<list<string>> = {}, direct: dict<list<string>> = {})
     this.recent = deepcopy(recent)
+    this.direct = deepcopy(direct)
     this.entries = CopyEntries(entries)
     this.mru = deepcopy(mru)
     this.pinned = copy(pinned)
@@ -48,13 +50,15 @@ export class State
   var _pinned: dict<string> = {}
   var _demoted: dict<list<string>> = {}
   var _recent: dict<list<string>> = {}
+  var _direct: dict<list<string>> = {}
   var _revision: number = 0
 
   def new()
   enddef
 
   def GetSnapshot(): Snapshot
-    return Snapshot.new(SCHEMA_VERSION, this._entries, this._mru, this._pinned, this._demoted, this._recent)
+    return Snapshot.new(empty(this._direct) ? 2 : SCHEMA_VERSION,
+      this._entries, this._mru, this._pinned, this._demoted, this._recent, this._direct)
   enddef
 
   # Completion reads one registered identity at a time, guarded by Revision().
@@ -76,6 +80,11 @@ export class State
     return index(get(this._recent, query.reading, []), json_encode([query.exact_okuri, text]))
   enddef
 
+  def DirectIndex(reading: string, text: string): number
+    const position = index(get(this._direct, json_encode([reading, '']), []), text)
+    return position < 0 ? 2147483647 : position
+  enddef
+
   def RankCandidates(query: dictionary.Query, candidates: list<dictionary.Candidate>): list<dictionary.Candidate>
     const key = Identity(query)
     return ranking.Rank(candidates, get(this._pinned, key, ''),
@@ -87,7 +96,7 @@ export class State
   enddef
 
   def Restore(snapshot: Snapshot)
-    if snapshot.version != 1 && snapshot.version != SCHEMA_VERSION
+    if snapshot.version < 1 || snapshot.version > SCHEMA_VERSION
       throw 'caskk: unsupported user state schema version: ' .. snapshot.version
     endif
     # Copy everything before replacing the current state.
@@ -96,6 +105,7 @@ export class State
     final pinned = copy(snapshot.pinned)
     final demoted = deepcopy(snapshot.demoted)
     final recent = snapshot.version == 1 ? {} : deepcopy(snapshot.recent)
+    this._direct = snapshot.version >= 3 ? deepcopy(snapshot.direct) : {}
     this._recent = recent
     this._entries = entries
     this._mru = mru
@@ -184,7 +194,7 @@ export class State
     return deleted
   enddef
 
-  def Learn(query: dictionary.Query, text: string, selection_readings: list<string> = [])
+  def Learn(query: dictionary.Query, text: string, selection_readings: list<string> = [], direct: bool = true)
     const key = Identity(query)
     if get(this._pinned, key, '') ==# text || index(get(this._demoted, key, []), text) >= 0
       return
@@ -197,6 +207,14 @@ export class State
     endfor
     const identity = json_encode([query.exact_okuri, text])
     var changed = get(this._mru, key, []) !=# history
+    if direct && query.exact_okuri == ''
+      final direct_history = [text]
+      direct_history->extend(filter(copy(get(this._direct, key, [])), (_, previous) => previous !=# text))
+      if get(this._direct, key, []) !=# direct_history
+        this._direct[key] = direct_history
+        changed = true
+      endif
+    endif
     # Reading variants share the choice order, but not ordinary okuri MRU.
     for reading in uniq(sort([query.reading] + selection_readings))
       final recent = [identity]
