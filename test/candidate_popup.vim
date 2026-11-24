@@ -434,6 +434,39 @@ suite.short_final_page_stays_above_the_conversion_row = (): void => {
   endfor
 }
 
+def CheckDeletionConfirmationPlacement(above: bool, near_right: bool)
+  const fixture = Setup(true, {x: 'DeleteUserEntry'})
+  defer Cleanup(fixture)
+  if above
+    const last_status = &laststatus
+    defer execute('set laststatus=' .. last_status)
+    &laststatus = 0
+    botright split
+    defer execute('close')
+    resize 1
+  endif
+  const prefix = near_right ? repeat('a', &columns - 12) : '前'
+  setline(1, prefix .. '後')
+  cursor(1, strlen(prefix) + 1)
+  redraw!
+  const anchor = screenpos(win_getid(), 1, strlen(prefix) + 1)
+  user_runtime.Get().AddEntry(lookup.CreateQuery('か', ''), dictionary.Candidate.new('登録のみ', []))
+  feedkeys('iKasnnx' .. CAPTURE .. "nc\<Esc>", 'xt')
+  const position = observations[0].position
+  const message = observations[0].lines[0]
+  assert.equals(position.line + (above ? position.height : -1), anchor.row)
+  assert.equals(position.col, min([anchor.col, &columns - position.width + 1]))
+  assert.equals(position.core_width >= strdisplaywidth(message), true)
+enddef
+
+suite.deletion_confirmation_is_below_the_conversion_start = (): void => {
+  CheckDeletionConfirmationPlacement(false, false)
+}
+
+suite.deletion_confirmation_is_above_the_conversion_at_the_bottom_right = (): void => {
+  CheckDeletionConfirmationPlacement(true, true)
+}
+
 suite.deletion_confirmation_is_fully_visible_in_a_small_terminal = (): void => {
   const script = tempname() .. '.vim'
   const report = tempname()
@@ -451,13 +484,14 @@ suite.deletion_confirmation_is_fully_visible_in_a_small_terminal = (): void => {
     "C.Config({candidate_select_keys: [], mode_popup: false, registration_auto: false, registration_inline: inline, registration_prefill: false, mappings: {s: 'Convert', x: 'DeleteUserEntry', q: 'OpenRegistration'}})",
     "runtime.Get().AddEntry(lookup.CreateQuery('か', ''), dictionary.Candidate.new('蚊', ['昆虫']))",
     "C.Enable('small-confirmation')",
+    "setline(1, ['', '', ''])",
     'def Capture(timer: number)',
     "  writefile([string(runtime.Get().HasEntryForLookup(lookup.CreateQuery('か', ''), '蚊'))], " .. string(report) .. ')',
     'enddef',
     'timer_start(10, Capture, {repeat: -1})',
     'writefile(["ready"], ' .. string(report) .. ')',
   ], script)
-  for dimensions in [[8, 24, false], [6, 36, false], [8, 24, true], [6, 36, true]]
+  for dimensions in [[8, 24, false], [6, 36, false], [6, 24, false], [8, 24, true], [6, 36, true]]
     writefile([dimensions[2] ? 'inline' : 'normal'], report)
     const terminal = term_start([v:progpath, '-Nu', 'NONE', '-i', 'NONE', '-n', '-N', '-S', script],
       {hidden: true, term_rows: dimensions[0], term_cols: dimensions[1]})
@@ -468,7 +502,9 @@ suite.deletion_confirmation_is_fully_visible_in_a_small_terminal = (): void => {
           break
         endif
       endfor
-      term_sendkeys(terminal, dimensions[2] ? 'iKisqKasx' : 'iKasx')
+      # At 6x24, three wrapped rows cannot fit on either side of row three.
+      const input = dimensions[2] ? 'iKisqKasx' : 'iKasx'
+      term_sendkeys(terminal, dimensions == [6, 24, false] ? '2j' .. input : input)
       term_wait(terminal, 100)
       const screen = join(mapnew(range(1, dimensions[0]), (_, row) => term_getline(terminal, row)), '')
       # Ignore background cells and Vim's filler before a wrapped wide character.

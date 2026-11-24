@@ -183,23 +183,32 @@ export class View
     HighlightSelection(this._window, unlabelled ? selected : 0)
   enddef
 
-  def Render(info: conversion.CandidateListInfo, message: string = '',
-      keys: list<string> = [], scroll_candidates: bool = false)
+  def RenderConfirmation(message: string, anchor: dict<number>)
+    # A confirmation has its own geometry, independent of the candidate list.
+    this.Close()
+    if !configuration.GetCandidatePopup()
+      return
+    endif
+    const width = min([strdisplaywidth(message), &columns - 2])
+    const height = WrappedRows(message, width)
+    const bottom = &lines - &cmdheight
+    const below = anchor.row + 1
+    const top = below + height - 1 <= bottom ? below : max([1, anchor.row - height])
+    const left = min([max([1, anchor.col]), &columns - width - 1])
+    this._window = popup_create([message], {
+      line: top, col: left, pos: 'topleft', posinvert: false,
+      padding: [0, 1, 0, 1], maxwidth: width, maxheight: max([1, bottom - top + 1]),
+      wrap: true, highlight: 'Pmenu', moved: 'any',
+    })
+    this._confirmation = true
+  enddef
+
+  def Render(info: conversion.CandidateListInfo, keys: list<string> = [], scroll_candidates: bool = false)
     if info is null_object || empty(info.candidates) || !configuration.GetCandidatePopup()
       this.Close()
       return
     endif
-    if message !=# ''
-      # A confirmation must not inherit the candidate list's fixed viewport.
-      this.Close()
-      this._window = popup_create([message], {
-        pos: 'center', padding: [0, 1, 0, 1],
-        maxwidth: min([60, max([1, &columns - 2])]),
-        wrap: true, highlight: 'Pmenu', moved: 'any',
-      })
-      this._confirmation = true
-      return
-    elseif this._confirmation
+    if this._confirmation
       this.Close()
     endif
     const lines = Format(info, keys)

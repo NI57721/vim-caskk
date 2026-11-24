@@ -366,7 +366,7 @@ export class Editor
   enddef
 
   def RefreshCandidatePopup()
-    this._candidate_view.Render(this.GetDisplayCandidatesInfo(), '',
+    this._candidate_view.Render(this.GetDisplayCandidatesInfo(),
       this.IsInCandidate() ? candidate_view.PageKeys() : [], this.IsInCandidate())
   enddef
 
@@ -414,7 +414,12 @@ export class Editor
 
   def ShowDeleteUserEntryConfirmation(message: string)
     this._CheckInput()
-    this._candidate_view.Render(this.GetDisplayCandidatesInfo(), message)
+    const preedit = this._writer.GetPreeditRange()
+    var anchor = preedit is null_object ? {} : screenpos(this._window, preedit.start.line, preedit.start.column)
+    if get(anchor, 'row', 0) == 0 || anchor.col == 0
+      anchor = screenpos(this._window, line('.'), col('.'))
+    endif
+    this._candidate_view.RenderConfirmation(message, anchor)
   enddef
 
   def DeleteUserEntry(): session.Result
