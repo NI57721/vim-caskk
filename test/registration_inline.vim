@@ -249,7 +249,7 @@ suite.inline_candidate_selection_keeps_the_registration_draft_visible = (): void
   feedkeys("aKasnn\<F6>sn\<Cmd>call CaskkTestInlineCapture()\<CR>\<CR>\<Esc>", 'xt')
   assert.equals(popup_lines, ['辞書登録: か  [Enter:登録 Esc:取消]', '登録語: 科│',
     '1 科'])
-  assert.equals(selected_candidate_rows, [])
+  assert.equals(selected_candidate_rows, [3])
   assert.equals(index(visible_mode_labels, '▼あ') >= 0, true)
   assert.equals(getline(1), '前科後')
   assert.equals(popup_list() == [], true)
@@ -578,10 +578,13 @@ suite.annotation_selection_uses_highlight_and_tracks_navigation = (): void => {
   assert.equals(selected_candidate_rows, [4])
 }
 
-suite.inline_label_commits_an_okuri_candidate_into_the_registration_text = (): void => {
-  const context = Setup(false, true, {}, true)
+suite.inline_label_previews_an_okuri_candidate_until_commit = (): void => {
+  const context = Setup(false, true, {c: 'Commit'}, true)
   defer Cleanup(context)
-  feedkeys("aKis\<F6>KaKu2\<Cmd>call CaskkTestInlineCapture()\<CR>\<CR>\<Esc>", 'xt')
+  popup_observations = []
+  const capture = "\<Cmd>call CaskkTestInlineCapture()\<CR>"
+  feedkeys("aKis\<F6>KaKu2" .. capture .. 'c' .. capture .. "\<CR>\<Esc>", 'xt')
+  assert.equals(popup_observations[0][1 :], ['登録語: 書く│', '1 行く', '2 書く'])
   assert.equals(popup_lines[1 :], ['登録語: 書く│'])
   assert.equals(getline(1), '前書く後')
   normal! u

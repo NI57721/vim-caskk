@@ -367,10 +367,9 @@ export class Editor
       this.IsInCandidate())
   enddef
 
-  def SelectAndCommitCandidate(index: number): list<session.Result>
+  def SelectCandidate(index: number): session.Result
     this._CheckInput()
-    this._Apply([this._session.SelectCandidate(index)])
-    return this.Commit()
+    return this._Apply([this._session.SelectCandidate(index)])[0]
   enddef
 
   def MoveCandidatePage(size: number, direction: number): session.Result

@@ -103,7 +103,7 @@ def Setup(prefill: bool = true, with_candidates: bool = false, candidate_select_
   Caskk.Config({dictionaries: with_candidates ? [dictionary] : [], candidate_select_keys: candidate_select_keys,
     registration_auto: false, registration_prefill: prefill,
     state_path: directory .. '/state.jsonl',
-    mappings: {s: 'Convert', n: 'NextCandidate'}})
+    mappings: {s: 'Convert', n: 'NextCandidate', c: 'Commit'}})
   Caskk.RegisterInputScheme({name: 'registration-window', consonants: {k: 'k'}, combinations: {a: 'a'},
     specials: {d: '漢字', zx: 'い*くらい'}})
   Caskk.Enable('registration-window')
@@ -421,10 +421,10 @@ suite.annotation_selection_highlights_the_visible_row_after_scrolling = (): void
   assert.equals(annotation_lines[0] =~# '^@verb', true)
 }
 
-suite.split_registration_commits_the_candidate_by_label_before_submission = (): void => {
+suite.split_registration_previews_the_candidate_by_label_then_commits_before_submission = (): void => {
   const fixture = Setup(true, true, ['1', '2'])
   defer Cleanup(fixture)
-  feedkeys("aKass\<F3>s2\<F4>\<CR>\<Esc>", 'xt')
+  feedkeys("aKass\<F3>s2c\<F4>\<CR>\<Esc>", 'xt')
   assert.equals(errors, [])
   assert.equals(intermediate_texts, ['科'])
   assert.equals(getline(1), '前科後')

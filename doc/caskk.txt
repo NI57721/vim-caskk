@@ -350,6 +350,11 @@ candidate_select_keys               *caskk-config-candidate-select-keys*
     List of unique, printable single keys.  Defaults to [].
     The number of labels sets the maximum candidates per page.  Each page
     also fits the available screen space and the remaining candidates.
+    In Insert mode, registration fields, and reconversion, press a label to
+    preview and highlight its candidate.  Another label changes the preview.
+    NextCandidate and PreviousCandidate move by page and preview its first
+    candidate.  Commit accepts the preview.  Previewing alone does not learn
+    the candidate.  On the command line, a label commits the candidate.
     An empty list hides candidate numbers and moves through candidates one at
     a time.  In Insert mode and on the command line, the first three choices
     keep the list stationary.  Moving forward beyond them scrolls with the
@@ -420,9 +425,11 @@ ToggleDemote                                *caskk-action-toggle-demote*
     Toggles the selected candidate's demotion (ranks after normal candidates).
 
 DeleteUserEntry                          *caskk-action-delete-user-entry*
-    Removes a selected user entry after y/N confirmation.  System dictionary
-    candidates remain available.  For stem candidates, removes matching annotated
-    user registrations across endings.  Not available in command-line or completion.
+    Opens confirmation when the previewed candidate is a user entry.
+    Press y to delete it, or n or Esc to return to the same preview.
+    System dictionary candidates remain available.  For stem candidates,
+    this removes matching annotated user registrations across endings.
+    Not available in command-line or completion.
 
 AbbreviationMode                        *caskk-action-abbreviation-mode*
     Uses literal input as the dictionary reading.

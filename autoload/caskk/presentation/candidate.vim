@@ -223,7 +223,8 @@ export class View
         popup_setoptions(this._window, options)
         popup_settext(this._window, lines)
       endif
-      HighlightSelection(this._window, 0)
+      const page_start = conversion.PageStart(info.selected_index, len(keys))
+      HighlightSelection(this._window, info.selected_index - page_start + 1)
       return
     endif
     this._labelled_above = false

@@ -654,9 +654,9 @@ export class Binding
           endif
           this._RefreshCandidateList()
         elseif inline
-          this._AppendInlineResults(current.SelectAndCommitCandidate(target))
+          this._AppendInlineResults([current.SelectCandidate(target)])
         else
-          this._Record(this._editor.SelectAndCommitCandidate(target))
+          this._Record([this._editor.SelectCandidate(target)])
         endif
       endif
       return true

@@ -196,7 +196,7 @@ suite.reenabling_caskk_during_reconversion_preserves_selection_and_resumes_ime_a
   assert.equals(g:caskk_reconversion_probe[0][0], 'i')
 }
 
-suite.labels_commit_reconversion_and_restore_disabled_mappings = (): void => {
+suite.labels_preview_reconversion_until_commit_and_restore_disabled_mappings = (): void => {
   for enabled in [true, false]
     const fixture = Setup({candidate_select_keys: ['1', '2']})
     try
@@ -206,8 +206,10 @@ suite.labels_commit_reconversion_and_restore_disabled_mappings = (): void => {
         inoremap <buffer> 2 custom
       endif
       cursor(1, 4)
-      feedkeys("\<F12>t\<Esc>2\<F11>", 'xt')
+      feedkeys("\<F12>t\<Esc>2\<F11>c\<F11>", 'xt')
       assert.equals(getline(1), '前科後')
+      assert.equals(g:caskk_reconversion_probe[-2][3], '前科後')
+      assert.equals(g:caskk_reconversion_probe[-2][1], len(fixture.existing_popups) + 1)
       assert.equals(g:caskk_reconversion_probe[-1][0], 'i')
       if !enabled
         assert.equals(maparg('2', 'i'), 'custom')
@@ -230,7 +232,7 @@ suite.disabled_reconversion_exhaustion_can_open_either_registration_field = (): 
       Caskk.Disable()
       inoremap <buffer> 2 custom
       cursor(1, 4)
-      feedkeys("\<F12>ss2\<CR>\<F11>", 'xt')
+      feedkeys("\<F12>ss2c\<CR>\<F11>", 'xt')
       assert.equals(getline(1), '前科後', string(inline))
       assert.equals(Caskk.IsEnabled(), false)
       assert.equals(maparg('2', 'i'), 'custom')
@@ -251,7 +253,7 @@ suite.registration_cancel_restores_reconversion_with_or_without_the_ime_enabled 
           Caskk.Disable()
         endif
         cursor(1, 4)
-        feedkeys("\<F12>nn\<Esc>1\<Esc>", 'xt')
+        feedkeys("\<F12>nn\<Esc>1c\<Esc>", 'xt')
         assert.equals(getline(1), '前科後', string([enabled, inline]))
         assert.equals(Caskk.IsEnabled(), enabled)
         undo

@@ -285,7 +285,7 @@ suite.registration_escape_restores_the_last_page_and_its_label = (): void => {
       {candidate_select_keys: ['1', '2'], registration_inline: inline, registration_prefill: false})
     try
       feedkeys('aKass' .. CAPTURE .. 's' .. "\<Esc>" .. CAPTURE .. 'p' .. CAPTURE
-        .. "s1\<Esc>", 'xt')
+        .. "s1c\<Esc>", 'xt')
       assert.equals(observations[0].lines, ['1 候補3'])
       assert.equals(observations[1].lines, observations[0].lines)
       assert.equals(observations[1].preview, '前候補3後')
@@ -328,7 +328,7 @@ suite.inline_escape_commits_the_draft_candidate_before_restoring_the_source_page
   const fixture = Setup(true, {}, 3, true,
     {candidate_select_keys: ['1', '2'], registration_inline: true, registration_prefill: false})
   defer Cleanup(fixture)
-  feedkeys('aKasssKassp' .. "\<Esc>" .. CAPTURE .. "\<Esc>" .. CAPTURE .. "1\<Esc>", 'xt')
+  feedkeys('aKasssKassp' .. "\<Esc>" .. CAPTURE .. "\<Esc>" .. CAPTURE .. "1c\<Esc>", 'xt')
   assert.equals(registration_readings, ['か', ''])
   assert.equals(observations[1].lines, ['1 候補3'])
   assert.equals(getline(1), '前候補3後')
@@ -493,10 +493,35 @@ suite.unavailable_backspace_actions_cancel_conversion_without_learning = (): voi
   endfor
 }
 
-suite.numeric_labels_commit_and_digits_remain_literal_afterward = (): void => {
+suite.label_preview_can_delete_only_the_selected_user_entry_without_learning = (): void => {
+  const fixture = Setup(true, {x: 'DeleteUserEntry'}, 2, true, {candidate_select_keys: ['1', '2', '3', '4']})
+  defer Cleanup(fixture)
+  const query = lookup.CreateQuery('か', '')
+  const state = user_runtime.Get()
+  state.AddEntry(query, dictionary.Candidate.new('登録甲', []))
+  state.AddEntry(query, dictionary.Candidate.new('登録乙', []))
+  const revision = state.Revision()
+  feedkeys('aKas3' .. CAPTURE .. '4' .. CAPTURE .. 'x' .. CAPTURE .. 'n' .. CAPTURE
+    .. "x\<Esc>" .. CAPTURE .. 'xy' .. CAPTURE .. "\<BS>\<Esc>", 'xt')
+  assert.equals(observations[0].preview, '前登録甲後')
+  assert.equals(observations[1].preview, '前登録乙後')
+  assert.equals(observations[2].lines[-1], 'ユーザー辞書から削除しますか？ y:削除 n/Esc:取消')
+  for restored in observations[3 : 4]
+    assert.equals(restored.lines, observations[1].lines)
+    assert.equals(restored.preview, observations[1].preview)
+  endfor
+  assert.equals(selected_rows, [3, 4, 0, 4, 4, 3])
+  assert.equals(preference_revisions[: 4], repeat([revision], 5))
+  assert.equals(observations[5].lines, ['1 蚊 — 昆虫', '2 科 — 学科', '3 登録甲'])
+  assert.equals(state.HasEntryForLookup(query, '登録甲'), true)
+  assert.equals(state.HasEntryForLookup(query, '登録乙'), false)
+  assert.equals(state.GetSnapshot().mru, {})
+}
+
+suite.numeric_labels_preview_until_commit_and_digits_remain_literal_afterward = (): void => {
   const fixture = Setup(true, {}, 2, true, {candidate_select_keys: ['1', '2', '3']})
   defer Cleanup(fixture)
-  feedkeys('aKas' .. CAPTURE .. "23\<Esc>", 'xt')
+  feedkeys('aKas' .. CAPTURE .. "2c3\<Esc>", 'xt')
   assert.equals(observations[0].lines, ['1 蚊 — 昆虫', '2 科 — 学科'])
   assert.equals(getline(1), '前科3後')
 }
@@ -504,11 +529,14 @@ suite.numeric_labels_commit_and_digits_remain_literal_afterward = (): void => {
 suite.four_labels_limit_pages_and_are_reused_in_order = (): void => {
   const fixture = Setup(true, {}, 5, true, {candidate_select_keys: ['4', '2', '3', '1']})
   defer Cleanup(fixture)
-  feedkeys('aKas' .. CAPTURE .. 'n' .. CAPTURE .. 'p' .. CAPTURE .. 'n2' .. CAPTURE .. "4\<Esc>", 'xt')
+  feedkeys('aKas' .. CAPTURE .. 'n' .. CAPTURE .. 'p' .. CAPTURE .. 'n2' .. CAPTURE .. "4c\<Esc>", 'xt')
   assert.equals(observations[0].lines, ['4 蚊 — 昆虫', '2 科 — 学科', '3 候補3', '1 候補4'])
   assert.equals(observations[1].lines, ['4 候補5'])
   assert.equals(observations[2].lines, observations[0].lines)
   assert.equals(observations[3].lines, observations[1].lines)
+  assert.equals(selected_rows, [1, 1, 1, 1])
+  assert.equals(mapnew(observations, (_, observed) => observed.preview),
+    ['前蚊後', '前候補5後', '前蚊後', '前候補5後'])
   assert.equals(getline(1), '前候補5後')
 }
 
@@ -526,14 +554,14 @@ suite.custom_pages_keep_labels_stable_when_editing_rank = (): void => {
   const fixture = Setup(true, {t: 'TogglePin', d: 'ToggleDemote', x: 'Commit'}, 3, true,
     {candidate_select_keys: ['x', 'y']})
   defer Cleanup(fixture)
-  feedkeys('aKann' .. CAPTURE .. 'ypt' .. CAPTURE .. "y" .. CAPTURE .. "d\<Esc>" .. CAPTURE .. "xc\<Esc>", 'xt')
+  feedkeys('aKann' .. CAPTURE .. 'ypt' .. CAPTURE .. "y" .. CAPTURE .. "d\<Esc>" .. CAPTURE .. "xcc\<Esc>", 'xt')
   assert.equals(observations[0].lines, ['x 候補3'])
   assert.equals(observations[1].lines[-1], '固定する候補のラベルを入力（Escで取消）')
   assert.equals(observations[2].lines, ['x 蚊 — 昆虫', 'y ★ 科 — 学科'])
   assert.equals(observations[3].lines, observations[2].lines)
-  assert.equals(selected_rows[2], 0)
+  assert.equals(selected_rows[2], 1)
   assert.equals(getline(1), '前蚊c後')
-  feedkeys("AKasx\<Esc>", 'xt')
+  feedkeys("AKasxc\<Esc>", 'xt')
   assert.equals(getline(1), '前蚊c後科')
 }
 
@@ -563,11 +591,11 @@ suite.page_edges_restore_reading_and_request_registration = (): void => {
 suite.demotion_affects_the_next_conversion_and_navigation_dismisses_the_prompt = (): void => {
   const fixture = Setup(true, {t: 'TogglePin', d: 'ToggleDemote'}, 3, true, {candidate_select_keys: ['1', '2', '3']})
   defer Cleanup(fixture)
-  feedkeys('aKasd' .. CAPTURE .. '2' .. CAPTURE .. 'tc' .. CAPTURE .. "\<Esc>AKas" .. CAPTURE .. "1\<Esc>", 'xt')
+  feedkeys('aKasd' .. CAPTURE .. '2' .. CAPTURE .. 'tc' .. CAPTURE .. "\<Esc>AKas" .. CAPTURE .. "1c\<Esc>", 'xt')
   assert.equals(observations[0].lines[-1], '降格する候補のラベルを入力（Escで取消）')
   assert.equals(observations[1].lines, ['1 蚊 — 昆虫', '2 ↓ 科 — 学科', '3 候補3'])
   assert.equals(observations[2].lines, [])
-  assert.equals(selected_rows[1 : 2], [0, 0])
+  assert.equals(selected_rows[1 : 2], [1, 0])
   assert.equals(observations[3].lines, ['1 蚊 — 昆虫', '2 候補3', '3 ↓ 科 — 学科'])
 }
 
@@ -575,7 +603,7 @@ suite.custom_multibyte_label_temporarily_overrides_a_user_mapping = (): void => 
   const fixture = Setup(true, {}, 2, true, {candidate_select_keys: ['x', 'é']})
   defer Cleanup(fixture)
   inoremap <buffer> é literal
-  feedkeys("aKaséé\<Esc>", 'xt')
+  feedkeys("aKasécé\<Esc>", 'xt')
   assert.equals(getline(1), '前科literal後')
   assert.equals(maparg('é', 'i'), 'literal')
 }
@@ -623,7 +651,7 @@ suite.labels_match_the_visible_rows_in_a_small_terminal = (): void => {
       assert.match(join(rows, "\n"), label)
     endfor
     assert.equals(stridx(join(rows), '7 七'), -1)
-    term_sendkeys(terminal, '6')
+    term_sendkeys(terminal, "6\<CR>")
     term_wait(terminal, 100)
     assert.equals(readfile(report), ['六'])
   finally
