@@ -45,6 +45,8 @@ export class View
       line: commandline ? anchor[0] : cursor_position.row + 1,
       col: commandline ? anchor[1] : cursor_position.col,
       pos: 'topleft', posinvert: true,
+      # Candidate lists and confirmations use Vim's default zindex of 50.
+      zindex: 49,
       padding: [0, 1, 0, 1], highlight: 'Pmenu', moved: [0, 0, 0],
     }
     if !empty(screen_anchor)

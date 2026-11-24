@@ -459,6 +459,44 @@ def CheckDeletionConfirmationPlacement(above: bool, near_right: bool)
   assert.equals(position.core_width >= strdisplaywidth(message), true)
 enddef
 
+var popup_stacks: list<dict<number>> = []
+
+def g:CaskkTestDeletionPopupStack()
+  redraw
+  var stack = {mode: 0, confirmation: 0, front: 0}
+  for id in popup_list()
+    const lines = getbufline(winbufnr(id), 1)
+    if lines == ['▼あ']
+      const position = popup_getpos(id)
+      stack.mode = id
+      stack.front = popup_locate(position.core_line, position.core_col)
+    elseif lines == ['ユーザー辞書から削除しますか？ y:削除 n/Esc:取消']
+      stack.confirmation = id
+    endif
+  endfor
+  popup_stacks->add(stack)
+enddef
+
+suite.deletion_confirmation_draws_above_the_existing_mode_popup = (): void => {
+  const fixture = Setup(true, {x: 'DeleteUserEntry'}, 2, true,
+    {candidate_select_keys: [], mode_popup: true, mode_popup_time: 0})
+  defer Cleanup(fixture)
+  user_runtime.Get().AddEntry(lookup.CreateQuery('か', ''), dictionary.Candidate.new('登録のみ', []))
+  popup_stacks = []
+  const capture = "\<Cmd>call CaskkTestDeletionPopupStack()\<CR>"
+  feedkeys('aKasnn' .. capture .. 'x' .. capture .. 'n' .. capture
+    .. 'x' .. capture .. 'y' .. capture .. "c\<Esc>", 'xt')
+  assert.equals(len(popup_stacks), 5)
+  for index in [1, 3]
+    const stack = popup_stacks[index]
+    assert.equals(stack.mode, popup_stacks[index - 1].mode)
+    assert.equals(stack.mode > 0, true)
+    assert.equals(stack.confirmation > 0, true)
+    assert.equals(stack.front, stack.confirmation)
+  endfor
+  assert.equals(popup_stacks[4].mode > 0, true)
+}
+
 suite.deletion_confirmation_is_below_the_conversion_start = (): void => {
   CheckDeletionConfirmationPlacement(false, false)
 }
