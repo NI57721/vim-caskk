@@ -701,7 +701,8 @@ suite.numeric_conversion_offers_roman_numerals_with_the_standard_dictionary_temp
   Caskk.Config({candidate_select_keys: [], dictionaries: [path], registration_auto: false, mode_popup: false,
     mappings: {q: 'AbbreviationMode', "\<Space>": 'Convert', "\<CR>": 'Commit'}})
   Caskk.Enable('configured')
-  feedkeys('aq12' .. repeat("\<Space>", 9) .. "\<CR>\<Esc>", 'xt')
+  # #0 and #8 both render as 12, so they share a candidate row.
+  feedkeys('aq12' .. repeat("\<Space>", 8) .. "\<CR>\<Esc>", 'xt')
   assert.equals(getline(1), '前XII後')
   assert.equals(readfile(path), source)
 }

@@ -9,6 +9,7 @@ import autoload 'caskk/config.vim' as configuration
 
 import autoload 'caskk/dictionary/verb.vim' as verb
 import autoload 'caskk/dictionary/adjective.vim' as adjective
+import autoload 'caskk/dictionary/stem.vim' as stem
 
 # Conversion and tagged completion share the source identity and kuru variants.
 export def LearnCandidate(preferences: user_state.State, query: dictionary.Query,
@@ -22,42 +23,92 @@ export def LearnCandidate(preferences: user_state.State, query: dictionary.Query
   preferences.Learn(query, candidate.text, variants, direct)
 enddef
 
-# Candidate text stays separate from the full okuri used for presentation.
+class CandidateSource
+  const candidate: dictionary.Candidate
+  const marker: string
+
+  def new(this.candidate, this.marker)
+  enddef
+
+  def PreferenceQuery(query: dictionary.Query): dictionary.Query
+    if this.candidate.source_reading != ''
+      return lookup.CreateQuery(this.candidate.source_reading, '')
+    endif
+    return this.marker == '' ? query : lookup.CreateQuery(query.reading, '')
+  enddef
+endclass
+
+# Keep the ranked source identities behind each distinct commit string.
 export class Candidates
   const query: dictionary.Query
   const okuri: string
-  const markers: list<string>
-  const experimental_flags: list<bool>
   const experimental_count: number
+  const markers: list<string> = []
+  const experimental_flags: list<bool> = []
   const candidates: list<dictionary.Candidate>
+  const _texts: list<string> = []
+  const _annotations: list<list<string>> = []
+  const _sources: list<list<CandidateSource>> = []
 
-  def new(this.query, this.okuri, candidates: list<dictionary.Candidate>, experimental_count: number = 0, markers: list<string> = [], experimental_flags: list<bool> = [])
-    this.experimental_flags = copy(experimental_flags)
-    this.markers = copy(markers)
+  def new(this.query, this.okuri, candidates: list<dictionary.Candidate>, markers: list<string> = [])
+    final positions: dict<number> = {}
+    final representatives: list<dictionary.Candidate> = []
+    var experimental_count = 0
+    for index in range(len(candidates))
+      const candidate = candidates[index]
+      const text = numeric.ExpandPlaceholders(candidate.text, this.query.reading) .. this.okuri
+      const source = CandidateSource.new(candidate, get(markers, index, ''))
+      if !has_key(positions, text)
+        positions[text] = len(this._texts)
+        this._texts->add(text)
+        this._sources->add([])
+        this._annotations->add([])
+        representatives->add(candidate)
+        if !empty(markers)
+          this.markers->add(source.marker)
+          this.experimental_flags->add(source.marker != '')
+        endif
+        if source.marker != ''
+          experimental_count += 1
+        endif
+      endif
+      const position = positions[text]
+      this._sources[position]->add(source)
+      for annotation in candidate.annotations
+        if index(this._annotations[position], annotation) < 0
+          this._annotations[position]->add(annotation)
+        endif
+      endfor
+    endfor
+    this.candidates = representatives
     this.experimental_count = experimental_count
-    this.candidates = copy(candidates)
   enddef
 
   def PreferenceQuery(index: number): dictionary.Query
-    if this.candidates[index].source_reading != ''
-      return lookup.CreateQuery(this.candidates[index].source_reading, '')
-    endif
-    return this.IsExperimental(index) ? lookup.CreateQuery(this.query.reading, '') : this.query
+    return this._sources[index][0].PreferenceQuery(this.query)
   enddef
 
   def IsExperimental(index: number): bool
-    return empty(this.experimental_flags) ? index < this.experimental_count : this.experimental_flags[index]
+    return this._sources[index][0].marker != ''
   enddef
 
   def DisplayAt(index: number): string
-    return this.TextAt(index) .. (this.IsExperimental(index) ? (empty(this.markers) ? "［adj］" : this.markers[index]) : "")
+    return this.TextAt(index) .. this._sources[index][0].marker
   enddef
 
   def TextAt(index: number): string
     if index < 0 || index >= len(this.candidates)
       throw 'caskk: conversion candidate index out of range: ' .. index
     endif
-    return numeric.ExpandPlaceholders(this.candidates[index].text, this.query.reading) .. this.okuri
+    return this._texts[index]
+  enddef
+
+  def AnnotationsAt(index: number): list<string>
+    return copy(this._annotations[index])
+  enddef
+
+  def SourcesAt(index: number): list<CandidateSource>
+    return copy(this._sources[index])
   enddef
 endclass
 
@@ -128,13 +179,8 @@ export class Selection
     this._CheckActive()
     const candidate = this._prepared.candidates[this._index]
     return CandidateInfo.new(this._index, len(this._prepared.candidates),
-      this._prepared.DisplayAt(this._index), candidate.annotations,
+      this._prepared.DisplayAt(this._index), this._prepared.AnnotationsAt(this._index),
       this._preferences.GetCandidateTier(this._prepared.PreferenceQuery(this._index), candidate.text))
-  enddef
-
-  def CurrentCandidateText(): string
-    this._CheckActive()
-    return this._prepared.candidates[this._index].text
   enddef
 
   def GetCandidatesInfo(): CandidateListInfo
@@ -143,15 +189,41 @@ export class Selection
     const count = len(this._prepared.candidates)
     for index in range(0, count - 1)
       const candidate = this._prepared.candidates[index]
-      candidates->add(CandidateInfo.new(index, count, this._prepared.DisplayAt(index), candidate.annotations,
+      candidates->add(CandidateInfo.new(index, count, this._prepared.DisplayAt(index), this._prepared.AnnotationsAt(index),
         this._preferences.GetCandidateTier(this._prepared.PreferenceQuery(index), candidate.text)))
     endfor
     return CandidateListInfo.new(this._index, candidates)
   enddef
 
-  def CurrentSourceReading(): string
+  def CanDeleteUserEntry(): bool
     this._CheckActive()
-    return this._prepared.PreferenceQuery(this._index).reading
+    const query = this._prepared.query
+    for source in this._prepared.SourcesAt(this._index)
+      const text = source.candidate.text
+      if source.marker == ''
+        if this._preferences.HasEntryForLookup(query, text)
+          return true
+        endif
+      elseif !empty(stem.RegisteredQueries(this._preferences, source.PreferenceQuery(query).reading, text))
+        return true
+      endif
+    endfor
+    return false
+  enddef
+
+  def DeleteUserEntry()
+    this._CheckActive()
+    const query = this._prepared.query
+    for source in this._prepared.SourcesAt(this._index)
+      const text = source.candidate.text
+      if source.marker == ''
+        this._preferences.DeleteEntryForLookup(query, text)
+      else
+        for registered in stem.RegisteredQueries(this._preferences, source.PreferenceQuery(query).reading, text)
+          this._preferences.DeleteEntry(registered, text)
+        endfor
+      endif
+    endfor
   enddef
 
   def IsExperimental(): bool
@@ -352,6 +424,6 @@ export def Prepare(entries: dict<dictionary.Entry>, preferences: user_state.Stat
       get(source_positions, RowIdentity(is_stem, candidate), position)))
   endfor
   sort(rows, CompareRows)
-  return Candidates.new(query, okuri, mapnew(rows, (_, row) => row.candidate), len(experimental),
-    mapnew(rows, (_, row) => row.marker), mapnew(rows, (_, row) => row.marker != ''))
+  return Candidates.new(query, okuri, mapnew(rows, (_, row) => row.candidate),
+    mapnew(rows, (_, row) => row.marker))
 enddef

@@ -6,7 +6,6 @@ import 'caskk/composition.vim' as composition
 import autoload 'caskk/conversion.vim' as conversion
 import autoload 'caskk/completion.vim' as completion
 import autoload 'caskk/dictionary/lookup.vim' as lookup
-import autoload 'caskk/dictionary/stem.vim' as stem
 import autoload 'caskk/dictionary/index.vim' as dict_index
 import autoload 'caskk/user_state.vim' as user_state
 import autoload 'caskk/input/normalize.vim' as normalize
@@ -498,28 +497,16 @@ export class Session
   enddef
 
   def CanDeleteUserEntry(): bool
-    if !this.InCandidate()
-      return false
-    endif
-    const text = this._selection.CurrentCandidateText()
-    return this._selection.IsExperimental()
-      ? !empty(stem.RegisteredQueries(this._preferences, this._selection.CurrentSourceReading(), text))
-      : this._preferences.HasEntryForLookup(this._prepared.query, text)
+    return this.InCandidate() && this._selection.CanDeleteUserEntry()
   enddef
 
   def DeleteUserEntry(): Result
     if !this.CanDeleteUserEntry()
       throw 'caskk: selected candidate is not a user entry'
     endif
-    const info = this._selection.GetInfo()
-    const candidate_text = this._selection.CurrentCandidateText()
-    if this._selection.IsExperimental()
-      for query in stem.RegisteredQueries(this._preferences, this._selection.CurrentSourceReading(), candidate_text)
-        this._preferences.DeleteEntry(query, candidate_text)
-      endfor
-    else
-      this._preferences.DeleteEntryForLookup(this._prepared.query, candidate_text)
-    endif
+    const previous_index = this._selection.Index()
+    const text = this._selection.CurrentText()
+    this._selection.DeleteUserEntry()
     const prepared = conversion.Prepare(this._entries, this._preferences,
       this._prepared.query.reading, this._prepared.okuri, this._small_tsu_okuri_as_t,
       this._dictionary_index)
@@ -531,9 +518,9 @@ export class Session
         false, false, this._DisplayPreedit())
     endif
     this._selection = conversion.Selection.new(prepared, this._preferences)
-    const texts = mapnew(prepared.candidates, (_, candidate) => candidate.text)
-    const selected = index(texts, candidate_text)
-    return this.SelectCandidate(selected >= 0 ? selected : min([info.index, len(texts) - 1]))
+    const texts = mapnew(prepared.candidates, (index, _) => prepared.TextAt(index))
+    const selected = index(texts, text)
+    return this.SelectCandidate(selected >= 0 ? selected : min([previous_index, len(texts) - 1]))
   enddef
 
   # A missing dictionary key leaves an empty set here for registration UI.

@@ -28,24 +28,40 @@ suite.ichidan_stem_is_not_rewritten = (): void => {
   assert.equals(empty(preferences.GetSnapshot().mru), false)
 }
 
-suite.types_filter_candidates_and_preserve_ordinary_duplicates = (): void => {
+suite.okuri_ordinary_and_stem_candidates_merge_by_result = (): void => {
+  const tagged = dict_index.SourceFromLines(['おもいつ /思いつ;@verb-5-k/思い付;説明 @verb-5-k/'])
+  const plain = dict_index.SourceFromLines(['おもいつi /思い付;通常/'])
+  const database = dict_index.Database.new([tagged, plain])
+  const preferences = state.State.new()
+  const prepared = conversion.Prepare({}, preferences, 'おもいつ', 'い', true, database)
+  assert.equals(mapnew(prepared.candidates, (i, _) => prepared.TextAt(i)), ['思いつい', '思い付い'])
+  const selected = conversion.Selection.new(prepared, preferences)
+  selected.Select(1)
+  assert.equals(selected.GetInfo().annotations, ['説明 @verb-5-k', '通常'])
+  assert.equals(selected.Commit(), '思い付い')
+  assert.equals(preferences.HistoryIndex(lookup.CreateQuery('おもいつ', ''), '思い付'), 0)
+}
+
+suite.types_filter_candidates_and_keep_the_ranked_source_identity = (): void => {
   const stem = parser.ParseLine('か /書;説明 @verb-5-k @verb-bungo-4-k/架;@verb-unknown/描;@verb-5-k-extra/')
   const normal = parser.ParseLine('かk /書/')
+  const entries = {'か': stem, 'かk': normal}
   const preferences = state.State.new()
-  const prepared = conversion.Prepare({'か': stem, 'かk': normal}, preferences, 'か', 'く')
-  assert.equals(mapnew(prepared.candidates, (_, item) => item.text), ['書', '書'])
-  assert.equals(prepared.experimental_count, 1)
+  const prepared = conversion.Prepare(entries, preferences, 'か', 'く')
+  assert.equals(mapnew(prepared.candidates, (_, item) => item.text), ['書'])
+  assert.equals(prepared.experimental_count, 0)
   assert.equals(conversion.Prepare({'か': stem}, preferences, 'か', 'な').candidates, [])
-  const selected = conversion.Selection.new(prepared, preferences)
-  assert.equals(selected.TogglePin(), 'pinned')
+  const stem_query = lookup.CreateQuery('か', '')
+  preferences.Pin(stem_query, '書')
+  const selected = conversion.Selection.new(conversion.Prepare(entries, preferences, 'か', 'く'), preferences)
+  assert.equals(selected.IsExperimental(), true)
+  assert.equals(selected.GetInfo().tier, 'pinned')
   assert.equals(selected.ToggleDemote(), 'demoted')
   selected.Commit()
   assert.equals(preferences.GetSnapshot().mru, {})
-  const ordinary = conversion.Selection.new(prepared, preferences)
-  ordinary.Next()
-  assert.equals(ordinary.CurrentText(), '書く')
-  preferences.Reset(prepared.query, prepared.candidates[0].text)
-  ordinary.Commit()
+  const ordinary = conversion.Selection.new(conversion.Prepare(entries, preferences, 'か', 'く'), preferences)
+  assert.equals(ordinary.IsExperimental(), false)
+  assert.equals(ordinary.Commit(), '書く')
   assert.equals(empty(preferences.GetSnapshot().mru), false)
 }
 
@@ -222,7 +238,7 @@ suite.okuri_nashi_prefers_one_ordinary_candidate_over_the_same_verb_stem = (): v
 
     const inflected = conversion.Prepare({}, state.State.new(), 'とじ', 'る', true, database)
     assert.equals(sort(mapnew(inflected.candidates, (i, _) => inflected.DisplayAt(i))),
-      ['綴じる', '綴じる［verb］', '閉じる［verb］'])
+      sources[0] is plain ? ['綴じる', '閉じる［verb］'] : ['綴じる［verb］', '閉じる［verb］'])
   endfor
 }
 
@@ -289,22 +305,25 @@ suite.stem_preferences_are_shared_across_okuri_but_not_ordinary_candidates = ():
   const entries = merger.Merge([[parser.ParseLine('か /書;@verb-5-k/描;@verb-5-k/'),
     parser.ParseLine('かk /書/描/')]])
   const preferences = state.State.new()
-  const first = conversion.Prepare(entries, preferences, 'か', 'く')
+  const first = conversion.Prepare(entries, preferences, 'か', 'い')
   const selected = conversion.Selection.new(first, preferences)
-  selected.Select(3)
+  selected.Select(1)
   selected.Commit()
-  const other = conversion.Prepare(entries, preferences, 'か', 'い')
-  assert.equals(other.DisplayAt(0), '描い［verb］')
+  const other = conversion.Prepare(entries, preferences, 'か', 'か')
+  assert.equals(other.DisplayAt(0), '描か［verb］')
   const ordinary = conversion.Selection.new(conversion.Prepare(entries, preferences, 'か', 'く'), preferences)
+  assert.equals(ordinary.CurrentText(), '描く')
+  assert.equals(ordinary.IsExperimental(), true)
   ordinary.Select(1)
   assert.equals(ordinary.CurrentText(), '書く')
+  assert.equals(ordinary.IsExperimental(), false)
   const pin = conversion.Selection.new(other, preferences)
   pin.TogglePin()
   const negative = conversion.Prepare(entries, preferences, 'か', 'か')
   assert.equals(conversion.Selection.new(negative, preferences).GetInfo().tier, 'pinned')
   pin.ToggleDemote()
-  const demoted = conversion.Prepare(entries, preferences, 'か', 'け')
-  assert.equals(demoted.DisplayAt(len(demoted.candidates) - 1), '描け［verb］')
+  const demoted = conversion.Prepare(entries, preferences, 'か', 'い')
+  assert.equals(demoted.DisplayAt(len(demoted.candidates) - 1), '描い［verb］')
 }
 
 suite.standalone_complete_forms_are_exceptions_to_bare_stem_suppression = (): void => {
@@ -334,8 +353,8 @@ suite.annotated_user_stems_registered_with_okuri_apply_to_other_endings = (): vo
   restored.Restore(codec.Decode(codec.Encode(preferences.GetSnapshot())))
   for suffix in ['る', 'な', 'た']
     const prepared = conversion.Prepare({}, restored, 'たべ', suffix)
-    assert.equals(prepared.experimental_count, 1)
-    assert.equals(prepared.DisplayAt(index(prepared.experimental_flags, true)), '食べ' .. suffix .. '［verb］')
+    assert.equals(prepared.experimental_count, suffix == 'る' ? 0 : 1)
+    assert.equals(prepared.DisplayAt(0), '食べ' .. suffix .. (suffix == 'る' ? '' : '［verb］'))
   endfor
   assert.equals(conversion.Prepare({}, restored, 'たべ', 'あ').experimental_count, 0)
 }
@@ -380,9 +399,10 @@ suite.iu_stem_accepts_sokuon_from_system_and_user_entries = (): void => {
     endif
     for suffix in ['っ', 'った', 'って', 'う', 'うて']
       const prepared = conversion.Prepare(from_user ? {} : {'い': entry}, preferences, 'い', suffix)
-      assert.equals(prepared.experimental_count, 1)
+      const ordinary = from_user && suffix =~# '^う'
+      assert.equals(prepared.experimental_count, ordinary ? 0 : 1)
       assert.equals(prepared.TextAt(0), '言' .. suffix)
-      assert.equals(prepared.DisplayAt(index(prepared.experimental_flags, true)), '言' .. suffix .. '［verb］')
+      assert.equals(prepared.DisplayAt(0), '言' .. suffix .. (ordinary ? '' : '［verb］'))
     endfor
   endfor
 }
@@ -398,7 +418,7 @@ suite.modified_i_then_l_selects_itta_without_marking_buffer_text = (): void => {
   assert.equals(ime.GetCandidatesInfo().candidates[0].text, '言っ［verb］')
 }
 
-suite.user_stem_can_be_deleted_from_a_different_ending = (): void => {
+suite.merged_row_deletes_ordinary_and_tagged_registrations = (): void => {
   for tag in ['@verb-5-k', '@adj']
     const preferences = state.State.new()
     for suffix in ['', 'か', 'け']
@@ -406,22 +426,25 @@ suite.user_stem_can_be_deleted_from_a_different_ending = (): void => {
         registration_text.Parse('書;' .. tag))
     endfor
     preferences.AddEntry(lookup.CreateQuery('か', 'こ'), registration_text.Parse('書'))
+    preferences.AddEntry(lookup.CreateQuery('か', 'さ'), registration_text.Parse('書'))
     preferences.AddEntry(lookup.CreateQuery('べつ', ''), registration_text.Parse('書;' .. tag))
     const compiled = scheme.Compile({}, {}, [scheme.SpecialDefinition.new(['x'], 'く')])
-    const ime = session.Session.new(compiled, '', {}, preferences, 'か')
+    const entries = {'かk': parser.ParseLine('かk /書/')}
+    const ime = session.Session.new(compiled, '', entries, preferences, 'か')
     ime.Feed('X')
     assert.equals(ime.InCandidate(), true)
-    ime.SelectCandidate(index(ime.GetCandidates().experimental_flags, true))
+    assert.equals(len(ime.GetCandidatesInfo().candidates), 1)
+    assert.equals(ime.GetCandidatesInfo().candidates[0].text, '書く')
     assert.equals(ime.CanDeleteUserEntry(), true)
     ime.DeleteUserEntry()
     assert.equals(ime.InCandidate(), true)
     assert.equals(ime.GetCandidatesInfo().candidates[0].text, '書く')
     assert.equals(ime.GetSnapshot().reading, 'か')
     assert.equals(ime.GetSnapshot().okuri, 'く')
-    const entries = preferences.GetSnapshot().entries
-    assert.equals(len(entries), 2)
-    assert.equals(entries[json_encode(['か', 'こ'])][0].annotations, [])
-    assert.equals(entries[json_encode(['べつ', ''])][0].text, '書')
+    const registered = preferences.GetSnapshot().entries
+    assert.equals(len(registered), 2)
+    assert.equals(registered[json_encode(['か', 'さ'])][0].annotations, [])
+    assert.equals(registered[json_encode(['べつ', ''])][0].text, '書')
   endfor
 }
 
@@ -451,9 +474,10 @@ suite.yuu_stem_accepts_sokuon_from_system_and_user_entries = (): void => {
     endif
     for suffix in ['っ', 'った', 'って', 'う', 'うて']
       const prepared = conversion.Prepare(from_user ? {} : {'ゆ': entry}, preferences, 'ゆ', suffix)
-      assert.equals(prepared.experimental_count, 1)
+      const ordinary = from_user && suffix =~# '^う'
+      assert.equals(prepared.experimental_count, ordinary ? 0 : 1)
       assert.equals(prepared.TextAt(0), '言' .. suffix)
-      assert.equals(prepared.DisplayAt(index(prepared.experimental_flags, true)), '言' .. suffix .. '［verb］')
+      assert.equals(prepared.DisplayAt(0), '言' .. suffix .. (ordinary ? '' : '［verb］'))
     endfor
   endfor
 }
@@ -580,13 +604,13 @@ suite.kuru_one_source_supplies_ku_ko_and_ki_without_rewriting_it = (): void => {
   assert.equals(conversion.Prepare({'く': entry}, state.State.new(), 'き').candidates, [])
 }
 
-suite.kuru_indexed_sources_keep_dictionary_order_and_ordinary_duplicates = (): void => {
+suite.kuru_indexed_sources_merge_duplicates_in_dictionary_order = (): void => {
   const original = dict_index.SourceFromLines(['く /来;@verb-henkaku-k/'])
   const ordinary = dict_index.SourceFromLines(['こy /通常/来/'])
   for sources in [[original, ordinary], [ordinary, original]]
     const prepared = conversion.Prepare({}, state.State.new(), 'こ', 'よう', true, dict_index.Database.new(sources))
     assert.equals(mapnew(prepared.candidates, (_, candidate) => candidate.text),
-      sources[0] is original ? ['来', '通常', '来'] : ['通常', '来', '来'])
+      sources[0] is original ? ['来', '通常'] : ['通常', '来'])
   endfor
 }
 

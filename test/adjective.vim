@@ -19,23 +19,20 @@ suite.stem_conversion_is_marked_but_commit_is_plain = (): void => {
   assert.equals(empty(preferences.GetSnapshot().mru), false)
 }
 
-suite.tags_are_per_candidate_and_duplicates_remain_separate = (): void => {
+suite.tags_are_per_candidate_and_equal_results_merge = (): void => {
   const stem = parser.ParseLine('わる /悪;@adj/惡;「悪」の旧字(人名用漢字) @adj/誤;@adjective/違;説明/')
   const normal = parser.ParseLine('わるi /悪/')
   const preferences = state.State.new()
   const prepared = conversion.Prepare({'わる': stem, 'わるi': normal}, preferences, 'わる', 'い')
-  assert.equals(mapnew(prepared.candidates, (_, candidate) => candidate.text), ['悪', '悪', '惡'])
+  assert.equals(mapnew(prepared.candidates, (i, _) => prepared.DisplayAt(i)), ['悪い', '惡い［adj］'])
   const selection = conversion.Selection.new(prepared, preferences)
   selection.Select(1)
-  assert.equals(selection.GetCandidatesInfo().candidates[1].text, '悪い［adj］')
   assert.equals(selection.TogglePin(), 'pinned')
   assert.equals(selection.ToggleDemote(), 'demoted')
-  assert.equals(selection.Commit(), '悪い')
+  assert.equals(selection.Commit(), '惡い')
   assert.equals(preferences.GetSnapshot().mru, {})
   const ordinary = conversion.Selection.new(prepared, preferences)
-  assert.equals(ordinary.CurrentText(), '悪い')
-  preferences.Reset(prepared.query, prepared.candidates[0].text)
-  ordinary.Commit()
+  assert.equals(ordinary.Commit(), '悪い')
   assert.equals(empty(preferences.GetSnapshot().mru), false)
   assert.equals(conversion.Prepare({'わる': stem}, preferences, 'わる', 'な').candidates, [])
 }
@@ -79,8 +76,8 @@ suite.annotated_user_stems_registered_with_okuri_apply_to_other_endings = (): vo
   restored.Restore(codec.Decode(codec.Encode(preferences.GetSnapshot())))
   for suffix in ['い', 'く', 'さ']
     const prepared = conversion.Prepare({}, restored, 'うつくし', suffix)
-    assert.equals(prepared.experimental_count, 1)
-    assert.equals(prepared.DisplayAt(index(prepared.experimental_flags, true)), '美し' .. suffix .. '［adj］')
+    assert.equals(prepared.experimental_count, suffix == 'い' ? 0 : 1)
+    assert.equals(prepared.DisplayAt(0), '美し' .. suffix .. (suffix == 'い' ? '' : '［adj］'))
     assert.equals(prepared.candidates[0].annotations, ['説明;@adj'])
   endfor
   assert.equals(conversion.Prepare({}, restored, 'べつ', 'く').experimental_count, 0)

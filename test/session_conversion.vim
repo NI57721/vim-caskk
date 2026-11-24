@@ -710,6 +710,23 @@ suite.abbreviation_numeric_reading_offers_literal_entries_and_numeric_conversion
   assert.equals(ime.Commit()[-1].text, '東京都千代田区千代田')
 }
 
+suite.numeric_candidates_with_equal_expanded_text_share_one_row = (): void => {
+  const entries = merger.Merge([[parser.ParseLine('1 /1;直接/'),
+    parser.ParseLine('# /#0;数字/#2/#3/#1/')]])
+  const preferences = user_state.State.new()
+  preferences.AddEntry(lookup.CreateQuery('1', ''), dictionary.Candidate.new('#0', ['登録']))
+  const ime = session.Session.new(scheme.Compile({}, {}), '', entries, preferences)
+  ime.SetInputMode(input_mode.ABBREVIATION)
+  ime.Feed('1')
+  assert.equals(ime.StartConversion(entries, preferences)[-1].text, '1')
+  assert.equals(mapnew(ime.GetCandidatesInfo().candidates, (_, row) => row.text),
+    ['1', '一', '１', 'I'])
+  assert.equals(ime.GetCandidatesInfo().candidates[0].annotations, ['直接', '数字', '登録'])
+  assert.equals(ime.CanDeleteUserEntry(), true)
+  assert.equals(ime.DeleteUserEntry().text, '1')
+  assert.equals(ime.CanDeleteUserEntry(), false)
+}
+
 suite.backspace_cancels_candidate_and_deletes_the_reading_without_learning = (): void => {
   const entries = merger.Merge([[parser.ParseLine('かんじ /漢字/感じ/')]])
   const preferences = user_state.State.new()
