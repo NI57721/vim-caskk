@@ -84,12 +84,16 @@ export def GetInputScheme(name: string): scheme.CompiledScheme
   return schemes.Get(name)
 enddef
 
+def InitializeAutomaticState()
+  if configuration.GetStateAuto()
+    user_runtime.InitializeAutomatic(configuration.GetStatePath())
+  endif
+enddef
+
 export def Enable(name: string)
   const compiled = schemes.Get(name)
   if commandline.IsTarget()
-    if configuration.GetStateAuto()
-      user_runtime.InitializeAutomatic(configuration.GetStatePath())
-    endif
+    InitializeAutomaticState()
     commandline.Enable(compiled)
     return
   elseif getcmdtype() != '' || getcmdwintype() != ''
@@ -99,19 +103,10 @@ export def Enable(name: string)
     return
   endif
   const input = configuration.GetInput()
-  binding.Enable(compiled, input.sticky_key, input.mappings, {}, user_runtime.Get(),
+  binding.Enable(InitializeAutomaticState, compiled, input.sticky_key, input.mappings, {}, user_runtime.Get(),
     configuration.GetRegistrationAuto(), input.small_tsu_okuri_as_t, input.keyboard_layout,
     input.keyboard_layout_overrides, input.persist_input_mode, input.register_mode_conversions,
     input.dictionary_index, input.keep_preedit_on_backspace, input.affix_key)
-  try
-    if configuration.GetStateAuto()
-      user_runtime.InitializeAutomatic(configuration.GetStatePath())
-    endif
-  catch
-    const reason = v:exception
-    binding.Disable()
-    throw reason
-  endtry
 enddef
 
 export def Disable()

@@ -155,6 +155,10 @@ export class Editor
     return this._session.InCompletion()
   enddef
 
+  def IsCompletionVisible(): bool
+    return this.IsInCompletion() && this._candidate_view.IsVisible()
+  enddef
+
   def CreateCompletionSearch(minimum: number): completion.Search
     this._CheckInput()
     return this._session.CreateCompletionSearch(minimum)

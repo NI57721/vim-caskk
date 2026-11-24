@@ -31,6 +31,38 @@ const INLINE_GUARD_KEYS = ['<C-A>', '<C-B>', '<C-D>', '<C-E>', '<C-F>', '<C-G>',
   '<PageDown>', '<Insert>', '<F1>', '<F2>', '<F3>', '<F4>', '<F5>', '<F6>', '<F7>', '<F8>',
   '<F9>', '<F10>', '<F11>', '<F12>']
 
+class EventState
+  const enabled: bool
+  const mode_name: string
+  const active: dict<bool>
+
+  def new(this.enabled, this.mode_name, this.active)
+  enddef
+endclass
+
+# End inner states before ending the preedit that contains them.
+const EVENT_END_ORDER = ['Completion', 'Conversion', 'Registration', 'Preedit']
+const EVENT_START_ORDER = ['Preedit', 'Conversion', 'Completion', 'Registration']
+
+def NotifyUserEvents(number: number, events: list<string>)
+  for event in events
+    const name = 'Caskk' .. event
+    if !exists('#User#' .. name) && autocmd_get({event: 'User'})->indexof((_, entry) =>
+        get(entry, 'bufnr', 0) > 0 ? entry.bufnr == number : name =~# glob2regpat(entry.pattern)) < 0
+      continue
+    endif
+    const command = 'doautocmd <nomodeline> User ' .. name
+    if bufnr('%') == number
+      execute command
+    else
+      const windows = win_findbuf(number)
+      if !empty(windows)
+        win_execute(windows[0], command)
+      endif
+    endif
+  endfor
+enddef
+
 export class Binding
   const _buffer: number
   const _compiled: scheme.CompiledScheme
@@ -63,10 +95,12 @@ export class Binding
   var _completion_editor: insert.Editor = null_object
   var _editor: insert.Editor = null_object
   var _enabled: bool = false
+  var _event_depth: number = 0
   var _replaying_native_affix_key: bool = false
   var _registration_reply: dictionary.Candidate = null_object
   var _registration_ticket: number = 0
   var _initial_reading: string = ''
+  var _split_registration_open: bool = false
   var _registration_window: registration_window.Window = null_object
   var _window_result: dictionary.Candidate = null_object
   var _window_closing: bool = false
@@ -178,6 +212,58 @@ export class Binding
     this._native = native
   enddef
 
+  def _EventState(): EventState
+    const editing = this._editor isnot null_object
+    const selecting = editing && this._editor.IsInCandidate()
+    const mode_name = editing ? this._editor.GetInputMode() : this._input_mode
+    return EventState.new(this.IsEnabled(), mode_name, {
+      Preedit: editing && (this._editor.GetSnapshot().in_preedit || selecting),
+      Conversion: selecting,
+      Completion: editing && this._editor.IsCompletionVisible(),
+      Registration: this._inline_editor isnot null_object || this._split_registration_open,
+    })
+  enddef
+
+  def Observe(Operation: func())
+    if this._registration_input || this._event_depth > 0
+      Operation()
+      return
+    endif
+    const before = this._EventState()
+    this._event_depth += 1
+    try
+      Operation()
+    finally
+      this._event_depth -= 1
+      this._NotifyChanges(before)
+    endtry
+  enddef
+
+  def _NotifyChanges(before: EventState)
+    const after = this._EventState()
+    final events: list<string> = []
+    for state in EVENT_END_ORDER
+      if before.active[state] && !after.active[state]
+        events->add(state .. 'End')
+      endif
+    endfor
+    if !before.enabled && after.enabled
+      events->add('Enable')
+    endif
+    if before.mode_name !=# after.mode_name
+      events->add('InputModeChanged')
+    endif
+    for state in EVENT_START_ORDER
+      if !before.active[state] && after.active[state]
+        events->add(state .. 'Start')
+      endif
+    endfor
+    if before.enabled && !after.enabled
+      events->add('Disable')
+    endif
+    NotifyUserEvents(this._buffer, events)
+  enddef
+
   def _CheckTarget()
     if bufnr('%') != this._buffer
       throw 'caskk: binding target must be the current buffer'
@@ -242,6 +328,21 @@ export class Binding
       this._CloseInlineInput()
       throw reason
     endtry
+  enddef
+
+  def EnablePublic(Initialize: func())
+    const was_enabled = this.IsEnabled()
+    this.Enable()
+    try
+      Initialize()
+    catch
+      const reason = v:exception
+      if !was_enabled
+        this.Disable()
+      endif
+      throw reason
+    endtry
+    reconversion_owners[string(this._buffer)] = this
   enddef
 
   def Disable(force: bool = false)
@@ -428,7 +529,7 @@ export class Binding
     this._RefreshInlinePopup()
   enddef
 
-  def _CloseInlineInput(restore_escape: bool = true)
+  def _CloseInlineInput()
     if this._inline_editor isnot null_object
       this._candidate_mappings.Restore()
     endif
@@ -438,14 +539,6 @@ export class Binding
     this._mode_view.Close()
     this._mode_marker = ''
     this._inline_editor = null_object
-    if restore_escape
-      this.RestoreInlineEscape()
-    endif
-  enddef
-
-  def RestoreInlineEscape()
-    this._inline_mappings.RestoreKey(mapping.Lhs('<Esc>'))
-    this._inline_mappings.RestoreKey(mapping.Lhs('<C-C>'))
     this._inline_mappings.Restore()
   enddef
 
@@ -512,11 +605,10 @@ export class Binding
   enddef
 
   def _CancelInlineRegistration()
-    this._CloseInlineInput(false)
+    this._CloseInlineInput()
     this._editor.ResumeRegistration()
     this._Record([this._editor.CancelRegistration(!this._disabled_during_inline_registration)])
     this._FinishDeferredDisable()
-    feedkeys("\<Cmd>call caskk#binding#RestoreInlineEscape(" .. this._buffer .. ")\<CR>", 'in')
   enddef
 
   def _AcceptInlineRegistration()
@@ -873,6 +965,10 @@ export class Binding
   enddef
 
   def _AdvanceCompletion(timer: number)
+    this.Observe(() => this._ApplyCompletionTimer(timer))
+  enddef
+
+  def _ApplyCompletionTimer(timer: number)
     if timer != this._completion_timer
       return
     endif
@@ -1569,6 +1665,7 @@ export class Binding
       for number in [window.window, window.origin_window]
         execute 'autocmd ' .. window.event_group .. ' WinClosed ' .. number .. ' call caskk#binding#SubmitRegistrationWindow(' .. arguments .. ', v:true)'
       endfor
+      this._split_registration_open = true
     catch
       const reason = v:exception
       if this._registration_window isnot null_object
@@ -1642,9 +1739,11 @@ export class Binding
       remove(registration_owners, string(this._buffer))
     endtry
     if this._editor is null_object
+      this._split_registration_open = false
       return
     endif
     if !returned || !this._enabled
+      this._split_registration_open = false
       this._editor.Abandon()
       this._editor = null_object
       return
@@ -1652,6 +1751,7 @@ export class Binding
     try
       this.QueueRegistrationResult(candidate)
     catch
+      this._split_registration_open = false
       const reason = v:exception
       this._editor.Abandon()
       this._editor = null_object
@@ -1696,6 +1796,9 @@ export class Binding
   enddef
 
   def _ClearRegistrationReply()
+    if this._registration_window is null_object
+      this._split_registration_open = false
+    endif
     this._registration_reply = null_object
     this._registration_ticket = 0
   enddef
@@ -1786,7 +1889,8 @@ var next_registration_ticket: number = 0
 var registration_owners: dict<Binding> = {}
 
 export def OpenRegistration(prefill: bool = true)
-  RequireCurrentBinding().OpenRegistrationWindow(prefill)
+  const owner = RequireCurrentBinding()
+  owner.Observe(() => owner.OpenRegistrationWindow(prefill))
 enddef
 
 export def Reconvert(): bool
@@ -1808,20 +1912,23 @@ enddef
 
 export def ReturnRegistrationWindow(parent: number, child: number)
   if has_key(registration_owners, string(parent))
-    registration_owners[string(parent)].ReturnRegistrationWindow(child)
+    const owner = registration_owners[string(parent)]
+    owner.Observe(() => owner.ReturnRegistrationWindow(child))
   endif
 enddef
 
 # Queued commands carry only the target buffer and this reply's generation.
 export def ResumeRegistrationResult(number: number, ticket: number)
   if has_key(bindings, string(number))
-    bindings[string(number)].ResumeQueuedRegistration(ticket)
+    const owner = bindings[string(number)]
+    owner.Observe(() => owner.ResumeQueuedRegistration(ticket))
   endif
 enddef
 
 export def ApplyRegistrationResult(number: number, ticket: number)
   if has_key(bindings, string(number))
-    bindings[string(number)].ApplyQueuedRegistration(ticket)
+    const owner = bindings[string(number)]
+    owner.Observe(() => owner.ApplyQueuedRegistration(ticket))
   endif
 enddef
 
@@ -1841,14 +1948,16 @@ export def GetRegistrationRequest(): registration.Request
 enddef
 
 export def CompleteRegistration(text: string, annotations: list<string> = [])
-  RequireCurrentBinding().CompleteRegistration(text, annotations)
+  const owner = RequireCurrentBinding()
+  owner.Observe(() => owner.CompleteRegistration(text, annotations))
 enddef
 
 export def CancelRegistration()
-  RequireCurrentBinding().CancelRegistration()
+  const owner = RequireCurrentBinding()
+  owner.Observe(() => owner.CancelRegistration())
 enddef
 
-export def Enable(compiled: scheme.CompiledScheme, sticky_key: string = '', actions: dict<string> = {},
+export def Enable(Initialize: func(), compiled: scheme.CompiledScheme, sticky_key: string = '', actions: dict<string> = {},
     entries: dict<dictionary.Entry> = {}, preferences: user_state.State = null_object,
     registration_auto: bool = false, small_tsu_okuri_as_t: bool = true, keyboard_layout: string = '',
     keyboard_layout_overrides: dict<string> = {}, persist_input_mode: bool = false,
@@ -1856,28 +1965,29 @@ export def Enable(compiled: scheme.CompiledScheme, sticky_key: string = '', acti
     keep_preedit_on_backspace: bool = true, affix_key: string = '')
   const id = string(bufnr('%'))
   if has_key(bindings, id)
-    bindings[id].Enable()
+    const current = bindings[id]
+    current.Observe(() => current.EnablePublic(Initialize))
   else
-    const previous_owner = get(reconversion_owners, id, null_object)
+    const previous_owner: Binding = get(reconversion_owners, id, null_object)
     if previous_owner isnot null_object
         && (previous_owner.HasActiveReconversion() || previous_owner.GetRegistrationRequest() isnot null_object)
       previous_owner.RestoreReconversionMappings()
-      previous_owner.Enable()
+      previous_owner.Observe(() => previous_owner.EnablePublic(Initialize))
       return
     endif
     const history = previous_owner is null_object ? null_object : previous_owner.GetReconversionHistory()
     const current = Binding.new(compiled, sticky_key, entries, preferences, actions, '', registration_auto,
       small_tsu_okuri_as_t, keyboard_layout, keyboard_layout_overrides, persist_input_mode,
       register_mode_conversions, dictionary_index, history, keep_preedit_on_backspace, affix_key)
-    current.Enable()
-    reconversion_owners[id] = current
+    current.Observe(() => current.EnablePublic(Initialize))
   endif
 enddef
 
 export def Disable()
   const id = string(bufnr('%'))
   if has_key(bindings, id)
-    bindings[id].Disable()
+    const owner = bindings[id]
+    owner.Observe(() => owner.Disable())
   endif
 enddef
 
@@ -1905,7 +2015,8 @@ export def DisableAll()
         endif
       endif
       if has_key(bindings, id)
-        bindings[id].Disable(true)
+        const owner = bindings[id]
+        owner.Observe(() => owner.Disable(true))
       endif
     endfor
   finally
@@ -1925,7 +2036,8 @@ enddef
 
 def Leave(number: number, leaving_window: bool = false)
   if has_key(bindings, string(number))
-    bindings[string(number)].Leave(false, leaving_window)
+    const owner = bindings[string(number)]
+    owner.Observe(() => owner.Leave(false, leaving_window))
   endif
 enddef
 
@@ -1937,13 +2049,15 @@ enddef
 
 export def ReconversionInput(number: number, key: string)
   if has_key(reconversion_owners, string(number))
-    reconversion_owners[string(number)].ReconversionInput(key)
+    const owner = reconversion_owners[string(number)]
+    owner.Observe(() => owner.ReconversionInput(key))
   endif
 enddef
 
 export def CancelReconversion(number: number)
   if has_key(reconversion_owners, string(number))
-    reconversion_owners[string(number)].CancelReconversion()
+    const owner = reconversion_owners[string(number)]
+    owner.Observe(() => owner.CancelReconversion())
   endif
 enddef
 
@@ -1960,22 +2074,19 @@ def Dispatch(number: number, key: string)
       && reconversion_owners[string(number)].HasActiveReconversion()
       && has_key(bindings, string(number))
       && reconversion_owners[string(number)] isnot bindings[string(number)]
-    reconversion_owners[string(number)].CancelReconversion()
+    const owner = reconversion_owners[string(number)]
+    owner.Observe(() => owner.CancelReconversion())
   endif
   if has_key(bindings, string(number))
-    bindings[string(number)].Dispatch(key)
+    const owner = bindings[string(number)]
+    owner.Observe(() => owner.Dispatch(key))
   endif
 enddef
 
 export def PasteInline(number: number)
   if has_key(bindings, string(number))
-    bindings[string(number)].PasteInline()
-  endif
-enddef
-
-export def RestoreInlineEscape(number: number)
-  if has_key(bindings, string(number))
-    bindings[string(number)].RestoreInlineEscape()
+    const owner = bindings[string(number)]
+    owner.Observe(() => owner.PasteInline())
   endif
 enddef
 
@@ -2017,7 +2128,8 @@ enddef
 
 export def EnterAfterInsertEnter(number: number)
   if has_key(bindings, string(number))
-    bindings[string(number)].EnterOnInsertEnter()
+    const owner = bindings[string(number)]
+    owner.Observe(() => owner.EnterOnInsertEnter())
   endif
 enddef
 
@@ -2031,13 +2143,15 @@ enddef
 export def EnterReconversionNow(number: number)
   const id = string(number)
   if has_key(reconversion_owners, id)
-    reconversion_owners[id].EnterOnInsertEnter()
+    const owner = reconversion_owners[id]
+    owner.Observe(() => owner.EnterOnInsertEnter())
   endif
 enddef
 
 export def ResumeAfterNativeInput(number: number)
   if has_key(bindings, string(number))
-    bindings[string(number)].ResumeAfterNativeInput()
+    const owner = bindings[string(number)]
+    owner.Observe(() => owner.ResumeAfterNativeInput())
   endif
 enddef
 

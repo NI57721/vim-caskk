@@ -139,6 +139,10 @@ export class View
   def new()
   enddef
 
+  def IsVisible(): bool
+    return this._window != 0 && get(popup_getpos(this._window), 'visible', 0) != 0
+  enddef
+
   def Close()
     if this._window != 0 && !empty(popup_getpos(this._window))
       popup_close(this._window)

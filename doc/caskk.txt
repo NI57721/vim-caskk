@@ -119,6 +119,49 @@ CancelRegistration()                            *caskk-cancel-registration*
 Call completion/cancellation in the original buffer in Insert mode, for example
 from a <ScriptCmd> mapping.  Both require a pending request.
 
+USER AUTOCOMMANDS                                     *caskk-user-events*
+
+Caskk fires these |User| events in the affected buffer after updating its
+text, presentation, and mappings.  They cover Insert input and reconversion.
+Registration events run in the parent buffer, including split registration.
+
+CaskkEnable                                                    *CaskkEnable*
+CaskkDisable                                                  *CaskkDisable*
+    The buffer became enabled or disabled.  Repeating the same operation,
+    rolling back a failed enable, and installing temporary reconversion or
+    registration mappings leave the public enabled state unchanged.
+
+CaskkInputModeChanged                                *CaskkInputModeChanged*
+    The actual input mode changed, for example from hiragana to katakana.
+
+CaskkPreeditStart                                        *CaskkPreeditStart*
+CaskkPreeditEnd                                            *CaskkPreeditEnd*
+    Modified editing began or ended.  Preedit includes candidate selection.
+
+CaskkConversionStart                                 *CaskkConversionStart*
+CaskkConversionEnd                                     *CaskkConversionEnd*
+    The first candidate was previewed, or selection ended through commit,
+    cancellation, or exhaustion.  Labels and paging stay in the same
+    selection.  Esc back to the reading ends selection and keeps preedit.
+
+CaskkCompletionStart                                 *CaskkCompletionStart*
+CaskkCompletionEnd                                     *CaskkCompletionEnd*
+    Reading completion opened or closed its candidate list.
+
+CaskkRegistrationStart                             *CaskkRegistrationStart*
+CaskkRegistrationEnd                                 *CaskkRegistrationEnd*
+    The registration field opened, or it closed and the parent's input
+    state was updated with the result or cancellation.
+
+When several states end in one operation, the order is completion,
+conversion, registration, and preedit.  Starts follow ends.  Enable precedes
+starts and Disable follows ends.  Registration-field editing, annotation
+completion, and command-line input are outside the scope of these events.
+
+Example: >
+    autocmd User CaskkConversionEnd redrawstatus
+<
+
 INPUT SCHEMES                                        *caskk-input-schemes*
 
 RegisterInputScheme() takes these fields:
