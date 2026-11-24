@@ -174,8 +174,10 @@ The row displays annotations from all matching sources.
 
 Completion                                            *caskk-completion*
     Reading suggestions appear automatically.  ShowCompletion selects one;
-    NextCandidate/PreviousCandidate navigate, Commit accepts, CancelCompletion
-    restores the reading.  Typing with a selected suggestion accepts it first.
+    PreviousCandidate moves to the previous suggestion, Commit accepts, and
+    CancelCompletion restores the reading.  Typing with a selected suggestion
+    accepts it first, including Space when mapped to Convert or NextCandidate.
+    Otherwise NextCandidate closes completion and starts conversion.
     Available in Insert input, excluding inline registration.
 
 Registration                                        *caskk-registration*

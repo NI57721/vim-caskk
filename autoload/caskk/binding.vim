@@ -1188,6 +1188,7 @@ export class Binding
     endif
     if this._editor isnot null_object && this._editor.IsInCompletion()
       const completion_action = get(this._actions, key, '')
+      const conversion_space = (key ==# '<Space>' || key ==# ' ') && completion_action ==# 'NextCandidate'
       if key ==# '<CR>' || completion_action ==# 'Commit'
         this._Record(this._editor.Commit())
         return
@@ -1212,10 +1213,14 @@ export class Binding
         this._ShowAutomaticCompletion()
         this._SyncInputMode()
         return
-      elseif strchars(key) == 1 && !has_key(this._native, key)
-          && (completion_action == '' || !this._CanRunAction(completion_action))
-          && this._editor.GetDisplayCandidatesInfo().selected_index >= 0
+      elseif this._editor.GetDisplayCandidatesInfo().selected_index >= 0
+          && (conversion_space || (strchars(key) == 1 && !has_key(this._native, key)
+            && (completion_action == '' || !this._CanRunAction(completion_action))))
         this._Record(this._editor.Commit())
+        if conversion_space
+          this._FeedEditor(' ')
+          return
+        endif
       else
         this._editor.CancelCompletion()
       endif

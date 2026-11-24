@@ -453,6 +453,15 @@ suite.typing_after_a_selected_completion_commits_then_starts_new_input = (): voi
   assert.equals(getline(1), '前仮名後')
 }
 
+suite.space_after_a_selected_completion_commits_and_inserts_a_space = (): void => {
+  Setup({candidate_select_keys: ['1'], mode_popup: false})
+  defer Cleanup()
+  feedkeys("aKana" .. WAIT .. "\<Tab>\<F12>\<Space>\<F12>\<Esc>", 'xt')
+  assert.equals(captures, ['前仮名後', '前仮名 後'])
+  assert.equals(popup_lines[1], [])
+  assert.equals(user_runtime.Get().GetSnapshot().mru[json_encode(['かな', ''])], ['仮名'])
+}
+
 suite.adjective_label_stays_in_popup_while_commit_and_undo_keep_plain_text = (): void => {
   const source = tempname()
   defer delete(source)
