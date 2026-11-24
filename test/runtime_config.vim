@@ -275,7 +275,7 @@ suite.ctrl_n_and_ctrl_p_candidate_mappings_work_with_insert_arrow_mappings = ():
     "\<Space>": 'Convert', "\<C-N>": 'Convert', "\<C-P>": 'PreviousCandidate', "\<C-M>": 'Commit'}})
   Caskk.Enable('configured')
   g:caskk_captured_lines = []
-  feedkeys("a;ka\<Space>\<C-N>\<F12>\<C-P>\<F12>\<Esc>", 'xt')
+  feedkeys("a;ka\<Space>\<C-N>\<F12>\<C-P>\<F12>\<C-\>\<C-N>", 'xt')
   assert.equals(g:caskk_captured_lines, ['前家後', '前蚊後'])
   assert.equals(getline(1), '前蚊後')
   Caskk.Disable()
@@ -616,7 +616,7 @@ suite.small_tsu_dictionary_prefix_is_enabled_by_default_and_can_be_disabled = ()
     cursor(1, 1)
     Caskk.Config(options)
     Caskk.Enable('small-tsu-prefix')
-    feedkeys("aKQ\<Esc>", 'xt')
+    feedkeys("aKQ\<C-\>\<C-N>", 'xt')
     assert.equals(getline(1), expected)
     Caskk.Disable()
   endfor
@@ -633,7 +633,7 @@ suite.keyboard_layout_config_maps_shifted_number_row_to_okuri_boundary = (): voi
   Caskk.Config({keyboard_layout: 'US', dictionaries: [path]})
   Caskk.Enable('layout-okuri')
   cursor(1, 1)
-  feedkeys("ak!\<Esc>", 'xt')
+  feedkeys("ak!\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前蹴って後')
   Caskk.Disable()
 
@@ -641,7 +641,7 @@ suite.keyboard_layout_config_maps_shifted_number_row_to_okuri_boundary = (): voi
   Caskk.Config({keyboard_layout: 'JIS', dictionaries: [path]})
   Caskk.Enable('layout-okuri')
   cursor(1, 1)
-  feedkeys("ak\"\<Esc>", 'xt')
+  feedkeys("ak\"\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前蹴って後')
 }
 
@@ -684,7 +684,7 @@ suite.keyboard_layout_override_replaces_one_shifted_symbol_through_public_config
   overrides['1'] = '!'
   Caskk.Enable('layout-override-okuri')
   cursor(1, 1)
-  feedkeys("ak?\<Esc>", 'xt')
+  feedkeys("ak?\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前蹴って後')
 }
 
@@ -819,13 +819,13 @@ suite.double_sticky_affix_requires_consecutive_input_and_is_opt_in = (): void =>
     mappings: {"\<Space>": 'Convert', "\<F8>": 'ShowCompletion'}}
   Caskk.Config(options)
   Caskk.Enable('configured')
-  feedkeys("a;;ka\<Space>\<Esc>", 'xt')
+  feedkeys("a;;ka\<Space>\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前蚊後')
   setline(1, '前後')
   cursor(1, 1)
   Caskk.Config(extendnew(options, {affix_key: ';;'}))
   Caskk.Enable('configured')
-  feedkeys("a;ka;\<F8>;\<Space>\<Esc>", 'xt')
+  feedkeys("a;ka;\<F8>;\<Space>\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前蚊後')
 }
 
@@ -860,13 +860,13 @@ suite.affix_prefix_flushes_unfinished_spelling_and_yields_to_actions = (): void 
     mode_popup: false, mappings: {"\<Space>": 'Convert'}}
   Caskk.Config(options)
   Caskk.Enable('configured')
-  feedkeys("a;kak1\<Space>\<Esc>", 'xt')
+  feedkeys("a;kak1\<Space>\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前御後')
   setline(1, '前後')
   cursor(1, 1)
   Caskk.Config(extendnew(options, {mappings: {'1': 'Convert'}}))
   Caskk.Enable('configured')
-  feedkeys("a;ka1\<Esc>", 'xt')
+  feedkeys("a;ka1\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前蚊後')
 }
 
@@ -879,7 +879,7 @@ suite.named_affix_key_uses_normal_vim_input_outside_preedit = (): void => {
   Caskk.Config({sticky_key: "\<F9>", affix_key: "\<F10>", dictionaries: [dictionary],
     mode_popup: false, mappings: {"\<Space>": 'Convert'}})
   Caskk.Enable('configured')
-  feedkeys("a\<F10>\<F9>ka\<F10>\<Space>\<Esc>", 'xt')
+  feedkeys("a\<F10>\<F9>ka\<F10>\<Space>\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前<F10>御後')
 }
 

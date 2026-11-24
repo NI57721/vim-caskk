@@ -603,6 +603,13 @@ export class Binding
         this._candidate_mappings.Install(lhs, this._InputMapping(regular ? 'DispatchInput' : 'ReconversionInput', key))
       endif
     endfor
+    const escape = mapping.Lhs('<Esc>')
+    if inline || !this._enabled || this._registration_input
+        || this._reconversion_record isnot null_object || this._editor.IsRegistrationSuspended()
+      this._candidate_mappings.RestoreKey(escape)
+    elseif !this._candidate_mappings.Has(escape)
+      this._candidate_mappings.Install(escape, this._InputMapping('DispatchInput', '<Esc>'))
+    endif
   enddef
 
   def ResizeCandidateList()
@@ -772,10 +779,10 @@ export class Binding
   enddef
 
   def _InstallDeleteEscape()
-    if this._delete_mappings.Has(mapping.Lhs('<Esc>'))
+    const lhs = mapping.Lhs('<Esc>')
+    if this._delete_mappings.Has(lhs) || this._candidate_mappings.Has(lhs)
       return
     endif
-    const lhs = mapping.Lhs('<Esc>')
     if !this._enabled
       for key in ['y', 'Y', 'n', 'N', '<Esc>']
         this._delete_mappings.Install(mapping.Lhs(key), this._InputMapping('ReconversionInput', key))
@@ -1157,12 +1164,21 @@ export class Binding
     if this.HandleAnnotation(key)
       return
     endif
+    const cancel_conversion = key ==# '<Esc>' && this._candidate_mappings.Has(mapping.Lhs(key))
     this._AbandonExternallyChangedEditor()
     if this._ResolveDeleteUserEntryConfirmation(key)
       return
     endif
     if this._inline_editor isnot null_object
       this._DispatchInline(key)
+      return
+    endif
+    if cancel_conversion
+      if this._editor is null_object
+        feedkeys(keycode.Encode(key), 'im')
+      else
+        this._Record([this._editor.CancelConversion()])
+      endif
       return
     endif
     if this._editor isnot null_object

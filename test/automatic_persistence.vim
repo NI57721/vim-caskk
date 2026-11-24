@@ -61,7 +61,7 @@ def Configure(directory: string, path: string = ''): string
 enddef
 
 def Input(keys: string): string
-  return 'feedkeys("' .. keys .. '\<Esc>", "xt")'
+  return 'feedkeys("' .. keys .. '\<C-\>\<C-N>", "xt")'
 enddef
 
 suite.first_enable_loads_history_and_real_exit_saves_new_learning = (): void => {

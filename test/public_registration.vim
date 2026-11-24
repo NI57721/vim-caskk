@@ -172,7 +172,7 @@ suite.cancellation_keeps_reading_editable_without_changing_shared_state = (): vo
 suite.exhaustion_can_register_a_new_candidate_used_by_the_next_conversion = (): void => {
   const fixture = Setup(['いk /行/'])
   defer Cleanup(fixture)
-  feedkeys("aZXn\<F6>\<F3>ZX\<Esc>", 'xt')
+  feedkeys("aZXn\<F6>\<F3>ZX\<C-\>\<C-N>", 'xt')
   assert.equals(errors, [])
   assert.equals(requests[0].reading, 'い')
   assert.equals(requests[0].okuri, 'くらい')
@@ -199,7 +199,7 @@ suite.direct_preedit_and_candidate_selection_do_not_expose_a_registration_reques
   const fixture = Setup(['か /蚊/'])
   defer Cleanup(fixture)
   assert.equals(Caskk.GetRegistrationRequest() is null_object, true)
-  feedkeys("a\<F6>Ka\<F6>s\<F6>\<F3>\<Esc>", 'xt')
+  feedkeys("a\<F6>Ka\<F6>s\<F6>\<F3>\<C-\>\<C-N>", 'xt')
   assert.equals(errors, ['caskk: no current dictionary registration request'])
   assert.equals(len(requests), 3)
   for request in requests

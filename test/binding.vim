@@ -80,7 +80,7 @@ suite.backspace_keeps_the_shortened_reading_convertible = (): void => {
   const keys = binding.Binding.new(compiled, ';', entries, null_object,
     {c: 'Convert'})
   keys.Enable()
-  feedkeys("a;aiueo\<BS>c\<Esc>", 'xt')
+  feedkeys("a;aiueo\<BS>c\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前読み後')
   keys.Disable()
 }
@@ -93,7 +93,7 @@ suite.backspace_displays_only_the_last_preedit_character_as_deleted = (): void =
   const keys = binding.Binding.new(compiled, ';', entries, null_object, {c: 'Convert'})
   inoremap <buffer> <F11> <ScriptCmd>CapturePendingBuffer()<CR>
   keys.Enable()
-  feedkeys("a;aiueo\<BS>\<F11>c\<Esc>", 'xt')
+  feedkeys("a;aiueo\<BS>\<F11>c\<C-\>\<C-N>", 'xt')
   assert.equals(g:caskk_pending_snapshot, '前あいうえ後')
   assert.equals(empty(g:caskk_pending_properties), false)
   assert.equals(getline(1), '前読み後')
@@ -189,7 +189,7 @@ suite.small_tsu_symbol_okuri_selects_dictionary_entry_using_t_prefix = (): void 
     [scheme.SpecialDefinition.new(['l'], 'っ')])
   const keys = binding.Binding.new(compiled, '', entries)
   keys.Enable()
-  feedkeys("aSiL\<Esc>", 'xt')
+  feedkeys("aSiL\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前知っ後')
   assert.equals(keys.GetEditor() is null_object, true)
   keys.Disable()
@@ -262,7 +262,7 @@ suite.backspace_preserves_restored_modifier_for_following_input = (): void => {
   const entries = merger.Merge([[parser.ParseLine('か /蚊/')]])
   const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), ';', entries, null_object, {s: 'Convert'})
   keys.Enable()
-  feedkeys("afooK\<BS>kas\<Esc>", 'xt')
+  feedkeys("afooK\<BS>kas\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前foo蚊後')
   keys.Disable()
 }
@@ -283,7 +283,7 @@ suite.backspace_edits_the_preedit_before_following_input_converts_it = (): void 
   const entries = merger.Merge([[parser.ParseLine('かか /科科/')]])
   const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries, null_object, {s: 'Convert'})
   keys.Enable()
-  feedkeys("aKaka\<BS>kas\<Esc>", 'xt')
+  feedkeys("aKaka\<BS>kas\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前科科後')
   assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
   assert.equals(keys.GetEditor() is null_object, true)
@@ -962,7 +962,7 @@ suite.backspace_control_h_keeps_the_reading_modified = (): void => {
   const keys = binding.Binding.new(scheme.Compile({}, {a: 'a', i: 'i', u: 'u'}), ';', entries,
     null_object, {c: 'Convert'})
   keys.Enable()
-  feedkeys("a;aiu\<C-H>ac\<Esc>", 'xt')
+  feedkeys("a;aiu\<C-H>ac\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前読み後')
   keys.Disable()
 }

@@ -75,7 +75,7 @@ suite.round_trip_preserves_entries_annotations_mru_pin_and_demotion = (): void =
   Caskk.LoadState()
   assert.equals(codec.Encode(state.GetSnapshot()), before)
   Caskk.Enable('persistence')
-  feedkeys("aKas\<Esc>", 'xt')
+  feedkeys("aKas\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前課後')
 }
 
@@ -107,12 +107,12 @@ suite.loaded_learning_is_used_by_an_already_enabled_buffer = (): void => {
   Caskk.Config({state_path: path, dictionaries: [fixture.directory .. '/system'],
     candidate_select_keys: [], mappings: {s: 'Convert', n: 'NextCandidate'}})
   Caskk.Enable('persistence')
-  feedkeys("aKasn\<Esc>", 'xt')
+  feedkeys("aKasn\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前科後')
   Caskk.SaveState()
   user_runtime.Get().Restore(user_state.State.new().GetSnapshot())
   Caskk.LoadState()
-  feedkeys("aKas\<Esc>", 'xt')
+  feedkeys("aKas\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前科科後')
 }
 
@@ -123,7 +123,7 @@ suite.automatic_learning_is_saved_when_a_conversion_is_committed = (): void => {
   Caskk.Config({state_path: path, state_auto: true,
     dictionaries: [fixture.directory .. '/system'], candidate_select_keys: [], mappings: {s: 'Convert', n: 'NextCandidate'}})
   Caskk.Enable('persistence')
-  feedkeys("aKasn\<Esc>", 'xt')
+  feedkeys("aKasn\<C-\>\<C-N>", 'xt')
   assert.equals(store.Load(path).mru[json_encode(['か', ''])], ['科'])
 }
 
@@ -156,7 +156,7 @@ suite.automatic_saving_disabled_keeps_learning_in_memory_only = (): void => {
   Caskk.Config({state_path: path, dictionaries: [fixture.directory .. '/system'],
     candidate_select_keys: [], mappings: {s: 'Convert', n: 'NextCandidate'}})
   Caskk.Enable('persistence')
-  feedkeys("aKasn\<Esc>", 'xt')
+  feedkeys("aKasn\<C-\>\<C-N>", 'xt')
   assert.equals(filereadable(path), 0)
   assert.equals(user_runtime.Get().GetSnapshot().mru[json_encode(['か', ''])], ['科'])
 }
@@ -198,7 +198,7 @@ suite.failed_automatic_save_keeps_the_conversion_and_can_be_retried = (): void =
   Caskk.Enable('persistence')
   mkdir(path)
   writefile(['keep'], path .. '/sentinel')
-  feedkeys("aKasn\<Esc>", 'xt')
+  feedkeys("aKasn\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前科後')
   assert.equals(user_runtime.Get().GetSnapshot().mru[json_encode(['か', ''])], ['科'])
   assert.equals(stridx(execute('messages'), 'caskk: cannot save user state: ' .. path .. ':') >= 0, true)
@@ -321,7 +321,7 @@ suite.save_during_selection_does_not_commit_the_candidate = (): void => {
     candidate_select_keys: [], mappings: {s: 'Convert', n: 'NextCandidate'}})
   inoremap <buffer> <F12> <ScriptCmd>SaveCurrent()<CR>
   Caskk.Enable('persistence')
-  feedkeys("aKasn\<F12>\<Esc>", 'xt')
+  feedkeys("aKasn\<F12>\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前科後')
   assert.equals(store.Load(path).mru, {})
   assert.equals(user_runtime.Get().GetSnapshot().mru[json_encode(['か', ''])], ['科'])

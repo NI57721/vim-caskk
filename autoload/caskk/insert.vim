@@ -371,6 +371,11 @@ export class Editor
     return this._Apply([this._session.SelectCandidate(index)])[0]
   enddef
 
+  def CancelConversion(): session.Result
+    this._CheckInput()
+    return this._Apply([this._session.CancelConversion()])[0]
+  enddef
+
   def MoveCandidatePage(size: number, direction: number): session.Result
     this._CheckInput()
     return this._Apply([this._session.MoveCandidatePage(size, direction)])[0]

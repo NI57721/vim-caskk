@@ -349,7 +349,7 @@ suite.affix_registration_prefills_the_reading_without_marker_and_reuses_the_save
     Caskk.LoadState()
     setline(1, '前後')
     cursor(1, 1)
-    feedkeys('a' .. keys .. "s\<Esc>", 'xt')
+    feedkeys('a' .. keys .. "s\<C-\>\<C-N>", 'xt')
     assert.equals(getline(1), '前漢字後')
   endfor
 }

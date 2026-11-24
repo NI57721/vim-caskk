@@ -191,7 +191,7 @@ suite.escape_cancels_registration_and_keeps_the_original_reading_editable = (): 
 suite.okuri_registration_prefills_only_reading_and_appends_full_suffix_once = (): void => {
   const fixture = Setup()
   defer Cleanup(fixture)
-  feedkeys("aZX\<F3>\<BS>d\<CR>ZX\<Esc>", 'xt')
+  feedkeys("aZX\<F3>\<BS>d\<CR>ZX\<C-\>\<C-N>", 'xt')
   assert.equals(errors, [])
   assert.equals(initial_texts, ['い'])
   assert.equals(getline(1), '前漢字くらい漢字くらい後')

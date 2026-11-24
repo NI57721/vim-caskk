@@ -217,6 +217,26 @@ suite.cancelling_user_entry_deletion_keeps_the_entry_and_selected_candidate = ()
   assert.equals(getline(1), '前登録のみ後')
 }
 
+suite.escape_restores_modified_reading_and_can_retry_conversion = (): void => {
+  for options in [{candidate_select_keys: []}, {candidate_select_keys: ['1', '2']}]
+    const fixture = Setup(true, {}, 2, true, options)
+    try
+      inoremap <buffer> <Esc> <Esc>
+      const original_escape = maparg('<Esc>', 'i', false, true)
+      const select_second = empty(options.candidate_select_keys) ? 'n' : '2'
+      feedkeys('aKas' .. select_second .. CAPTURE .. "\<Esc>" .. CAPTURE .. "sc\<Esc>", 'xt')
+      assert.equals(observations[0].preview, '前科後')
+      assert.equals(observations[1].preview, '前か後')
+      assert.equals(observations[1].popups, [])
+      assert.equals(preference_revisions[1], preference_revisions[0])
+      assert.equals(getline(1), '前蚊後')
+      assert.equals(maparg('<Esc>', 'i', false, true), original_escape)
+    finally
+      Cleanup(fixture)
+    endtry
+  endfor
+}
+
 suite.esc_cancels_user_entry_deletion_without_leaving_the_candidate = (): void => {
   const fixture = Setup(true, {x: 'DeleteUserEntry'})
   defer Cleanup(fixture)
@@ -271,7 +291,7 @@ suite.returning_from_first_candidate_to_reading_closes_the_popup_without_learnin
 suite.exhaustion_closes_candidate_popup_before_opening_registration = (): void => {
   const fixture = Setup()
   defer Cleanup(fixture)
-  feedkeys('aKas' .. CAPTURE .. 'nn' .. CAPTURE .. "\<Esc>\<Esc>", 'xt')
+  feedkeys('aKas' .. CAPTURE .. 'nn' .. CAPTURE .. "\<Esc>c\<Esc>", 'xt')
   assert.equals(len(observations[0].popups), 1)
   assert.equals(observations[1].popups, [])
   assert.equals(observations[1].buffer != fixture.buffer, true)

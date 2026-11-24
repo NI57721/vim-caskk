@@ -27,7 +27,7 @@ suite.popup_keeps_marker_while_buffer_shows_only_candidate = (): void => {
     Caskk.Config({dictionaries: [path], candidate_select_keys: ['1'], mappings: {"\<Space>": 'NextCandidate'}})
     Caskk.Enable('marker')
     inoremap <buffer> <F12> <ScriptCmd>Capture()<CR>
-    feedkeys("iKaKu\<Space>\<F12>\<Esc>", 'xt')
+    feedkeys("iKaKu\<Space>\<F12>\<C-\>\<C-N>", 'xt')
     assert.equals(captured, '描く')
     assert.equals(getline(1), '描く')
     assert.equals(len(filter(copy(rows), (_, row) => row =~# '描く［verb］')) > 0, true)

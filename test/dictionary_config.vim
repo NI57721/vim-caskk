@@ -53,7 +53,7 @@ suite.public_conversion_uses_merged_source_order_without_duplicate_candidates = 
   for [steps, expected] in [[0, '蚊'], [1, '科'], [2, '課']]
     setline(1, '前後')
     cursor(1, 1)
-    feedkeys('aKas' .. repeat('n', steps) .. "\<Esc>", 'xt')
+    feedkeys('aKas' .. repeat('n', steps) .. "\<C-\>\<C-N>", 'xt')
     assert.equals(getline(1), '前' .. expected .. '後')
   endfor
   assert.equals([readblob(first), readblob(second)], original)
@@ -68,7 +68,7 @@ suite.explicit_source_encoding_is_used_by_public_conversion = (): void => {
   writefile(0zA4ABA4CA202FB2BECCBE3BC3EDBCE12F0A, path)
   Caskk.Config({dictionaries: [{path: path, encoding: 'euc-jp'}], mappings: {s: 'Convert'}})
   Caskk.Enable('dictionary-config')
-  feedkeys("aXs\<Esc>", 'xt')
+  feedkeys("aXs\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前仮名後')
 }
 
@@ -85,7 +85,7 @@ suite.small_dictionary_is_ready_after_config_and_does_not_retain_source_containe
   sources->remove(0)
   delete(path)
   Caskk.Enable('dictionary-config')
-  feedkeys("aKas\<Esc>", 'xt')
+  feedkeys("aKas\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前蚊後')
 }
 
@@ -97,12 +97,12 @@ suite.dictionary_only_reload_keeps_binding_and_uses_the_updated_dictionary = ():
   writefile(['か /蚊/'], path)
   Caskk.Config({dictionaries: [path], mappings: {s: 'Convert'}})
   Caskk.Enable('dictionary-config')
-  feedkeys("aKas\<Esc>", 'xt')
+  feedkeys("aKas\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前蚊後')
   writefile(['か /科/'], path)
   Caskk.Config({dictionaries: [path], mappings: {s: 'Convert'}})
   assert.equals(Caskk.IsEnabled(), true)
-  feedkeys("aKas\<Esc>", 'xt')
+  feedkeys("aKas\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前蚊科後')
 }
 
@@ -162,7 +162,7 @@ suite.read_and_decode_failures_keep_previous_dictionary_and_input_settings = ():
     assert.equals(hlget('CaskkPreedit'), before)
   endfor
   Caskk.Enable('dictionary-config')
-  feedkeys("a;kas\<Esc>", 'xt')
+  feedkeys("a;kas\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前蚊後')
 }
 
@@ -174,7 +174,7 @@ suite.configuration_skips_malformed_dictionary_lines_and_loads_later_entries = (
   writefile(['かな /未完', 'かな /仮名/'], path)
   Caskk.Config({dictionaries: [path], mappings: {s: 'Convert'}})
   Caskk.Enable('dictionary-config')
-  feedkeys("aXs\<Esc>", 'xt')
+  feedkeys("aXs\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前仮名後')
 }
 
@@ -197,7 +197,7 @@ suite.highlight_failure_does_not_publish_a_newly_loaded_dictionary = (): void =>
   assert.equals(stridx(caught, 'caskk: invalid configuration:'), 0)
   assert.equals(hlget('CaskkPreedit'), before)
   Caskk.Enable('dictionary-config')
-  feedkeys("aKas\<Esc>", 'xt')
+  feedkeys("aKas\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前蚊後')
 }
 
