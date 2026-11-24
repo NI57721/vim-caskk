@@ -206,8 +206,9 @@ suite.labels_preview_reconversion_until_commit_and_restore_disabled_mappings = (
         inoremap <buffer> 2 custom
       endif
       cursor(1, 4)
-      feedkeys("\<F12>t\<Esc>2\<F11>c\<F11>", 'xt')
+      feedkeys("\<F12>2t\<F11>c\<F11>", 'xt')
       assert.equals(getline(1), '前科後')
+      assert.equals(user_runtime.Get().GetSnapshot().pinned, {[json_encode(['か', ''])]: '科'})
       assert.equals(g:caskk_reconversion_probe[-2][3], '前科後')
       assert.equals(g:caskk_reconversion_probe[-2][1], len(fixture.existing_popups) + 1)
       assert.equals(g:caskk_reconversion_probe[-1][0], 'i')

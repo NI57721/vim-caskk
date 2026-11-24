@@ -6,8 +6,7 @@ import autoload 'caskk/input/mapping.vim' as mapping
 
 export def PageKeys(inline: bool = false): list<string>
   const keys = configuration.GetCandidateSelectKeys()
-  # Reserve one unwrapped line for the rank prompt, plus the inline editor's
-  # two header lines when it shares the candidate popup.
+  # Leave room for the input row and the inline editor's two header rows.
   const available = inline ? min([10, &lines - &cmdheight]) - 3 : &lines - &cmdheight - 1
   return available <= 0 ? [] : keys[: available - 1]
 enddef
@@ -60,7 +59,7 @@ export def CommandlinePageKeys(excluded: string): list<string>
     ->filter((_, key) => mapping.Lhs(key) !=# excluded)[: available - 1]
 enddef
 
-export def Format(info: conversion.CandidateListInfo, keys: list<string> = [], rank_action: string = ''): list<string>
+export def Format(info: conversion.CandidateListInfo, keys: list<string> = []): list<string>
   if info is null_object
     return []
   endif
@@ -77,9 +76,6 @@ export def Format(info: conversion.CandidateListInfo, keys: list<string> = [], r
     endif
     lines->add(line)
   endfor
-  if !empty(keys) && rank_action !=# ''
-    lines->add(RankPrompt(rank_action))
-  endif
   return lines
 enddef
 
@@ -184,7 +180,7 @@ export class View
   enddef
 
   def Render(info: conversion.CandidateListInfo, message: string = '',
-      keys: list<string> = [], rank_action: string = '', scroll_candidates: bool = false)
+      keys: list<string> = [], scroll_candidates: bool = false)
     if info is null_object || empty(info.candidates) || !configuration.GetCandidatePopup()
       this.Close()
       return
@@ -202,7 +198,7 @@ export class View
     elseif this._confirmation
       this.Close()
     endif
-    const lines = Format(info, keys, rank_action)
+    const lines = Format(info, keys)
     if !empty(keys)
       const previous = this._window == 0 ? {} : popup_getpos(this._window)
       const anchor = screenpos(win_getid(), line('.'), col('.'))

@@ -357,8 +357,11 @@ candidate_select_keys               *caskk-config-candidate-select-keys*
     In Insert mode, registration fields, and reconversion, press a label to
     preview and highlight its candidate.  Another label changes the preview.
     NextCandidate and PreviousCandidate move by page and preview its first
-    candidate.  Commit accepts the preview.  Previewing alone does not learn
-    the candidate.  On the command line, a label commits the candidate.
+    candidate.  Commit accepts the preview.  TogglePin and ToggleDemote
+    immediately update the previewed candidate.  The new ranking applies on
+    the next conversion.  Previewing alone does not learn the candidate.
+    On the command line, a label commits the candidate, and TogglePin and
+    ToggleDemote prompt for a label.
     An empty list hides candidate numbers and moves through candidates one at
     a time.  In Insert mode and on the command line, the first three choices
     keep the list stationary.  Moving forward beyond them scrolls with the

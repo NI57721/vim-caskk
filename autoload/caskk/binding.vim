@@ -603,14 +603,6 @@ export class Binding
         this._candidate_mappings.Install(lhs, this._InputMapping(regular ? 'DispatchInput' : 'ReconversionInput', key))
       endif
     endfor
-    const escape = mapping.Lhs('<Esc>')
-    if empty(keys) || current.CandidateRankAction() ==# ''
-      current.SetCandidateRankAction('')
-      this._candidate_mappings.RestoreKey(escape)
-    elseif !inline && !this._candidate_mappings.Has(escape)
-      this._candidate_mappings.Install(escape,
-        this._InputMapping(regular ? 'DispatchInput' : 'ReconversionInput', '<Esc>'))
-    endif
   enddef
 
   def ResizeCandidateList()
@@ -640,39 +632,19 @@ export class Binding
     if empty(keys)
       return false
     endif
-    const pending = current.CandidateRankAction()
     const label = index(mapnew(keys, (_, token) => mapping.Lhs(token)), mapping.Lhs(key))
-    if label >= 0
-      const target = conversion.PageStart(current.CandidateIndex(), len(keys)) + label
-      if target < len(current.GetCandidates().candidates)
-        if pending !=# ''
-          current.SetCandidateRankAction('')
-          if pending ==# 'TogglePin'
-            current.TogglePin(target)
-          else
-            current.ToggleDemote(target)
-          endif
-          this._RefreshCandidateList()
-        elseif inline
-          this._AppendInlineResults([current.SelectCandidate(target)])
-        else
-          this._Record([this._editor.SelectCandidate(target)])
-        endif
+    if label < 0
+      return false
+    endif
+    const target = conversion.PageStart(current.CandidateIndex(), len(keys)) + label
+    if target < len(current.GetCandidates().candidates)
+      if inline
+        this._AppendInlineResults([current.SelectCandidate(target)])
+      else
+        this._Record([this._editor.SelectCandidate(target)])
       endif
-      return true
     endif
-    const action = get(this._actions, key, '')
-    if action ==# 'TogglePin' || action ==# 'ToggleDemote'
-      current.SetCandidateRankAction(action)
-      this._RefreshCandidateList()
-      return true
-    endif
-    if pending !=# ''
-      current.SetCandidateRankAction('')
-      this._RefreshCandidateList()
-      return key ==# '<Esc>'
-    endif
-    return false
+    return true
   enddef
 
   def _DispatchInline(key: string)
@@ -1413,6 +1385,10 @@ export class Binding
         this._Record([this._editor.MoveCandidatePage(size, action ==# 'NextCandidate' ? 1 : -1)])
       elseif action ==# 'Commit'
         this._Record(this._editor.Commit())
+      elseif action ==# 'TogglePin'
+        this._editor.TogglePin()
+      elseif action ==# 'ToggleDemote'
+        this._editor.ToggleDemote()
       elseif action ==# 'DeleteUserEntry' && this._editor.CanDeleteUserEntry()
         this._RequestDeleteUserEntryConfirmation()
       endif

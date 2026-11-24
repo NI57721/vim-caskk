@@ -33,7 +33,7 @@ export class View
     elseif editor.input.InCandidate()
       const info = editor.Candidates()
       const keys = candidate_view.PageKeys(true)
-      const candidates = candidate_view.Format(info, keys, editor.input.CandidateRankAction())
+      const candidates = candidate_view.Format(info, keys)
       const visible = 6
       if !empty(keys)
         const page_start = conversion.PageStart(info.selected_index, len(keys))

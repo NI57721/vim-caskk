@@ -591,6 +591,17 @@ suite.inline_label_previews_an_okuri_candidate_until_commit = (): void => {
   assert.equals(getline(1), '前き後')
 }
 
+suite.inline_pin_and_demote_apply_immediately_to_the_previewed_row = (): void => {
+  const context = Setup(false, true, {t: 'TogglePin', d: 'ToggleDemote'}, true)
+  defer Cleanup(context)
+  popup_observations = []
+  const capture = "\<Cmd>call CaskkTestInlineCapture()\<CR>"
+  feedkeys("aKis\<F6>KaKu2t" .. capture .. 'd' .. capture .. "\<Esc>\<Esc>\<Esc>", 'xt')
+  assert.equals(popup_observations[0][1 :], ['登録語: 書く│', '1 行く', '2 ★ 書く'])
+  assert.equals(popup_observations[1][1 :], ['登録語: 書く│', '1 行く', '2 ↓ 書く'])
+  assert.equals(selected_candidate_rows, [4])
+}
+
 suite.affix_keys_convert_inside_inline_registration = (): void => {
   const path = tempname()
   defer delete(path)

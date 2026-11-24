@@ -554,12 +554,12 @@ suite.custom_pages_keep_labels_stable_when_editing_rank = (): void => {
   const fixture = Setup(true, {t: 'TogglePin', d: 'ToggleDemote', x: 'Commit'}, 3, true,
     {candidate_select_keys: ['x', 'y']})
   defer Cleanup(fixture)
-  feedkeys('aKann' .. CAPTURE .. 'ypt' .. CAPTURE .. "y" .. CAPTURE .. "d\<Esc>" .. CAPTURE .. "xcc\<Esc>", 'xt')
+  feedkeys('aKann' .. CAPTURE .. 'ypy' .. CAPTURE .. 't' .. CAPTURE .. "xcc\<Esc>", 'xt')
   assert.equals(observations[0].lines, ['x 候補3'])
-  assert.equals(observations[1].lines[-1], '固定する候補のラベルを入力（Escで取消）')
+  assert.equals(observations[1].lines, ['x 蚊 — 昆虫', 'y 科 — 学科'])
   assert.equals(observations[2].lines, ['x 蚊 — 昆虫', 'y ★ 科 — 学科'])
-  assert.equals(observations[3].lines, observations[2].lines)
-  assert.equals(selected_rows[2], 1)
+  assert.equals(observations[2].preview, '前科後')
+  assert.equals(selected_rows, [1, 2, 2])
   assert.equals(getline(1), '前蚊c後')
   feedkeys("AKasxc\<Esc>", 'xt')
   assert.equals(getline(1), '前蚊c後科')
@@ -588,15 +588,14 @@ suite.page_edges_restore_reading_and_request_registration = (): void => {
   assert.equals(getline(1), '前か後')
 }
 
-suite.demotion_affects_the_next_conversion_and_navigation_dismisses_the_prompt = (): void => {
-  const fixture = Setup(true, {t: 'TogglePin', d: 'ToggleDemote'}, 3, true, {candidate_select_keys: ['1', '2', '3']})
+suite.demotion_updates_the_selected_preview_and_affects_the_next_conversion = (): void => {
+  const fixture = Setup(true, {d: 'ToggleDemote'}, 3, true, {candidate_select_keys: ['1', '2', '3']})
   defer Cleanup(fixture)
-  feedkeys('aKasd' .. CAPTURE .. '2' .. CAPTURE .. 'tc' .. CAPTURE .. "\<Esc>AKas" .. CAPTURE .. "1c\<Esc>", 'xt')
-  assert.equals(observations[0].lines[-1], '降格する候補のラベルを入力（Escで取消）')
-  assert.equals(observations[1].lines, ['1 蚊 — 昆虫', '2 ↓ 科 — 学科', '3 候補3'])
-  assert.equals(observations[2].lines, [])
-  assert.equals(selected_rows[1 : 2], [1, 0])
-  assert.equals(observations[3].lines, ['1 蚊 — 昆虫', '2 候補3', '3 ↓ 科 — 学科'])
+  feedkeys('aKas2d' .. CAPTURE .. "c\<Esc>AKas" .. CAPTURE .. "1c\<Esc>", 'xt')
+  assert.equals(observations[0].lines, ['1 蚊 — 昆虫', '2 ↓ 科 — 学科', '3 候補3'])
+  assert.equals(observations[0].preview, '前科後')
+  assert.equals(selected_rows, [2, 1])
+  assert.equals(observations[1].lines, ['1 蚊 — 昆虫', '2 候補3', '3 ↓ 科 — 学科'])
 }
 
 suite.custom_multibyte_label_temporarily_overrides_a_user_mapping = (): void => {

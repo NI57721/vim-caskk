@@ -134,7 +134,7 @@ suite.automatic_candidate_preference_changes_are_saved_without_waiting_for_exit 
   Caskk.Config({state_path: path, state_auto: true, candidate_select_keys: ['1', '2'],
     dictionaries: [fixture.directory .. '/system'], mappings: {s: 'Convert', v: 'TogglePin'}})
   Caskk.Enable('persistence')
-  feedkeys("aKasv2\<Esc>", 'xt')
+  feedkeys("aKas2v\<Esc>", 'xt')
   assert.equals(store.Load(path).pinned[json_encode(['か', ''])], '科')
 }
 
@@ -145,7 +145,7 @@ suite.automatic_candidate_demotion_is_saved_without_waiting_for_exit = (): void 
   Caskk.Config({state_path: path, state_auto: true, candidate_select_keys: ['1', '2'],
     dictionaries: [fixture.directory .. '/system'], mappings: {s: 'Convert', b: 'ToggleDemote'}})
   Caskk.Enable('persistence')
-  feedkeys("aKasb2\<Esc>", 'xt')
+  feedkeys("aKas2b\<Esc>", 'xt')
   assert.equals(store.Load(path).demoted[json_encode(['か', ''])], ['科'])
 }
 
