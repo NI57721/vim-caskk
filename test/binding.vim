@@ -947,6 +947,34 @@ def CaptureOkuriBackspace()
   captured_okuri_boundaries->add(!empty(filter(prop_list(1), (_, property) => get(property, 'text', '') ==# '*')))
 enddef
 
+suite.backspace_restores_and_shortens_multi_character_okuri_without_learning = (): void => {
+  const context = Setup()
+  defer Cleanup(context)
+  captured_preedit_text = []
+  captured_okuri_boundaries = []
+  const entries = merger.Merge([[parser.ParseLine('き /着;@verb-1/')]])
+  const preferences = user_state.State.new()
+  const compiled = scheme.Compile({k: 'k'}, {i: 'i'}, [
+    scheme.SpecialDefinition.new(['j', 's', 'n'], 'ません'),
+  ])
+  const keys = binding.Binding.new(compiled, '', entries, preferences)
+  keys.Enable()
+  defer keys.Disable()
+  inoremap <buffer> <F12> <ScriptCmd>CaptureOkuriBackspace()<CR>
+  inoremap <buffer> <F11> <ScriptCmd>CapturePendingBuffer()<CR>
+
+  feedkeys("aKiJsn\<F12>\<BS>\<F12>\<BS>\<F12>i\<F11>\<Esc>", 'xt')
+
+  assert.equals(captured_preedit_text, ['前着ません後', '前きません後', '前きませ後'])
+  assert.equals(captured_okuri_boundaries[1 :], [true, true])
+  assert.equals(g:caskk_pending_snapshot, '前きませい後')
+  assert.equals(g:caskk_pending_properties, [])
+  assert.equals(getline(1), '前きませい後')
+  assert.equals(preferences.GetSnapshot().mru, {})
+  assert.equals(preferences.GetSnapshot().recent, {})
+  assert.equals(keys.GetReconversionHistory().Find('着ません', 0) is null_object, true)
+}
+
 suite.backspace_deletes_okuri_then_its_boundary_before_editing_reading = (): void => {
   const context = Setup()
   defer Cleanup(context)
