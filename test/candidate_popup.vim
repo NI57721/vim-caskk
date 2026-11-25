@@ -217,24 +217,33 @@ suite.cancelling_user_entry_deletion_keeps_the_entry_and_selected_candidate = ()
   assert.equals(getline(1), '前登録のみ後')
 }
 
-suite.escape_restores_modified_reading_and_can_retry_conversion = (): void => {
+suite.escape_commits_the_displayed_candidate_and_leaves_insert_mode = (): void => {
   for options in [{candidate_select_keys: []}, {candidate_select_keys: ['1', '2']}]
     const fixture = Setup(true, {}, 2, true, options)
     try
-      inoremap <buffer> <Esc> <Esc>
-      const original_escape = maparg('<Esc>', 'i', false, true)
+      nnoremap <buffer> <F12> <Cmd>call CaskkTestCandidatePopupCapture()<CR>
       const select_second = empty(options.candidate_select_keys) ? 'n' : '2'
-      feedkeys('aKas' .. select_second .. CAPTURE .. "\<Esc>" .. CAPTURE .. "sc\<Esc>", 'xt')
+      feedkeys('aKas' .. select_second .. CAPTURE .. "\<Esc>\<F12>", 'xt')
+      assert.equals(len(observations), 2)
       assert.equals(observations[0].preview, '前科後')
-      assert.equals(observations[1].preview, '前か後')
+      assert.equals(observations[1].preview, '前科後')
       assert.equals(observations[1].popups, [])
-      assert.equals(preference_revisions[1], preference_revisions[0])
-      assert.equals(getline(1), '前蚊後')
-      assert.equals(maparg('<Esc>', 'i', false, true), original_escape)
+      assert.equals(preference_revisions[1] > preference_revisions[0], true)
+      assert.equals(getline(1), '前科後')
     finally
       Cleanup(fixture)
     endtry
   endfor
+}
+
+suite.backspace_restores_the_reading_from_a_labelled_candidate = (): void => {
+  const fixture = Setup(true, {}, 2, true, {candidate_select_keys: ['1', '2']})
+  defer Cleanup(fixture)
+  feedkeys('aKas2' .. CAPTURE .. "\<BS>" .. CAPTURE .. "\<BS>" .. CAPTURE .. "\<Esc>", 'xt')
+  assert.equals(mapnew(observations, (_, observation) => observation.preview),
+    ['前科後', '前か後', '前後'])
+  assert.equals(observations[1].popups, [])
+  assert.equals(user_runtime.Get().GetSnapshot().mru, {})
 }
 
 suite.esc_cancels_user_entry_deletion_without_leaving_the_candidate = (): void => {
@@ -578,7 +587,7 @@ suite.unavailable_backspace_actions_cancel_conversion_without_learning = (): voi
     const fixture = Setup(true, {"\<BS>": action})
     try
       feedkeys('aKas' .. "\<BS>" .. CAPTURE .. "\<Esc>", 'xt')
-      assert.equals(getline(1), '前後', action)
+      assert.equals(getline(1), '前か後', action)
       assert.equals(observations[0].popups, [], action)
       assert.equals(user_runtime.Get().GetSnapshot().mru, {}, action)
     finally

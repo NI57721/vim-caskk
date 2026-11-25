@@ -695,13 +695,6 @@ export class Binding
         this._candidate_mappings.Install(lhs, this._InputMapping(regular ? 'DispatchInput' : 'ReconversionInput', key))
       endif
     endfor
-    const escape = mapping.Lhs('<Esc>')
-    if inline || !this._enabled || this._registration_input
-        || this._reconversion_record isnot null_object || this._editor.IsRegistrationSuspended()
-      this._candidate_mappings.RestoreKey(escape)
-    elseif !this._candidate_mappings.Has(escape)
-      this._candidate_mappings.Install(escape, this._InputMapping('DispatchInput', '<Esc>'))
-    endif
   enddef
 
   def ResizeCandidateList()
@@ -1255,26 +1248,36 @@ export class Binding
     return true
   enddef
 
+  def _Backspace(): bool
+    if this._editor is null_object
+      return false
+    endif
+    if this._enabled && !this._registration_input && this._reconversion_record is null_object
+        && this._editor.IsInCandidate()
+      this._Record([this._editor.CancelConversion()])
+      return true
+    endif
+    if !this._editor.Backspace()
+      return false
+    endif
+    this._SyncCandidateMappings()
+    this._reconversion_pending = null_object
+    this._ShowAutomaticCompletion()
+    this._SyncInputMode()
+    return true
+  enddef
+
   def _DispatchInput(key: string)
     this._CheckTarget()
     if this.HandleAnnotation(key)
       return
     endif
-    const cancel_conversion = key ==# '<Esc>' && this._candidate_mappings.Has(mapping.Lhs(key))
     this._AbandonExternallyChangedEditor()
     if this._ResolveDeleteUserEntryConfirmation(key)
       return
     endif
     if this._inline_editor isnot null_object
       this._DispatchInline(key)
-      return
-    endif
-    if cancel_conversion
-      if this._editor is null_object
-        feedkeys(keycode.Encode(key), 'im')
-      else
-        this._Record([this._editor.CancelConversion()])
-      endif
       return
     endif
     if this._editor isnot null_object
@@ -1346,11 +1349,7 @@ export class Binding
     endif
     if has_key(this._native, key) && (this._editor is null_object
         || !this._editor.CandidateSession().HandlesAffixInput(key))
-      if (key ==# '<BS>' || key ==# '<C-H>') && this._editor isnot null_object && this._editor.Backspace()
-        this._SyncCandidateMappings()
-        this._reconversion_pending = null_object
-        this._ShowAutomaticCompletion()
-        this._SyncInputMode()
+      if (key ==# '<BS>' || key ==# '<C-H>') && this._Backspace()
         return
       endif
       # End the IME transaction before native motion or editing. Replay ahead
@@ -1370,13 +1369,8 @@ export class Binding
       return
     endif
     if (key ==# '<BS>' || key ==# '<C-H>') && action !=# '' && !this._CanRunAction(action)
-      if this._editor.Backspace()
-        this._SyncCandidateMappings()
-        this._reconversion_pending = null_object
-        this._ShowAutomaticCompletion()
-        this._SyncInputMode()
-        return
-      endif
+        && this._Backspace()
+      return
     endif
     if action !=# '' && !this._CanRunAction(action)
       this._FallbackActionKey(key)

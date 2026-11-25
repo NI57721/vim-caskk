@@ -68,12 +68,12 @@ def Check(expected: list<list<string>>)
   assert.equals(mapnew(events, (_, item) => item[2]), repeat([parent], len(events)))
 enddef
 
-suite.conversion_escape_labels_commit_and_mode_changes = (): void => {
+suite.conversion_backspace_labels_commit_and_mode_changes = (): void => {
   Setup()
   defer Cleanup()
   Enable()
   Enable()
-  feedkeys("aKas2\<F6>\<Esc>scqq\<Esc>", 'xt')
+  feedkeys("aKas2\<F6>\<BS>scqq\<Esc>", 'xt')
   Caskk.Disable()
   Caskk.Disable()
   Check([['Enable', '前後'], ['PreeditStart', '前か後'], ['ConversionStart', '前蚊後'],

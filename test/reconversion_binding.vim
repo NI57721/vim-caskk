@@ -67,10 +67,11 @@ def ConvertAndCommit()
   assert.equals(getline(1), '前蚊後')
 enddef
 
-suite.normal_mode_reconversion_selects_and_commits_a_different_candidate = (): void => {
+suite.normal_mode_reconversion_can_reselect_a_candidate_committed_with_escape = (): void => {
   const fixture = Setup({candidate_select_keys: []})
   defer Cleanup(fixture)
-  ConvertAndCommit()
+  feedkeys("aKas\<Esc>", 'xt')
+  assert.equals(getline(1), '前蚊後')
   cursor(1, 4)
   feedkeys("\<F12>nc\<F11>", 'xt')
   assert.equals(getline(1), '前科後')

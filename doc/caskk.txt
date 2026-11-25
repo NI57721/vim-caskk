@@ -142,7 +142,8 @@ CaskkConversionStart                                 *CaskkConversionStart*
 CaskkConversionEnd                                     *CaskkConversionEnd*
     The first candidate was previewed, or selection ended through commit,
     cancellation, or exhaustion.  Labels and paging stay in the same
-    selection.  Esc back to the reading ends selection and keeps preedit.
+    selection.  In ordinary Insert input, BS ends selection and restores
+    preedit when it reaches the default deletion handler.
 
 CaskkCompletionStart                                 *CaskkCompletionStart*
 CaskkCompletionEnd                                     *CaskkCompletionEnd*
@@ -207,9 +208,11 @@ The displayed '*' marks the okuri boundary and is not inserted into the text.
 
 BS (including CTRL-H) removes pending keys, then okuri, its empty boundary, and reading characters.
 By default, deleting the last item keeps Modified input; another BS cancels it.
-See |caskk-config-keep-preedit-on-backspace|.  With a selected candidate, BS
-returns to the reading and deletes one item.  In ordinary Insert input, Esc
-cancels candidate selection and restores the editable reading in Insert mode.
+See |caskk-config-keep-preedit-on-backspace|.  During ordinary Insert candidate
+selection, BS first tries any explicit mapping.  If deletion is reached, it
+restores the full reading and okuri without learning or recording a
+reconversion.  The next BS resumes deletion in the order above.  Esc commits
+the displayed candidate and returns to Normal mode.
 Enter commits preedit.  Leaving Insert mode finishes input.  Undo follows
 |caskk-config-undo-revert-to-reading|.
 

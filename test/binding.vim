@@ -290,21 +290,29 @@ suite.backspace_edits_the_preedit_before_following_input_converts_it = (): void 
   keys.Disable()
 }
 
-suite.backspace_cancels_okuri_candidate_and_edits_reading_without_learning = (): void => {
-  const context = Setup()
-  defer Cleanup(context)
-  const entries = merger.Merge([[parser.ParseLine('いk /行/')]])
-  const preferences = user_state.State.new()
-  const compiled = scheme.Compile({k: 'k'}, {a: 'a', u: 'u'}, [scheme.SpecialDefinition.new(['i'], 'い')])
-  const keys = binding.Binding.new(compiled, '', entries, preferences)
-  keys.Enable()
-  feedkeys("aIKu\<BS>\<BS>ka\<Esc>", 'xt')
-  assert.equals(getline(1), '前いか後')
-  assert.equals(preferences.GetSnapshot().mru, {})
-  assert.equals(keys.GetReconversionHistory().Find('いか', 0) is null_object, true)
-  assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
-  assert.equals(keys.GetEditor() is null_object, true)
-  keys.Disable()
+suite.backspace_restores_full_okuri_before_deleting_without_learning = (): void => {
+  for backspace in ["\<BS>", "\<C-H>"]
+    const context = Setup()
+    try
+      captured_preedit_text = []
+      const entries = merger.Merge([[parser.ParseLine('いk /行/')]])
+      const preferences = user_state.State.new()
+      const compiled = scheme.Compile({k: 'k'}, {u: 'u'}, [scheme.SpecialDefinition.new(['i'], 'い')])
+      const keys = binding.Binding.new(compiled, '', entries, preferences)
+      keys.Enable()
+      inoremap <buffer> <F12> <ScriptCmd>CapturePreeditPosition()<CR>
+      feedkeys('aIKu' .. backspace .. "\<F12>" .. backspace .. "\<F12>\<Esc>", 'xt')
+      assert.equals(captured_preedit_text, ['前いく後', '前い後'])
+      assert.equals(preferences.GetSnapshot().mru, {})
+      assert.equals(keys.GetReconversionHistory().Find('い', 0) is null_object, true)
+      assert.equals(keys.GetReconversionHistory().Find('行く', 0) is null_object, true)
+      assert.equals(prop_list(1, {types: ['caskk_preedit']}), [])
+      assert.equals(keys.GetEditor() is null_object, true)
+      keys.Disable()
+    finally
+      Cleanup(context)
+    endtry
+  endfor
 }
 
 suite.backspace_bypasses_existing_remap_while_enabled_and_restores_it_on_disable = (): void => {
@@ -353,7 +361,7 @@ suite.backspace_cancelled_candidate_keeps_reading_edits_in_one_undo_unit = (): v
   const compiled = scheme.Compile({k: 'k'}, {a: 'a', u: 'u'}, [scheme.SpecialDefinition.new(['i'], 'い')])
   const keys = binding.Binding.new(compiled, '', entries, preferences)
   keys.Enable()
-  feedkeys("aIKu\<BS>\<BS>ka\<Esc>", 'xt')
+  feedkeys("aIKu\<BS>\<BS>\<BS>ka\<Esc>", 'xt')
   assert.equals(getline(1), '前いか後')
   normal! u
   assert.equals(getline(1), '前後')
