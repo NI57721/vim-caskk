@@ -56,7 +56,7 @@ enddef
 def Configure(directory: string, path: string = ''): string
   const destination = path == '' ? directory .. '/state.jsonl' : path
   return 'Caskk.Config({state_auto: true, state_path: ' .. string(destination)
-    .. ', dictionaries: [' .. string(directory .. '/system')
+    .. ', dictionaries: [' .. string({path: directory .. '/system', encoding: 'utf-8'})
     .. "], candidate_select_keys: [], mappings: {s: 'Convert', n: 'NextCandidate'}})"
 enddef
 

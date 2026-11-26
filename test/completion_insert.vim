@@ -53,7 +53,7 @@ def Setup(options: dict<any> = {})
     'shrimp /シュリンプ/', 'apple /林檎/', 'application /アプリ/', 'ABC123 /英数字/'], dictionary_path)
   Caskk.RegisterInputScheme({name: 'completion-test', consonants: {k: 'k', n: 'n', t: 't'},
     combinations: {a: 'a', i: 'i'}})
-  Caskk.Config(extend({dictionaries: [dictionary_path], completion_min_length: 2,
+  Caskk.Config(extend({dictionaries: [{path: dictionary_path, encoding: 'utf-8'}], completion_min_length: 2,
     mappings: {"\<Tab>": 'ShowCompletion', "\<F5>": 'CancelCompletion', "\<Space>": 'Convert'}}, options))
   inoremap <buffer> <F12> <ScriptCmd>Capture()<CR>
   captures = []
@@ -193,7 +193,7 @@ suite.completion_is_visible_in_a_real_terminal = (): void => {
     'set rtp^=' .. escape(getcwd(), ' ,'),
     "import autoload 'caskk.vim' as C",
     "C.RegisterInputScheme({name: 'visible', consonants: {k: 'k', n: 'n'}, combinations: {a: 'a'}})",
-    'C.Config({mode_popup_time: 0, dictionaries: [' .. string(dictionary_path)
+    'C.Config({mode_popup_time: 0, dictionaries: [' .. string({path: dictionary_path, encoding: 'utf-8'})
       .. '], mappings: {"\<Tab>": "ShowCompletion"}})',
     "C.Enable('visible')",
     'writefile(["ready"], ' .. string(ready) .. ')',
@@ -325,7 +325,7 @@ suite.broad_prefix_search_keeps_terminal_input_responsive_and_discards_old_resul
     'set rtp^=' .. escape(getcwd(), ' ,'),
     "import autoload 'caskk.vim' as C",
     "C.RegisterInputScheme({name: 'responsive', consonants: {k: 'k'}, combinations: {a: 'a', o: 'o'}})",
-    'C.Config({mode_popup: false, sticky_key: ";", dictionaries: [' .. string(dictionary) .. ']})',
+    'C.Config({mode_popup: false, sticky_key: ";", dictionaries: [' .. string({path: dictionary, encoding: 'utf-8'}) .. ']})',
     "C.Enable('responsive')",
     'def Report(timer: number)',
     '  const popups = mapnew(popup_list(), (_, id) => getbufline(winbufnr(id), 1, "$"))',
@@ -466,7 +466,7 @@ suite.adjective_label_stays_in_popup_while_commit_and_undo_keep_plain_text = ():
   const source = tempname()
   defer delete(source)
   writefile(['かな /仮名;@adj/'], source)
-  Setup({dictionaries: [source], completion_min_length: 20, mappings: {"\<F10>": "Commit"}})
+  Setup({dictionaries: [{path: source, encoding: 'utf-8'}], completion_min_length: 20, mappings: {"\<F10>": "Commit"}})
   defer Cleanup()
   feedkeys("aKanaI\<F12>\<F10>\<F12>\<Esc>", 'xt')
   assert.equals(captures, ['前仮名い後', '前仮名い後'])
@@ -480,7 +480,7 @@ suite.verb_label_stays_in_popup_while_commit_and_undo_keep_plain_text = (): void
   const source = tempname()
   defer delete(source)
   writefile([';; okuri-ari entries.', ';; okuri-nasi entries.', 'かな /仮名;@verb-5-k/'], source)
-  Setup({dictionaries: [source], completion_min_length: 20, mappings: {"\<F10>": 'Commit'}})
+  Setup({dictionaries: [{path: source, encoding: 'utf-8'}], completion_min_length: 20, mappings: {"\<F10>": 'Commit'}})
   defer Cleanup()
   feedkeys("aKanaKi\<F12>\<F10>\<F12>\<Esc>", 'xt')
   assert.equals(captures, ['前仮名き後', '前仮名き後'])
@@ -494,7 +494,7 @@ suite.verb_only_stem_does_not_open_automatic_completion = (): void => {
   const source = tempname()
   defer delete(source)
   writefile([';; okuri-ari entries.', ';; okuri-nasi entries.', 'かな /仮名;@verb-5-k/'], source)
-  Setup({dictionaries: [source]})
+  Setup({dictionaries: [{path: source, encoding: 'utf-8'}]})
   defer Cleanup()
   feedkeys("aKana\<F12>Ki\<F12>\<Esc>", 'xt')
   assert.equals(captures, ['前かな後', '前仮名き後'])
@@ -507,7 +507,7 @@ suite.zero_okuri_imperative_converts_with_a_verb_marker = (): void => {
   defer delete(source)
   writefile([';; okuri-ari entries.', ';; okuri-nasi entries.',
     'くれ /呉れ;@verb-1-kureru/'], source)
-  Setup({dictionaries: [source], mappings: {"\<Space>": 'Convert', "\<F10>": 'Commit'}})
+  Setup({dictionaries: [{path: source, encoding: 'utf-8'}], mappings: {"\<Space>": 'Convert', "\<F10>": 'Commit'}})
   defer Cleanup()
   Caskk.Disable()
   Caskk.RegisterInputScheme({name: 'bare-imperative', consonants: {}, combinations: {}, specials: {x: 'くれ'}})
@@ -521,7 +521,7 @@ suite.typed_adjective_suffix_preview_cancel_commit_and_undo = (): void => {
   const source = tempname()
   defer delete(source)
   writefile(['おいし /美味し;@adj/'], source)
-  Setup({dictionaries: [source]})
+  Setup({dictionaries: [{path: source, encoding: 'utf-8'}]})
   defer Cleanup()
   Caskk.Disable()
   Caskk.RegisterInputScheme({name: 'suffix-completion', consonants: {}, combinations: {},
@@ -539,7 +539,7 @@ suite.sokuon_and_suffix_special_convert_commit_and_undo_in_vim = (): void => {
   const source = tempname()
   defer delete(source)
   writefile(['かt /勝/'], source)
-  Setup({dictionaries: [source], completion_min_length: 20, mappings: {"\<F10>": 'Commit'}})
+  Setup({dictionaries: [{path: source, encoding: 'utf-8'}], completion_min_length: 20, mappings: {"\<F10>": 'Commit'}})
   defer Cleanup()
   Caskk.Disable()
   Caskk.RegisterInputScheme({name: 'sokuon-special', consonants: {t: 't', tt: 'Tt'},
@@ -559,7 +559,7 @@ suite.affix_readings_stay_out_of_automatic_candidate_popup = (): void => {
   defer Cleanup()
   writefile(['か> /御/'], dictionary_path)
   Caskk.Disable()
-  Caskk.Config({dictionaries: [dictionary_path], sticky_key: ';', affix_key: '1',
+  Caskk.Config({dictionaries: [{path: dictionary_path, encoding: 'utf-8'}], sticky_key: ';', affix_key: '1',
     mode_popup: false, mappings: {"\<Space>": 'Convert'}})
   Caskk.Enable('completion-test')
   feedkeys("a;ka1\<F12>\<Space>\<F12>\<Esc>", 'xt')

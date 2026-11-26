@@ -88,7 +88,7 @@ def Setup(lines: list<string> = [], registration_prefill: bool = true, state_aut
   Caskk.RegisterInputScheme({name: 'automatic-registration', consonants: {k: 'k'},
     combinations: {a: 'a'}, specials: {d: '漢字', zx: 'い*くらい'}})
   Caskk.Config({registration_prefill: registration_prefill, state_auto: state_auto,
-    state_path: directory .. '/state.jsonl', dictionaries: [directory .. '/system'],
+    state_path: directory .. '/state.jsonl', dictionaries: [{path: directory .. '/system', encoding: 'utf-8'}],
     mappings: {s: 'Convert', n: 'NextCandidate', "\<F6>": 'OpenRegistration'}})
   Caskk.Enable('automatic-registration')
   return Fixture.new(previous, number, window, directory, snapshot, existing_buffers)

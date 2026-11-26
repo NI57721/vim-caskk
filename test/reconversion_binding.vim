@@ -34,7 +34,7 @@ def Setup(options: dict<any> = {}): Fixture
   mkdir(directory)
   writefile(['か /蚊/科/', 'かk /書/描/'], directory .. '/system')
   Caskk.RegisterInputScheme({name: 'reconversion', consonants: {k: 'k'}, combinations: {a: 'a', u: 'u'}})
-  Caskk.Config(extend({dictionaries: [directory .. '/system'], candidate_popup: true, mode_popup: false,
+  Caskk.Config(extend({dictionaries: [{path: directory .. '/system', encoding: 'utf-8'}], candidate_popup: true, mode_popup: false,
     mappings: {s: 'Convert', n: 'NextCandidate', t: 'TogglePin', c: 'Commit'}}, options))
   g:caskk_reconversion_probe = []
   inoremap <buffer> <silent> <F11> <ScriptCmd>add(g:caskk_reconversion_probe, [mode(1), len(popup_list()), maparg('s', 'i'), getline(1)])<CR>

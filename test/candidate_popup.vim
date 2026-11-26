@@ -111,7 +111,7 @@ def Setup(candidate_popup: bool = true, extra_mappings: dict<string> = {}, candi
     combinations: {a: 'a'}, specials: {d: '漢字', zx: 'い*くらい'}})
   var mappings = {s: 'Convert', n: 'NextCandidate', p: 'PreviousCandidate', c: 'Commit'}
   extend(mappings, extra_mappings)
-  Caskk.Config(extend({keep_preedit_on_backspace: keep_preedit_on_backspace, candidate_popup: candidate_popup, mode_popup: false, dictionaries: [directory .. '/system'],
+  Caskk.Config(extend({keep_preedit_on_backspace: keep_preedit_on_backspace, candidate_popup: candidate_popup, mode_popup: false, dictionaries: [{path: directory .. '/system', encoding: 'utf-8'}],
     mappings: mappings}, options))
   Caskk.Enable('candidate-popup')
   return Fixture.new(previous, number, window, directory, snapshot, existing_buffers, existing_popups)
@@ -730,7 +730,7 @@ suite.labels_match_the_visible_rows_in_a_small_terminal = (): void => {
     'set rtp^=' .. escape(getcwd(), ' ,'),
     "import autoload 'caskk.vim' as C",
     "C.RegisterInputScheme({name: 'small-labels', consonants: {k: 'k'}, combinations: {a: 'a'}})",
-    "C.Config({mode_popup: false, dictionaries: [" .. string(dictionary_path) .. "], mappings: {s: 'Convert'}, candidate_select_keys: ['1', '2', '3', '4', '5', '6', '7', '8']})",
+    "C.Config({mode_popup: false, dictionaries: [" .. string({path: dictionary_path, encoding: 'utf-8'}) .. "], mappings: {s: 'Convert'}, candidate_select_keys: ['1', '2', '3', '4', '5', '6', '7', '8']})",
     "C.Enable('small-labels')",
     'def Capture(timer: number)',
     '  writefile([getline(1)], ' .. string(report) .. ')',

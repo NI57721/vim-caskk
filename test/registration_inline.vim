@@ -91,7 +91,7 @@ def Setup(prefill: bool = false, with_candidates: bool = false, extra_mappings: 
     dictionary_directory = tempname()
     mkdir(dictionary_directory)
     writefile(['か /蚊/科/', second_okuri ? 'かk /行/書/' : 'かk /行/'], dictionary_directory .. '/system')
-    options.dictionaries = [dictionary_directory .. '/system']
+    options.dictionaries = [{path: dictionary_directory .. '/system', encoding: 'utf-8'}]
   endif
   Caskk.Config(extend(options, extra_options))
   Caskk.RegisterInputScheme({name: 'registration-inline', consonants: {k: 'k'},
@@ -621,7 +621,7 @@ suite.affix_keys_convert_inside_inline_registration = (): void => {
   defer delete(path)
   writefile(['>か /化/'], path)
   const context = Setup(false, false, {}, false,
-    {sticky_key: ';', affix_key: ';;', dictionaries: [path]})
+    {sticky_key: ';', affix_key: ';;', dictionaries: [{path: path, encoding: 'utf-8'}]})
   defer Cleanup(context)
   feedkeys("aKas\<F6>;;kas1\<CR>\<Esc>", 'xt')
   assert.equals(getline(1), '前化後')

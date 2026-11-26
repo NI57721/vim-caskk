@@ -66,7 +66,7 @@ def Setup(lines: list<string> = []): Fixture
   errors = []
   Caskk.RegisterInputScheme({name: 'public-registration', consonants: {k: 'k'},
     combinations: {a: 'a'}, specials: {zx: 'い*くらい'}})
-  Caskk.Config({registration_auto: false, state_path: directory .. '/state.jsonl', dictionaries: [directory .. '/system'],
+  Caskk.Config({registration_auto: false, state_path: directory .. '/state.jsonl', dictionaries: [{path: directory .. '/system', encoding: 'utf-8'}],
     mappings: {s: 'Convert', n: 'NextCandidate'}})
   Caskk.Enable('public-registration')
   inoremap <buffer> <F3> <ScriptCmd>Handle('complete')<CR>
@@ -117,7 +117,7 @@ suite.mode_action_outputs_are_registered_through_the_public_configuration_by_def
   const fixture = Setup()
   defer Cleanup(fixture)
   Caskk.Disable()
-  Caskk.Config({registration_auto: false, dictionaries: [fixture.directory .. '/system'],
+  Caskk.Config({registration_auto: false, dictionaries: [{path: fixture.directory .. '/system', encoding: 'utf-8'}],
     mappings: {"\<F1>": 'KatakanaMode'}})
   Caskk.Enable('public-registration')
   feedkeys("aKa\<F1>\<Esc>", 'xt')
@@ -132,7 +132,7 @@ suite.mode_action_output_registration_can_be_disabled_in_public_configuration = 
   const fixture = Setup()
   defer Cleanup(fixture)
   Caskk.Disable()
-  Caskk.Config({registration_auto: false, dictionaries: [fixture.directory .. '/system'],
+  Caskk.Config({registration_auto: false, dictionaries: [{path: fixture.directory .. '/system', encoding: 'utf-8'}],
     register_mode_conversions: false, mappings: {"\<F1>": 'KatakanaMode'}})
   Caskk.Enable('public-registration')
   feedkeys("aKa\<F1>\<Esc>", 'xt')

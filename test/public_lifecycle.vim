@@ -192,7 +192,7 @@ suite.builtin_roman_converts_nasal_and_sokuon_input_without_registration = (): v
   for [keys, expected, reading] in [['Nihon ', '日本', 'にほん'], ['ITta', '行った', 'いった']]
     const context = Setup()
     try
-      Caskk.Config({dictionaries: [source], candidate_popup: false,
+      Caskk.Config({dictionaries: [{path: source, encoding: 'utf-8'}], candidate_popup: false,
         mappings: {"\<Space>": 'Convert', "\<F10>": 'Commit'}})
       Caskk.Enable('roman')
       feedkeys('a' .. keys .. "\<F10>\<Esc>", 'xt')

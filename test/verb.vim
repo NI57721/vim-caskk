@@ -681,7 +681,7 @@ suite.kuru_real_input_commits_and_cancels_using_the_entered_reading = (): void =
   try
     Caskk.RegisterInputScheme({name: 'kuru-test', consonants: {}, combinations: {},
       specials: {x: 'こ', y: 'よう', z: 'き', m: 'ます'}})
-    Caskk.Config({dictionaries: [path], mode_popup: false, candidate_popup: false,
+    Caskk.Config({dictionaries: [{path: path, encoding: 'utf-8'}], mode_popup: false, candidate_popup: false,
       mappings: {c: 'Commit', q: 'PreviousCandidate'}})
     Caskk.Enable('kuru-test')
     feedkeys("iXYc\<Esc>", 'xt')

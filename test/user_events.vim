@@ -36,7 +36,7 @@ def Setup(options: dict<any> = {})
   writefile(['か /蚊/科/課/', 'かな /仮名/', 'かなた /彼方/'], path)
   Caskk.RegisterInputScheme({name: 'user-events', consonants: {k: 'k', n: 'n'},
     combinations: {a: 'a'}, specials: {z: '登録'}})
-  Caskk.Config(extend({dictionaries: [path], candidate_select_keys: ['1', '2'],
+  Caskk.Config(extend({dictionaries: [{path: path, encoding: 'utf-8'}], candidate_select_keys: ['1', '2'],
     mode_popup: false, candidate_popup: true, completion_min_length: 2,
     registration_prefill: false, mappings: {s: 'Convert', "\<F6>": 'NextCandidate', c: 'Commit',
       r: 'OpenRegistration', q: 'KatakanaMode', "\<F5>": 'CancelCompletion'}}, options))

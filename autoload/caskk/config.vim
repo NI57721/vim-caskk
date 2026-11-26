@@ -232,31 +232,26 @@ def ReadDictionaries(raw: any): list<loader.Source>
   endif
   final sources: list<loader.Source> = []
   for source in raw
-    var path = ''
-    var encoding = 'utf-8'
-    if type(source) == v:t_string
-      path = source
-    elseif type(source) == v:t_dict
-      for field in keys(source)
-        if index(['path', 'encoding'], field) < 0
-          throw 'unknown dictionary source field: ' .. field
-        endif
-      endfor
-      if type(get(source, 'path', v:none)) != v:t_string
-        throw 'dictionary source path must be a string'
-      endif
-      if type(get(source, 'encoding', 'utf-8')) != v:t_string
-        throw 'dictionary source encoding must be a string'
-      endif
-      path = source.path
-      encoding = get(source, 'encoding', 'utf-8')
-    else
-      throw 'dictionary source must be a path string or dictionary'
+    if type(source) != v:t_dict
+      throw 'dictionary source must be a dictionary with path and encoding'
     endif
-    if path == ''
+    for field in keys(source)
+      if index(['path', 'encoding'], field) < 0
+        throw 'unknown dictionary source field: ' .. field
+      endif
+    endfor
+    if type(get(source, 'path', v:none)) != v:t_string
+      throw 'dictionary source path must be a string'
+    endif
+    const path: string = source.path
+    if path ==# ''
       throw 'dictionary source path must not be empty'
     endif
-    if encoding == ''
+    if type(get(source, 'encoding', v:none)) != v:t_string
+      throw 'dictionary source encoding must be a string'
+    endif
+    const encoding: string = source.encoding
+    if encoding ==# ''
       throw 'dictionary source encoding must not be empty'
     endif
     sources->add(loader.Source.new(path, encoding))

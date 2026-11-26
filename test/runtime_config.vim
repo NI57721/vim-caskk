@@ -118,7 +118,7 @@ suite.ctrl_n_and_ctrl_p_navigate_candidates_through_configured_mappings = (): vo
   defer delete(dictionary)
   writefile(['か /蚊/家/化/'], dictionary)
   const actions = {"\<Space>": 'Convert', "\<C-N>": 'Convert', "\<C-P>": 'PreviousCandidate', "\<C-M>": 'Commit'}
-  Caskk.Config({candidate_select_keys: [], sticky_key: ';', dictionaries: [dictionary], mappings: actions})
+  Caskk.Config({candidate_select_keys: [], sticky_key: ';', dictionaries: [{path: dictionary, encoding: 'utf-8'}], mappings: actions})
   Caskk.Enable('configured')
   feedkeys("a;ka\<Space>\<C-N>\<C-P>\<C-M>\<Esc>", 'xt')
   assert.equals(getline(1), '前蚊後')
@@ -131,7 +131,7 @@ suite.large_dictionary_config_returns_before_indexing_and_publishes_when_complet
   defer delete(path)
   WriteLargeDictionary(path)
 
-  Caskk.Config({dictionaries: [path]})
+  Caskk.Config({dictionaries: [{path: path, encoding: 'utf-8'}]})
   assert.equals(Caskk.GetDictionaryLoadStatus().state, 'loading')
   # No dictionary source was active, so this is an initial load.
   assert.equals(configuration.GetInput().dictionary_index.IsReady(), false)
@@ -153,7 +153,7 @@ suite.initial_load_publishes_completed_sources_before_a_large_later_source = ():
   writefile(['か /先行候補/'], early)
   WriteLargeDictionary(large)
 
-  Caskk.Config({dictionaries: [early, large]})
+  Caskk.Config({dictionaries: [{path: early, encoding: 'utf-8'}, {path: large, encoding: 'utf-8'}]})
   var waits = 0
   while empty(configuration.GetInput().dictionary_index.Lookup(dictionary_lookup.CreateQuery('か', '')))
       && Caskk.GetDictionaryLoadStatus().state ==# 'loading' && waits < 100
@@ -190,7 +190,7 @@ suite.failed_later_source_keeps_completed_sources_from_the_initial_load = (): vo
   writefile(['か /先行候補/'], early)
   WriteLargeDictionary(later)
 
-  Caskk.Config({dictionaries: [early, later]})
+  Caskk.Config({dictionaries: [{path: early, encoding: 'utf-8'}, {path: later, encoding: 'utf-8'}]})
   delete(later)
   WaitForDictionaryLoad()
   assert.equals(Caskk.GetDictionaryLoadStatus().state, 'error')
@@ -209,10 +209,10 @@ suite.async_dictionary_reload_keeps_bindings_and_future_sessions_use_the_new_ind
   writefile(['か /蚊/家/'], original)
   WriteLargeDictionary(replacement)
   const mappings = {"\<Space>": 'Convert', "\<C-N>": 'Convert', "\<C-M>": 'Commit'}
-  Caskk.Config({sticky_key: ';', dictionaries: [original], mappings: mappings})
+  Caskk.Config({sticky_key: ';', dictionaries: [{path: original, encoding: 'utf-8'}], mappings: mappings})
   Caskk.Enable('configured')
 
-  Caskk.Config({sticky_key: ';', dictionaries: [replacement], mappings: mappings})
+  Caskk.Config({sticky_key: ';', dictionaries: [{path: replacement, encoding: 'utf-8'}], mappings: mappings})
   assert.equals(Caskk.IsEnabled(), true)
   assert.equals(maparg("\<Space>", 'i', false, true).buffer, 1)
   WaitForDictionaryLoad()
@@ -235,8 +235,8 @@ suite.latest_large_dictionary_config_request_replaces_an_earlier_pending_request
   defer delete(second)
   WriteLargeDictionary(first, '旧候補')
   WriteLargeDictionary(second, '新候補')
-  Caskk.Config({dictionaries: [first]})
-  Caskk.Config({dictionaries: [second]})
+  Caskk.Config({dictionaries: [{path: first, encoding: 'utf-8'}]})
+  Caskk.Config({dictionaries: [{path: second, encoding: 'utf-8'}]})
   WaitForDictionaryLoad()
   assert.equals(Caskk.GetDictionaryLoadStatus().state, 'ready')
   const candidates = configuration.GetInput().dictionary_index.Lookup(dictionary_lookup.CreateQuery(LargeDictionaryKey(1), ''))
@@ -251,9 +251,9 @@ suite.failed_async_dictionary_reload_keeps_the_previous_dictionary = (): void =>
   defer delete(previous)
   defer delete(missing)
   writefile(['かな /仮名/'], previous)
-  Caskk.Config({dictionaries: [previous]})
+  Caskk.Config({dictionaries: [{path: previous, encoding: 'utf-8'}]})
   WriteLargeDictionary(missing)
-  Caskk.Config({dictionaries: [missing]})
+  Caskk.Config({dictionaries: [{path: missing, encoding: 'utf-8'}]})
   delete(missing)
   WaitForDictionaryLoad()
   assert.equals(Caskk.GetDictionaryLoadStatus().state, 'error')
@@ -271,7 +271,7 @@ suite.ctrl_n_and_ctrl_p_candidate_mappings_work_with_insert_arrow_mappings = ():
   inoremap <Up> <C-O>gk
   inoremap <Down> <C-O>gj
   inoremap <buffer> <F12> <ScriptCmd>CaptureCurrentLine()<CR>
-  Caskk.Config({candidate_select_keys: [], sticky_key: ';', dictionaries: [dictionary], mappings: {
+  Caskk.Config({candidate_select_keys: [], sticky_key: ';', dictionaries: [{path: dictionary, encoding: 'utf-8'}], mappings: {
     "\<Space>": 'Convert', "\<C-N>": 'Convert', "\<C-P>": 'PreviousCandidate', "\<C-M>": 'Commit'}})
   Caskk.Enable('configured')
   g:caskk_captured_lines = []
@@ -292,7 +292,7 @@ suite.mode_mappings_switch_between_modes_and_convert_abbreviations = (): void =>
   const actions = {"\<F1>": 'KatakanaMode', "\<F2>": 'HalfwidthKatakanaMode',
     "\<F3>": 'FullwidthAlphanumericMode', "\<F4>": 'AbbreviationMode',
     "\<F5>": 'Commit', "\<Space>": 'Convert'}
-  Caskk.Config({dictionaries: [dictionary], mappings: actions})
+  Caskk.Config({dictionaries: [{path: dictionary, encoding: 'utf-8'}], mappings: actions})
   Caskk.Enable('configured')
   feedkeys("a\<F1>ka\<F1>ka\<F2>ka\<F3>I like apples! Do you?\<F4>apple\<Space>\<F5>ka\<Esc>", 'xt')
   assert.equals(getline(1), '前カかｶＩ　ｌｉｋｅ　ａｐｐｌｅｓ！　Ｄｏ　ｙｏｕ？アップルｋａ後')
@@ -304,7 +304,7 @@ suite.abbreviation_mode_mapping_commits_candidate_and_switches_mode = (): void =
   const dictionary = tempname()
   defer delete(dictionary)
   writefile(['か /蚊/', 'apple /アップル/'], dictionary)
-  Caskk.Config({sticky_key: ';', dictionaries: [dictionary], mappings: {
+  Caskk.Config({sticky_key: ';', dictionaries: [{path: dictionary, encoding: 'utf-8'}], mappings: {
     '/': 'AbbreviationMode', "\<Space>": 'Convert', "\<F10>": 'Commit'}})
   Caskk.Enable('configured')
   feedkeys("a;ka\<Space>/apple\<Space>\<F10>\<Esc>", 'xt')
@@ -317,7 +317,7 @@ suite.abbreviation_numeric_placeholders_convert_through_public_insert_mappings =
   const dictionary = tempname()
   defer delete(dictionary)
   writefile(['#:# /#0時#0分/'], dictionary)
-  Caskk.Config({dictionaries: [dictionary], candidate_popup: false, mode_popup: false,
+  Caskk.Config({dictionaries: [{path: dictionary, encoding: 'utf-8'}], candidate_popup: false, mode_popup: false,
     mappings: {"\<F4>": 'AbbreviationMode', "\<Space>": 'Convert', "\<F10>": 'Commit'}})
   Caskk.Enable('configured')
   feedkeys("a\<F4>12:34\<Space>\<F10>\<Esc>", 'xt')
@@ -369,7 +369,7 @@ suite.abbreviation_commit_restores_the_mode_active_before_abbreviation = (): voi
   writefile(['apple /アップル/'], dictionary)
   const actions = {"\<F1>": 'KatakanaMode', "\<F2>": 'AbbreviationMode',
     "\<Space>": 'Convert', "\<F3>": 'Commit'}
-  Caskk.Config({dictionaries: [dictionary], mappings: actions})
+  Caskk.Config({dictionaries: [{path: dictionary, encoding: 'utf-8'}], mappings: actions})
   Caskk.Enable('configured')
   feedkeys("a\<F1>\<F2>apple\<Space>\<F3>ka\<Esc>", 'xt')
   assert.equals(getline(1), '前アップルカ後')
@@ -381,7 +381,7 @@ suite.abbreviation_candidate_commit_by_following_input_does_not_leave_modified_p
   const dictionary = tempname()
   defer delete(dictionary)
   writefile(['apple /アップル/'], dictionary)
-  Caskk.Config({dictionaries: [dictionary], mappings: {
+  Caskk.Config({dictionaries: [{path: dictionary, encoding: 'utf-8'}], mappings: {
     "\<F2>": 'AbbreviationMode', "\<Space>": 'Convert'}})
   Caskk.Enable('configured')
   feedkeys("a\<F2>apple\<Space>ka\<Esc>", 'xt')
@@ -398,7 +398,7 @@ suite.katakana_modes_render_full_okuri_when_input_continues_after_automatic_conv
   Caskk.RegisterInputScheme({name: 'katakana-mode-okuri',
     consonants: {k: 'k', r: 'r', g: 'g', h: 'h', s: 's'},
     combinations: {a: 'a', e: 'e', i: 'i', o: 'o', u: 'u'}})
-  Caskk.Config({sticky_key: ';', dictionaries: [dictionary],
+  Caskk.Config({sticky_key: ';', dictionaries: [{path: dictionary, encoding: 'utf-8'}],
     mappings: {"\<F1>": 'KatakanaMode'}})
   Caskk.Enable('katakana-mode-okuri')
   feedkeys("a\<F1>korega;ho;sii\<Esc>", 'xt')
@@ -559,7 +559,7 @@ suite.disabling_reading_restore_uses_one_undo_for_the_conversion = (): void => {
   defer delete(dictionary)
   writefile(['か /蚊/'], dictionary)
   setline(1, '')
-  Caskk.Config({dictionaries: [dictionary], undo_revert_to_reading: false,
+  Caskk.Config({dictionaries: [{path: dictionary, encoding: 'utf-8'}], undo_revert_to_reading: false,
     mappings: {"\<Space>": 'Convert', "\<F10>": 'Commit'}})
   Caskk.Enable('configured')
   feedkeys("aKa\<Space>\<F10>\<Esc>", 'xt')
@@ -609,8 +609,8 @@ suite.small_tsu_dictionary_prefix_is_enabled_by_default_and_can_be_disabled = ()
   Caskk.RegisterInputScheme({name: 'small-tsu-prefix', consonants: {k: 'k'}, combinations: {q: 'e*Tte'}})
 
   for [options, expected] in [
-    [{dictionaries: [path]}, '前蹴って後'],
-    [{dictionaries: [path], small_tsu_okuri_as_t: false}, '前標準って後'],
+    [{dictionaries: [{path: path, encoding: 'utf-8'}]}, '前蹴って後'],
+    [{dictionaries: [{path: path, encoding: 'utf-8'}], small_tsu_okuri_as_t: false}, '前標準って後'],
   ]
     setline(1, '前後')
     cursor(1, 1)
@@ -630,7 +630,7 @@ suite.keyboard_layout_config_maps_shifted_number_row_to_okuri_boundary = (): voi
   writefile(['けt /蹴/'], path)
   Caskk.RegisterInputScheme({name: 'layout-okuri', consonants: {k: 'k'},
     combinations: {1: 'e*Tte', 2: 'e*Tte'}})
-  Caskk.Config({keyboard_layout: 'US', dictionaries: [path]})
+  Caskk.Config({keyboard_layout: 'US', dictionaries: [{path: path, encoding: 'utf-8'}]})
   Caskk.Enable('layout-okuri')
   cursor(1, 1)
   feedkeys("ak!\<C-\>\<C-N>", 'xt')
@@ -638,7 +638,7 @@ suite.keyboard_layout_config_maps_shifted_number_row_to_okuri_boundary = (): voi
   Caskk.Disable()
 
   setline(1, '前後')
-  Caskk.Config({keyboard_layout: 'JIS', dictionaries: [path]})
+  Caskk.Config({keyboard_layout: 'JIS', dictionaries: [{path: path, encoding: 'utf-8'}]})
   Caskk.Enable('layout-okuri')
   cursor(1, 1)
   feedkeys("ak\"\<C-\>\<C-N>", 'xt')
@@ -664,7 +664,7 @@ suite.backspace_keeps_public_sticky_vowel_input_modified_and_convertible = (): v
   writefile(['あいうえ /読み/'], dictionary)
   Caskk.RegisterInputScheme({name: 'vowel-preedit', consonants: {},
     combinations: {a: 'a', i: 'i', u: 'u', e: 'e', o: 'o'}})
-  Caskk.Config({sticky_key: ';', keyboard_layout: 'US', dictionaries: [dictionary], mappings: {
+  Caskk.Config({sticky_key: ';', keyboard_layout: 'US', dictionaries: [{path: dictionary, encoding: 'utf-8'}], mappings: {
     "\<Space>": 'Convert', "\<F10>": 'Commit', "\<BS>": 'DeleteUserEntry'}})
   Caskk.Enable('vowel-preedit')
   feedkeys("a;aiueo\<BS>\<Space>\<F10>\<Esc>", 'xt')
@@ -680,7 +680,7 @@ suite.keyboard_layout_override_replaces_one_shifted_symbol_through_public_config
   Caskk.RegisterInputScheme({name: 'layout-override-okuri', consonants: {k: 'k'},
     combinations: {1: 'e*Tte', 2: 'e*Tte'}})
   var overrides = {1: '?'}
-  Caskk.Config({keyboard_layout: 'US', keyboard_layout_overrides: overrides, dictionaries: [path]})
+  Caskk.Config({keyboard_layout: 'US', keyboard_layout_overrides: overrides, dictionaries: [{path: path, encoding: 'utf-8'}]})
   overrides['1'] = '!'
   Caskk.Enable('layout-override-okuri')
   cursor(1, 1)
@@ -698,7 +698,7 @@ suite.numeric_conversion_offers_roman_numerals_with_the_standard_dictionary_temp
   defer delete(path)
   const source = ['# /#1/#3/#2/＃;number/#0/#8/#4/#5/']
   writefile(source, path)
-  Caskk.Config({candidate_select_keys: [], dictionaries: [path], registration_auto: false, mode_popup: false,
+  Caskk.Config({candidate_select_keys: [], dictionaries: [{path: path, encoding: 'utf-8'}], registration_auto: false, mode_popup: false,
     mappings: {q: 'AbbreviationMode', "\<Space>": 'Convert', "\<CR>": 'Commit'}})
   Caskk.Enable('configured')
   # #0 and #8 both render as 12, so they share a candidate row.
@@ -773,7 +773,7 @@ suite.affix_readings_wait_for_explicit_conversion = (): void => {
   writefile(['み /身/', 'み> /御/', 'てき /敵/', '>てき /的/'], dictionary)
   inoremap <buffer> <F12> <ScriptCmd>CaptureCurrentLine()<CR>
   for [key, prefix, suffix] in [['1', ';mi1', ';1teki'], [';;', ';mi;;', ';;teki']]
-    Caskk.Config({sticky_key: ';', affix_key: key, dictionaries: [dictionary],
+    Caskk.Config({sticky_key: ';', affix_key: key, dictionaries: [{path: dictionary, encoding: 'utf-8'}],
       mode_popup: false, mappings: {"\<Space>": 'Convert'}})
     Caskk.Enable('configured')
     for [keys, reading, candidate] in [[prefix, 'み>', '御'], [suffix, '>てき', '的']]
@@ -795,7 +795,7 @@ suite.affix_key_preserves_literal_input_backspace_and_candidate_labels = (): voi
   writefile(['か /蚊/', 'か> /御/', '>か /化/'], dictionary)
   const mappings = {"\<Space>": 'Convert', "\<F4>": 'AbbreviationMode',
     "\<F5>": 'FullwidthAlphanumericMode'}
-  Caskk.Config({sticky_key: ';', affix_key: '1', dictionaries: [dictionary],
+  Caskk.Config({sticky_key: ';', affix_key: '1', dictionaries: [{path: dictionary, encoding: 'utf-8'}],
     candidate_select_keys: ['1'], mode_popup: false, mappings: mappings})
   Caskk.Enable('configured')
   inoremap <buffer> <F12> <ScriptCmd>CaptureCurrentLine()<CR>
@@ -815,7 +815,7 @@ suite.double_sticky_affix_requires_consecutive_input_and_is_opt_in = (): void =>
   const dictionary = tempname()
   defer delete(dictionary)
   writefile(['か /蚊/', '>か /化/'], dictionary)
-  const options = {sticky_key: ';', dictionaries: [dictionary], mode_popup: false,
+  const options = {sticky_key: ';', dictionaries: [{path: dictionary, encoding: 'utf-8'}], mode_popup: false,
     mappings: {"\<Space>": 'Convert', "\<F8>": 'ShowCompletion'}}
   Caskk.Config(options)
   Caskk.Enable('configured')
@@ -856,7 +856,7 @@ suite.affix_prefix_flushes_unfinished_spelling_and_yields_to_actions = (): void 
   const dictionary = tempname()
   defer delete(dictionary)
   writefile(['かk> /御/', 'か /蚊/'], dictionary)
-  const options = {sticky_key: ';', affix_key: '1', dictionaries: [dictionary],
+  const options = {sticky_key: ';', affix_key: '1', dictionaries: [{path: dictionary, encoding: 'utf-8'}],
     mode_popup: false, mappings: {"\<Space>": 'Convert'}}
   Caskk.Config(options)
   Caskk.Enable('configured')
@@ -876,7 +876,7 @@ suite.named_affix_key_uses_normal_vim_input_outside_preedit = (): void => {
   const dictionary = tempname()
   defer delete(dictionary)
   writefile(['か> /御/'], dictionary)
-  Caskk.Config({sticky_key: "\<F9>", affix_key: "\<F10>", dictionaries: [dictionary],
+  Caskk.Config({sticky_key: "\<F9>", affix_key: "\<F10>", dictionaries: [{path: dictionary, encoding: 'utf-8'}],
     mode_popup: false, mappings: {"\<Space>": 'Convert'}})
   Caskk.Enable('configured')
   feedkeys("a\<F10>\<F9>ka\<F10>\<Space>\<C-\>\<C-N>", 'xt')

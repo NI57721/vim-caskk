@@ -100,7 +100,7 @@ def Setup(prefill: bool = true, with_candidates: bool = false, candidate_select_
   if with_candidates
     writefile(['か /蚊/科/'], dictionary)
   endif
-  Caskk.Config({dictionaries: with_candidates ? [dictionary] : [], candidate_select_keys: candidate_select_keys,
+  Caskk.Config({dictionaries: with_candidates ? [{path: dictionary, encoding: 'utf-8'}] : [], candidate_select_keys: candidate_select_keys,
     registration_auto: false, registration_prefill: prefill,
     state_path: directory .. '/state.jsonl',
     mappings: {s: 'Convert', n: 'NextCandidate', c: 'Commit'}})
@@ -300,7 +300,7 @@ suite.cancelling_does_not_commit_an_unconfirmed_candidate_inside_registration = 
   const path = fixture.directory .. '/system'
   writefile(['か /蚊/科/'], path)
   Caskk.Disable()
-  Caskk.Config({keep_preedit_on_backspace: false, registration_auto: false, dictionaries: [path], mappings: {s: 'Convert'}})
+  Caskk.Config({keep_preedit_on_backspace: false, registration_auto: false, dictionaries: [{path: path, encoding: 'utf-8'}], mappings: {s: 'Convert'}})
   Caskk.Enable('registration-window')
   const before = codec.Encode(user_runtime.Get().GetSnapshot())
   feedkeys("aZX\<F3>\<BS>Kas\<F4>\<Esc>ka\<Esc>", 'xt')
@@ -316,7 +316,7 @@ suite.completing_with_an_inner_conversion_learns_and_registers_the_confirmed_bod
   const path = fixture.directory .. '/system'
   writefile(['か /蚊/科/'], path)
   Caskk.Disable()
-  Caskk.Config({keep_preedit_on_backspace: false, registration_auto: false, dictionaries: [path], mappings: {s: 'Convert'}})
+  Caskk.Config({keep_preedit_on_backspace: false, registration_auto: false, dictionaries: [{path: path, encoding: 'utf-8'}], mappings: {s: 'Convert'}})
   Caskk.Enable('registration-window')
   feedkeys("aZX\<F3>\<BS>Kas\<CR>\<Esc>", 'xt')
   assert.equals(errors, [])
@@ -453,7 +453,7 @@ suite.affix_keys_convert_inside_registration_window = (): void => {
   writefile(['>か /化/'], path)
   Caskk.Disable()
   Caskk.Config({registration_auto: false, registration_prefill: false,
-    dictionaries: [path], sticky_key: ';', affix_key: '1', mappings: {s: 'Convert'}})
+    dictionaries: [{path: path, encoding: 'utf-8'}], sticky_key: ';', affix_key: '1', mappings: {s: 'Convert'}})
   Caskk.Enable('registration-window')
   feedkeys("aKas\<F3>;1kas\<CR>\<Esc>", 'xt')
   assert.equals(errors, [])

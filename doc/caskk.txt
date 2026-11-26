@@ -15,7 +15,7 @@ In your Vim9 configuration: >vim9
       specials: {nn: 'ん'},
     })
     Caskk.Config({
-      dictionaries: ['/path/to/SKK-JISYO.utf8'],
+      dictionaries: [{path: '/path/to/SKK-JISYO.utf8', encoding: 'utf-8'}],
       state_path: expand('~/.local/share/caskk/state.jsonl'),
       state_auto: true,
       sticky_key: ';',
@@ -365,7 +365,8 @@ persist_input_mode                    *caskk-config-persist-input-mode*
 
 dictionaries                                *caskk-config-dictionaries*
     list, [].  Read-only SKK sources in candidate priority order.  Each item
-    is a UTF-8 path or {path: '/path/to/SKK-JISYO', encoding: 'euc-jp'}.
+    requires a path and an encoding, both nonempty strings. For example,
+    use {path: '/path/to/SKK-JISYO', encoding: 'euc-jp'} for an EUC-JP file.
     Call Config() again to reload changed files.
 
 state_path                                     *caskk-config-state-path*
