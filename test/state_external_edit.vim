@@ -58,7 +58,7 @@ suite.writing_the_configured_buffer_reloads_state_immediately = (): void => {
   const path = tempname()
   defer delete(path)
   store.Save(path, state.State.new().GetSnapshot())
-  Caskk.Config({state_path: path, state_auto: true})
+  Caskk.Config({state_path: path})
   runtime.Load(path)
   const previous = bufnr('%')
   execute 'split ' .. fnameescape(path)

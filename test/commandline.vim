@@ -597,7 +597,7 @@ suite.rank_labels_keep_preview_and_update_the_next_conversion = (): void => {
   defer Cleanup()
   const state_path = tempname()
   defer delete(state_path)
-  const path = LabelDictionary({state_auto: true, state_path: state_path})
+  const path = LabelDictionary({state_path: state_path})
   defer delete(path)
   cnoremap <F6> <ScriptCmd>CapturePopup()<CR>
   defer execute('cunmap <F6>')

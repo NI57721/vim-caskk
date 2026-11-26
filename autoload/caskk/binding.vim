@@ -466,7 +466,7 @@ export class Binding
   enddef
 
   def _SaveChangedUserState(previous_revision: number)
-    if this._preferences isnot user_runtime.Get() || !configuration.GetStateAuto()
+    if this._preferences isnot user_runtime.Get() || configuration.GetStatePath() ==# ''
         || this._preferences.Revision() == previous_revision
       return
     endif

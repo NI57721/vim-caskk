@@ -160,7 +160,7 @@ def Commit()
   Check()
   const revision = user_runtime.Get().Revision()
   Apply(current.Commit())
-  if configuration.GetStateAuto() && revision != user_runtime.Get().Revision()
+  if configuration.GetStatePath() !=# '' && revision != user_runtime.Get().Revision()
     user_runtime.SaveAutomaticIfChanged(configuration.GetStatePath())
   endif
   Reset()
@@ -407,7 +407,7 @@ def Dispatch(key: string)
 enddef
 
 def SaveAndRefresh(revision: number)
-  if configuration.GetStateAuto() && revision != user_runtime.Get().Revision()
+  if configuration.GetStatePath() !=# '' && revision != user_runtime.Get().Revision()
     user_runtime.SaveAutomaticIfChanged(configuration.GetStatePath())
   endif
   Refresh()

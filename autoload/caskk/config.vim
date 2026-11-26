@@ -52,7 +52,6 @@ class Settings
   const highlight: Highlight
   const input: Input
   const state_path: string
-  const state_auto: bool
   const registration_prefill: bool
   const registration_auto: bool
   const registration_inline: bool
@@ -65,7 +64,7 @@ class Settings
   const mode_popup_time: number
   const dictionary_sources: list<loader.Source>
 
-  def new(this.highlight, this.input, this.state_path, this.state_auto, this.registration_prefill,
+  def new(this.highlight, this.input, this.state_path, this.registration_prefill,
       this.registration_auto, this.registration_inline, this.undo_revert_to_reading,
       this.candidate_popup, this.candidate_select_keys, this.mode_popup,
       mode_popup_labels: dict<string>, mode_popup_markers: dict<string>, this.mode_popup_time,
@@ -295,7 +294,7 @@ enddef
 
 def Parse(options: dict<any>, shared_index: dict_index.Database = null_object): Settings
   for section in keys(options)
-    if index(['highlight', 'sticky_key', 'affix_key', 'keyboard_layout', 'keyboard_layout_overrides', 'mappings', 'dictionaries', 'state_path', 'state_auto',
+    if index(['highlight', 'sticky_key', 'affix_key', 'keyboard_layout', 'keyboard_layout_overrides', 'mappings', 'dictionaries', 'state_path',
         'small_tsu_okuri_as_t', 'prefer_direct_okuri_nashi_learning',
         'registration_prefill', 'registration_auto', 'registration_inline', 'candidate_popup',
         'candidate_select_keys', 'persist_input_mode',
@@ -333,13 +332,6 @@ def Parse(options: dict<any>, shared_index: dict_index.Database = null_object): 
     throw 'state_path must be a string'
   endif
   const state_path: string = get(options, 'state_path', '')
-  if type(get(options, 'state_auto', false)) != v:t_bool
-    throw 'state_auto must be a bool'
-  endif
-  const state_auto: bool = get(options, 'state_auto', false)
-  if state_auto && state_path == ''
-    throw 'state_auto requires a nonempty state_path'
-  endif
   if type(get(options, 'registration_prefill', true)) != v:t_bool
     throw 'registration_prefill must be a bool'
   endif
@@ -396,7 +388,7 @@ def Parse(options: dict<any>, shared_index: dict_index.Database = null_object): 
   const destination = state_path == '' ? '' : fnamemodify(state_path, ':p')
   return Settings.new(highlight, Input.new(sticky_key, keyboard_layout, keyboard_layout_overrides,
     actions, dictionary_index, small_tsu_okuri_as_t, persist_input_mode, register_mode_conversions, completion_min_length,
-    keep_preedit_on_backspace, affix_key, prefer_direct), destination, state_auto,
+    keep_preedit_on_backspace, affix_key, prefer_direct), destination,
     registration_prefill, registration_auto, registration_inline, undo_revert_to_reading,
     candidate_popup, candidate_select_keys, mode_popup, mode_popup_labels,
     mode_popup_markers, mode_popup_time, sources)
@@ -433,7 +425,6 @@ def SameDictionaryIndependentSettings(left: Settings, right: Settings): bool
     && left.registration_inline == right.registration_inline
     && left.undo_revert_to_reading == right.undo_revert_to_reading
     && left.state_path ==# right.state_path
-    && left.state_auto == right.state_auto
     && left.candidate_popup == right.candidate_popup
     && left.candidate_select_keys == right.candidate_select_keys
     && left.mode_popup == right.mode_popup
@@ -517,10 +508,6 @@ enddef
 
 export def GetStatePath(): string
   return current.state_path
-enddef
-
-export def GetStateAuto(): bool
-  return current.state_auto
 enddef
 
 export def GetRegistrationPrefill(): bool

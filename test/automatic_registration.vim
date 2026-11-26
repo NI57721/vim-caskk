@@ -67,7 +67,7 @@ class Fixture
   enddef
 endclass
 
-def Setup(lines: list<string> = [], registration_prefill: bool = true, state_auto: bool = false): Fixture
+def Setup(lines: list<string> = [], registration_prefill: bool = true): Fixture
   const previous = bufnr('%')
   const existing_buffers = mapnew(getbufinfo(), (_, info) => info.bufnr)
   const number = bufadd('')
@@ -87,7 +87,7 @@ def Setup(lines: list<string> = [], registration_prefill: bool = true, state_aut
   observations = []
   Caskk.RegisterInputScheme({name: 'automatic-registration', consonants: {k: 'k'},
     combinations: {a: 'a'}, specials: {d: '漢字', zx: 'い*くらい'}})
-  Caskk.Config({registration_prefill: registration_prefill, state_auto: state_auto,
+  Caskk.Config({registration_prefill: registration_prefill,
     state_path: directory .. '/state.jsonl', dictionaries: [{path: directory .. '/system', encoding: 'utf-8'}],
     mappings: {s: 'Convert', n: 'NextCandidate', "\<F6>": 'OpenRegistration'}})
   Caskk.Enable('automatic-registration')
@@ -133,7 +133,7 @@ suite.missing_candidates_open_registration_without_an_extra_action = (): void =>
 }
 
 suite.automatic_registration_is_saved_before_vim_exit = (): void => {
-  const fixture = Setup([], true, true)
+  const fixture = Setup()
   defer Cleanup(fixture)
   feedkeys('aKas' .. CAPTURE .. "\<BS>d\<CR>ka\<Esc>", 'xt')
   const stored = store.Load(fixture.directory .. '/state.jsonl')

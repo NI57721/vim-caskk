@@ -140,7 +140,7 @@ suite.failed_activation_commandline_and_unsubscribed_operations_are_quiet = (): 
   const invalid_state = tempname()
   defer delete(invalid_state)
   writefile(['invalid state data'], invalid_state)
-  Setup({state_auto: true, state_path: invalid_state})
+  Setup({state_path: invalid_state})
   defer Cleanup()
   var failure = ''
   try

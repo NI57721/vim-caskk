@@ -69,7 +69,7 @@ enddef
 
 def Configure(directory: string, path: string = ''): string
   const destination = path == '' ? directory .. '/state.jsonl' : path
-  return 'Caskk.Config({state_auto: true, state_path: ' .. string(destination)
+  return 'Caskk.Config({state_path: ' .. string(destination)
     .. ', dictionaries: [' .. string({path: directory .. '/system', encoding: 'utf-8'})
     .. "], candidate_select_keys: [], mappings: {s: 'Convert', n: 'NextCandidate'}})"
 enddef
@@ -142,12 +142,12 @@ suite.unused_automatic_configuration_does_not_create_a_state_file = (): void => 
   assert.equals(readdir(directory), ['child.vim', 'system'])
 }
 
-suite.omitted_automatic_setting_disables_later_exit_saving = (): void => {
+suite.omitted_state_path_disables_later_exit_saving = (): void => {
   const directory = Directory()
   defer delete(directory, 'rf')
   const path = directory .. '/state.jsonl'
   const result = Run(directory, [Configure(directory), "Caskk.Enable('automatic')", Input('aKasn'),
-    'Caskk.Config({state_path: ' .. string(path) .. '})',
+    'Caskk.Config({})',
     "UserRuntime.Get().Learn(Lookup.CreateQuery('き', ''), '木')"])
   assert.equals(result.status, 0, result.output)
   const persisted = store.Load(path).mru
@@ -213,9 +213,8 @@ suite.invalid_automatic_settings_are_rejected_before_activation = (): void => {
   const directory = Directory()
   defer delete(directory, 'rf')
   for [options, expected] in [
-    ["{state_auto: 1}", 'state_auto must be a bool'],
-    ["{state_auto: 'yes'}", 'state_auto must be a bool'],
-    ['{state_auto: true}', 'state_auto requires a nonempty state_path'],
+    ['{state_path: 1}', 'state_path must be a string'],
+    ['{state_auto: true}', 'unknown section: state_auto'],
   ]
     const result = Run(directory, ['Caskk.Config(' .. options .. ')'])
     assert.equals(result.status != 0, true)

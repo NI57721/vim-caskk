@@ -85,7 +85,7 @@ export def GetInputScheme(name: string): scheme.CompiledScheme
 enddef
 
 def InitializeAutomaticState()
-  if configuration.GetStateAuto()
+  if configuration.GetStatePath() !=# ''
     user_runtime.InitializeAutomatic(configuration.GetStatePath())
   endif
 enddef
@@ -176,13 +176,13 @@ export def GetDictionaryLoadStatus(): dict<string>
 enddef
 
 def SaveAutomaticState()
-  if configuration.GetStateAuto()
+  if configuration.GetStatePath() !=# ''
     user_runtime.SaveAutomatic(configuration.GetStatePath())
   endif
 enddef
 
 def ReloadWrittenState(path: string)
-  if configuration.GetStateAuto() && fnamemodify(path, ':p') ==# configuration.GetStatePath()
+  if configuration.GetStatePath() !=# '' && fnamemodify(path, ':p') ==# configuration.GetStatePath()
     try
       user_runtime.Load(configuration.GetStatePath())
     catch
