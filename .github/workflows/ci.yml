@@ -1,4 +1,4 @@
-name: Vim HEAD
+name: Vim CI
 
 on: [push, pull_request, workflow_dispatch]
 
@@ -7,18 +7,31 @@ permissions:
 
 jobs:
   test:
+    name: Vim ${{ matrix.version }}
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version: HEAD
+            ref: HEAD
+          - version: 9.1.1826
+            ref: refs/tags/v9.1.1826
     env:
       LANG: C.UTF-8
       TERM: xterm
     steps:
       - uses: actions/checkout@v6
-      - name: Build Vim HEAD
+      - name: Build Vim
+        env:
+          VIM_REF: ${{ matrix.ref }}
         run: |
           sudo apt-get update
           sudo apt-get install -y libncurses-dev
-          git clone --depth 1 https://github.com/vim/vim.git "$RUNNER_TEMP/vim-src"
+          git init "$RUNNER_TEMP/vim-src"
           cd "$RUNNER_TEMP/vim-src"
+          git fetch --depth 1 https://github.com/vim/vim.git "$VIM_REF"
+          git checkout --detach FETCH_HEAD
           ./configure --with-features=huge --disable-gui --without-x --prefix="$RUNNER_TEMP/vim"
           make -j"$(nproc)"
           make install
