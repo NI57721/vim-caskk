@@ -8,12 +8,13 @@ import autoload 'caskk/user_state.vim' as user_state
 # Records: [kind, reading, exact_okuri, ...values]. Entry values are text,
 # then annotations; mru/demoted values are ordered texts; pin has one text.
 def Strings(line: string): list<string>
+  var decoded: list<string>
   try
-    const decoded: list<string> = json_decode(line)
-    return decoded
+    decoded = json_decode(line)
   catch
     throw 'caskk: invalid user state: expected a JSON array of strings'
   endtry
+  return decoded
 enddef
 
 def CheckIdentity(pair: list<string>)
