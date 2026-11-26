@@ -306,6 +306,16 @@ suite.disable_cancels_pending_search_before_its_timer_runs = (): void => {
   assert.equals(Caskk.IsEnabled(), false)
 }
 
+def ReadTerminalReport(path: string): dict<any>
+  var state: dict<any> = {}
+  try
+    state = json_decode(readfile(path)[0])
+  catch /^Vim\%((\a\+)\)\=:E484:/
+    # Vim removes the previous report before renaming its replacement.
+  endtry
+  return state
+enddef
+
 suite.broad_prefix_search_keeps_terminal_input_responsive_and_discards_old_results = (): void => {
   const dictionary = tempname()
   const script = tempname() .. '.vim'
@@ -340,11 +350,9 @@ suite.broad_prefix_search_keeps_terminal_input_responsive_and_discards_old_resul
     var state: dict<any> = {}
     for _ in range(300)
       term_wait(terminal, 10)
-      if filereadable(report)
-        state = json_decode(readfile(report)[0])
-        if state.state ==# 'ready'
-          break
-        endif
+      state = ReadTerminalReport(report)
+      if get(state, 'state', '') ==# 'ready'
+        break
       endif
     endfor
     assert.equals(get(state, 'state', ''), 'ready')
@@ -353,8 +361,8 @@ suite.broad_prefix_search_keeps_terminal_input_responsive_and_discards_old_resul
     term_sendkeys(terminal, 'ka')
     for _ in range(100)
       term_wait(terminal, 10)
-      state = json_decode(readfile(report)[0])
-      if state.text ==# 'おおか' && stridx(string(state.popups), '更新された候補') >= 0
+      state = ReadTerminalReport(report)
+      if get(state, 'text', '') ==# 'おおか' && stridx(string(state.popups), '更新された候補') >= 0
         break
       endif
     endfor
@@ -362,8 +370,13 @@ suite.broad_prefix_search_keeps_terminal_input_responsive_and_discards_old_resul
     assert.equals(stridx(string(state.popups), '更新された候補') >= 0, true)
     assert.equals(stridx(string(state.popups), '候補0') < 0, true)
     term_sendkeys(terminal, "\<Down>\<CR>")
-    term_wait(terminal, 100)
-    state = json_decode(readfile(report)[0])
+    for _ in range(100)
+      term_wait(terminal, 10)
+      state = ReadTerminalReport(report)
+      if get(state, 'text', '') ==# '更新された候補' && empty(state.popups)
+        break
+      endif
+    endfor
     assert.equals(state.text, '更新された候補')
     assert.equals(state.popups, [])
   finally
