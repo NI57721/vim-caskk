@@ -214,7 +214,8 @@ suite.builtin_azik_routes_extended_keys_in_insert_mode = (): void => {
   defer Cleanup(context)
   Caskk.Config({})
   Caskk.Enable('azik')
-  defer Caskk.Disable()
+  const DisableCaskk = () => Caskk.Disable()
+  defer DisableCaskk()
   feedkeys("aKz;kp:\<Esc>", 'xt')
   assert.equals(getline(1), '前かんっこうー後')
 }

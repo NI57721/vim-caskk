@@ -162,7 +162,8 @@ suite.direct_okuri_nashi_learning_outranks_shared_stem_learning = (): void => {
 }
 
 suite.direct_learning_can_be_disabled_and_legacy_mru_is_only_fallback = (): void => {
-  defer Caskk.Config({})
+  const ResetConfig = () => Caskk.Config({})
+  defer ResetConfig()
   const entries = {'み': parser.ParseLine('み /身/見;@verb-1/')}
   const preferences = user_state.State.new()
   preferences.Restore(codec.Decode(['["caskk-user-state","2"]',
