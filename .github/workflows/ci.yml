@@ -1,0 +1,30 @@
+name: Vim HEAD
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    env:
+      LANG: C.UTF-8
+      TERM: xterm
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build Vim HEAD
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libncurses-dev
+          git clone --depth 1 https://github.com/vim/vim.git "$RUNNER_TEMP/vim-src"
+          cd "$RUNNER_TEMP/vim-src"
+          ./configure --with-features=huge --disable-gui --without-x --prefix="$RUNNER_TEMP/vim"
+          make -j"$(nproc)"
+          make install
+          echo "$RUNNER_TEMP/vim/bin" >> "$GITHUB_PATH"
+      - name: Run tests
+        run: |
+          git clone --depth 1 https://github.com/thinca/vim-themis.git "$RUNNER_TEMP/vim-themis"
+          vim --version
+          "$RUNNER_TEMP/vim-themis/bin/themis" --runtimepath . test
