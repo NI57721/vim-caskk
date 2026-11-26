@@ -394,7 +394,7 @@ registration_prefill                 *caskk-config-registration-prefill*
     bool, true.  Prefills registration with the reading.
 
 registration_inline                   *caskk-config-registration-inline*
-    bool, false.  Uses an inline popup instead of a registration window.
+    bool, true.  Uses an inline popup instead of a registration window.
     Left/Right move in the draft; BS/Delete edit it; Enter registers it.
 
 register_mode_conversions          *caskk-config-register-mode-conversions*

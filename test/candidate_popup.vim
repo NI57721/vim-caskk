@@ -298,7 +298,7 @@ suite.returning_from_first_candidate_to_reading_closes_the_popup_without_learnin
 }
 
 suite.exhaustion_closes_candidate_popup_before_opening_registration = (): void => {
-  const fixture = Setup()
+  const fixture = Setup(true, {}, 2, true, {registration_inline: false})
   defer Cleanup(fixture)
   feedkeys('aKas' .. CAPTURE .. 'nn' .. CAPTURE .. "\<Esc>c\<Esc>", 'xt')
   assert.equals(len(observations[0].popups), 1)
@@ -335,7 +335,7 @@ suite.registration_escape_restores_the_last_page_and_its_label = (): void => {
 }
 
 suite.closing_the_split_restores_the_unlabelled_candidate = (): void => {
-  const fixture = Setup(true, {}, 2, true, {candidate_select_keys: [], registration_prefill: false})
+  const fixture = Setup(true, {}, 2, true, {candidate_select_keys: [], registration_prefill: false, registration_inline: false})
   defer Cleanup(fixture)
   feedkeys('aKasnnKas' .. "\<Cmd>close\<CR>" .. CAPTURE .. "c\<Esc>", 'xt')
   assert.equals(observations[0].buffer, fixture.buffer)
@@ -365,7 +365,7 @@ suite.inline_escape_commits_the_draft_candidate_before_restoring_the_source_page
 }
 
 suite.cancelling_registration_discards_the_inner_candidate_popup_without_learning = (): void => {
-  const fixture = Setup(true, {}, 2, false)
+  const fixture = Setup(true, {}, 2, false, {registration_inline: false})
   defer Cleanup(fixture)
   const before = codec.Encode(user_runtime.Get().GetSnapshot())
   feedkeys('aZX' .. "\<BS>Kas" .. CAPTURE .. "\<Esc>ka\<Esc>", 'xt')

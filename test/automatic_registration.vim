@@ -87,7 +87,7 @@ def Setup(lines: list<string> = [], registration_prefill: bool = true): Fixture
   observations = []
   Caskk.RegisterInputScheme({name: 'automatic-registration', consonants: {k: 'k'},
     combinations: {a: 'a'}, specials: {d: '漢字', zx: 'い*くらい'}})
-  Caskk.Config({registration_prefill: registration_prefill,
+  Caskk.Config({registration_inline: false, registration_prefill: registration_prefill,
     state_path: directory .. '/state.jsonl', dictionaries: [{path: directory .. '/system', encoding: 'utf-8'}],
     mappings: {s: 'NextCandidate', n: 'NextCandidate', "\<F6>": 'OpenRegistration'}})
   Caskk.Enable('automatic-registration')
@@ -182,7 +182,7 @@ suite.disabling_automatic_registration_keeps_requests_and_manual_opening_availab
   const fixture = Setup()
   defer Cleanup(fixture)
   Caskk.Disable()
-  Caskk.Config({registration_auto: false,
+  Caskk.Config({registration_inline: false, registration_auto: false,
     mappings: {s: 'NextCandidate', "\<F6>": 'OpenRegistration'}})
   Caskk.Enable('automatic-registration')
   feedkeys('aKas' .. CAPTURE .. "\<F6>" .. CAPTURE .. "\<BS>d\<CR>\<Esc>", 'xt')
@@ -196,7 +196,7 @@ suite.invalid_automatic_setting_keeps_the_previous_manual_mode = (): void => {
   const fixture = Setup()
   defer Cleanup(fixture)
   Caskk.Disable()
-  Caskk.Config({registration_auto: false, mappings: {s: 'NextCandidate'}})
+  Caskk.Config({registration_inline: false, registration_auto: false, mappings: {s: 'NextCandidate'}})
   var caught = ''
   try
     Caskk.Config({registration_auto: 1})

@@ -340,10 +340,10 @@ def Parse(options: dict<any>, shared_index: dict_index.Database = null_object): 
     throw 'registration_auto must be a bool'
   endif
   const registration_auto: bool = get(options, 'registration_auto', true)
-  if type(get(options, 'registration_inline', false)) != v:t_bool
+  if type(get(options, 'registration_inline', true)) != v:t_bool
     throw 'registration_inline must be a bool'
   endif
-  const registration_inline: bool = get(options, 'registration_inline', false)
+  const registration_inline: bool = get(options, 'registration_inline', true)
   if type(get(options, 'undo_revert_to_reading', true)) != v:t_bool
     throw 'undo_revert_to_reading must be a bool'
   endif
