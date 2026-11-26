@@ -45,8 +45,22 @@ def Run(directory: string, commands: list<string>): Result
     'endtry',
     'qa!',
   ], script)
-  var output = system([v:progpath, '-v', '-X', '-Nu', 'NONE', '-i', 'NONE', '-n', '-es', '-V1', '-S', script])
-  const status = v:shell_error
+  const args = [v:progpath, '-v', '-X', '-Nu', 'NONE', '-i', 'NONE', '-n', '-es', '-V1', '-S', script]
+  const log = tempname()
+  defer delete(log)
+  const child = job_start(args, {in_io: 'null', out_io: 'file', out_name: log, err_io: 'out'})
+  for _ in range(500)
+    if job_status(child) !=# 'run'
+      break
+    endif
+    sleep 10m
+  endfor
+  if job_status(child) ==# 'run'
+    job_stop(child, 'kill')
+    throw 'timed out waiting for the child Vim'
+  endif
+  const status = job_info(child).exitval
+  var output = join(readfile(log), "\n")
   if filereadable(directory .. '/error')
     output ..= join(readfile(directory .. '/error'), "\n")
   endif
