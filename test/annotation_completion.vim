@@ -60,3 +60,14 @@ suite.refreshed_catalog_has_57_verb_tags_and_describes_new_forms = (): void => {
     assert.equals(item[0].description, description, tag)
   endfor
 }
+
+suite.okuri_ranking_prefers_regular_compatible_tags_over_exceptions_and_classical_tags = (): void => {
+  const words = mapnew(annotations.Matches('@', 'る', 'ふが'), (_, item) => item.word)
+  assert.equals(words[0], '@verb-5-r')
+  assert.equals(index(words, '@verb-5-r') < index(words, '@verb-5-r-aru'), true)
+  assert.equals(index(words, '@verb-5-r-aru') < index(words, '@verb-bungo-4-r'), true)
+  assert.equals(index(words, '@verb-bungo-4-r') < index(words, '@verb-1'), true)
+  assert.equals(annotations.Matches('@', 'る', 'き')[0].word, '@verb-1')
+  assert.equals(mapnew(annotations.Matches('@v5k', 'か', 'か'), (_, item) => item.word),
+    ['@verb-5-k', '@verb-5-k-iku', '@verb-5-k-yuku'])
+}

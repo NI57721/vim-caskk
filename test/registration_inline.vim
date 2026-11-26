@@ -506,6 +506,20 @@ suite.control_h_edits_preedit_then_the_registration_draft = (): void => {
   assert.equals(getline(1), '前漢後')
 }
 
+suite.annotation_shortcut_prioritizes_tags_for_the_registration_okuri = (): void => {
+  const context = Setup(false, false, {"\<Tab>": 'NextCandidate'}, false,
+    {sticky_key: ';'})
+  defer Cleanup(context)
+  Caskk.RegisterInputScheme({name: 'annotation-okuri', consonants: {y: 'y', m: 'm'},
+    combinations: {a: 'a', u: 'u'}, specials: {z: '止'}})
+  Caskk.Disable()
+  Caskk.Enable('annotation-okuri')
+  feedkeys("aYaMu\<F6>z\<Tab>v5\<CR>\<CR>\<Esc>", 'xt')
+  assert.equals(getline(1), '前止む後')
+  assert.equals(user_runtime.Get().GetSnapshot().entries[json_encode(['や', 'む'])][0].annotations,
+    ['@verb-5-m'])
+}
+
 suite.annotation_completion_accepts_a_label_before_registering = (): void => {
   const context = Setup()
   defer Cleanup(context)

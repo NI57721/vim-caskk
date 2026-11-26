@@ -107,6 +107,8 @@ export class Binding
   var _disable_after_registration: bool = false
   var _input_mode: string = input_mode.HIRAGANA
   var _registration_input: bool = false
+  var _parent_registration_request: registration.Request
+  var _annotation_request: registration.Request
   const _annotation: annotation_types.Completion = annotation_types.Completion.new()
   var _annotation_window: number = 0
   var _annotation_line: number = 0
@@ -1187,33 +1189,55 @@ export class Binding
       setline(this._annotation_line, this._annotation_before .. text .. this._annotation_after)
       cursor(this._annotation_line, this._annotation_column + strlen(text))
     endif
-    this._annotation.Update(text)
+    this._annotation.Update(text, this._annotation_request.okuri, this._annotation_request.reading)
   enddef
 
   def HandleAnnotation(key: string): bool
     if !this._annotation.active
-      if key !=# '@' || !configuration.GetCandidatePopup()
+      if !configuration.GetCandidatePopup()
           || (!this._registration_input && this._inline_editor is null_object)
         return false
       endif
-      const prefix = this._inline_editor isnot null_object
-        ? this._inline_editor.Prefix() .. this._inline_editor.Insertion()
-        : strpart(getline('.'), 0, col('.') - 1)
-      if stridx(prefix, ';') < 0 || prefix !~# '[;[:space:]]$'
+      const shortcut = key ==# '<Tab>'
+      if key !=# '@' && !shortcut
         return false
       endif
-      if this._inline_editor isnot null_object
+      const inline = this._inline_editor isnot null_object
+      const input = this._CandidateSession()
+      if shortcut && input isnot null_object && input.InCandidate()
+        return false
+      endif
+      const prefix = inline ? this._inline_editor.Prefix() .. this._inline_editor.Insertion()
+        : strpart(getline('.'), 0, col('.') - 1)
+      const separator = stridx(prefix, ';')
+      const token = shortcut && separator >= 0
+        ? matchstr(strpart(prefix, separator), '[;[:space:]]\zs@[0-9A-Za-z-]*$') : ''
+      const append_separator = shortcut && separator < 0 && trim(prefix) !=# ''
+        && (inline ? this._inline_editor.Suffix() ==# '' : col('.') > strlen(getline('.')))
+      if !append_separator && token ==# '' && (separator < 0 || prefix !~# '[;[:space:]]$')
+        return false
+      endif
+      this._annotation_request = inline ? this.GetRegistrationRequest() : this._parent_registration_request
+      if inline
         this._inline_editor.Commit()
+        if append_separator
+          this._inline_editor.InsertLiteral(';')
+        endif
       else
         this.Leave()
-        this._annotation_before = strpart(getline('.'), 0, col('.') - 1)
+        const column = col('.') - strlen(token)
+        this._annotation_before = strpart(getline('.'), 0, column - 1)
         this._annotation_after = strpart(getline('.'), col('.') - 1)
         this._annotation_line = line('.')
-        this._annotation_column = col('.')
+        if append_separator
+          this._annotation_before ..= ';'
+          setline(this._annotation_line, this._annotation_before .. this._annotation_after)
+        endif
+        this._annotation_column = strlen(this._annotation_before) + 1
       endif
-      this._annotation.Update('')
+      this._annotation.Update(token, this._annotation_request.okuri, this._annotation_request.reading)
       this._annotation.SetActive(true)
-      this._ReplaceAnnotation('@')
+      this._ReplaceAnnotation(token ==# '' ? '@' : token)
       this._RenderAnnotation()
       return true
     endif
@@ -1646,6 +1670,7 @@ export class Binding
         this._small_tsu_okuri_as_t, this._keyboard_layout, this._keyboard_layout_overrides,
         false, this._register_mode_conversions, this._dictionary_index, null_object, this._keep_preedit_on_backspace, this._affix_key)
       child._registration_input = true
+      child._parent_registration_request = request
       child.Enable()
       const arguments = this._buffer .. ', ' .. window.buffer
       for command in ['inoremap', 'nnoremap']

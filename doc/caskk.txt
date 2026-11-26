@@ -292,7 +292,15 @@ explanation.  Type characters in order to filter (e.g. @v5 matches @verb-5-*).
 Use Up/Down or Tab/Shift-Tab to select,
 and Enter to insert it; another Enter registers the word.  Esc closes only
 label completion.  Requires candidate_popup.  This works in both registration
-windows and inline registration.
+windows and inline registration.  Press Tab at the end of the registration
+body to insert ;@ and open completion, or after a tag to reopen completion
+for that tag.  Candidate selection in the registration field takes precedence.
+For okuri-ari registration, matching tags are ranked by compatibility
+with the first okuri character.  A regular ichidan tag also expects an
+i-row or e-row reading ending.  Compatible regular tags come first, then
+modern exceptions, then classical tags.  The other matches follow.
+Each group keeps catalog order.  For や*む, enter 止, press Tab, and type v5 to
+see @verb-5-m at the top.
 
 Tags also apply to user entries registered with okuri.  Tagged candidates
 follow dictionary configuration order, just like ordinary candidates.

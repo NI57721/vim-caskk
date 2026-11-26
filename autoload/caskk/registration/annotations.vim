@@ -1,5 +1,8 @@
 vim9script
 import 'caskk/verb_tags.vim' as tags
+import 'caskk/dictionary.vim' as dictionary
+import autoload 'caskk/dictionary/adjective.vim' as adjective
+import autoload 'caskk/dictionary/verb.vim' as verb
 
 export class Item
   const word: string
@@ -49,14 +52,35 @@ def MatchesInOrder(word: string, query: string): bool
   return true
 enddef
 
-export def Matches(prefix: string): list<Item>
-  final result: list<Item> = []
+def Priority(tag: string, okuri: string, reading: string): number
+  const candidate = dictionary.Candidate.new('', [tag])
+  const compatible = tag ==# '@adj' ? adjective.AllowsOkuri(candidate, okuri)
+    : verb.AllowsOkuri(candidate, okuri)
+  if !compatible
+    return 3
+  endif
+  if tag ==# '@verb-1' && reading !=# ''
+      && reading !~# '[いきぎしじちぢにひびぴみりゐえけげせぜてでねへべぺめれゑ]$'
+    return 3
+  endif
+  if tag =~# '^@verb-bungo-'
+    return 2
+  endif
+  if tag =~# '^@verb-\%(1-\|henkaku-\|5-.-\)'
+    return 1
+  endif
+  return 0
+enddef
+
+export def Matches(prefix: string, okuri: string = '', reading: string = ''): list<Item>
+  final groups: list<list<Item>> = [[], [], [], []]
   for tag in ['@adj'] + sort(keys(tags.ENDINGS))
     if MatchesInOrder(tag, prefix)
-      result->add(Item.new(tag, Describe(tag)))
+      const priority = okuri ==# '' ? 0 : Priority(tag, okuri, reading)
+      groups[priority]->add(Item.new(tag, Describe(tag)))
     endif
   endfor
-  return result
+  return groups[0] + groups[1] + groups[2] + groups[3]
 enddef
 
 export class Completion
@@ -69,9 +93,9 @@ export class Completion
   def SetActive(value: bool)
     this.active = value
   enddef
-  def Update(prefix: string)
+  def Update(prefix: string, okuri: string = '', reading: string = '')
     this.prefix = prefix
-    this.items = Matches(prefix)
+    this.items = Matches(prefix, okuri, reading)
     this.selected = 0
   enddef
   def Move(delta: number)

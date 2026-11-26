@@ -356,6 +356,20 @@ suite.annotation_is_saved_without_inserting_it = (): void => {
   assert.equals(user_runtime.Get().GetSnapshot().entries[json_encode(['か', ''])][0].annotations, ['説明;タグ'])
 }
 
+suite.annotation_shortcut_reopens_the_current_tag_without_duplicating_it = (): void => {
+  const fixture = Setup(false)
+  defer Cleanup(fixture)
+  Caskk.Disable()
+  Caskk.Config({sticky_key: ';',
+    registration_auto: false, registration_prefill: false, mappings: {s: 'Convert'}})
+  Caskk.Enable('registration-window')
+  feedkeys("aKas\<F3>d\<Tab>v5k\<Esc>\<Tab>\<CR>\<CR>\<Esc>", 'xt')
+  assert.equals(errors, [])
+  assert.equals(getline(1), '前漢字後')
+  assert.equals(user_runtime.Get().GetSnapshot().entries[json_encode(['か', ''])][0].annotations,
+    ['@verb-5-k'])
+}
+
 suite.annotation_completion_accepts_a_label_before_registering = (): void => {
   const fixture = Setup(false)
   defer Cleanup(fixture)
