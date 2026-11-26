@@ -48,7 +48,7 @@ suite.public_conversion_uses_merged_source_order_without_duplicate_candidates = 
   writefile([';; okuri-ari entries.', 'こk /濃/', 'あk /明/',
     ';; okuri-nasi entries.', 'あ /亜/', 'か /蚊/課/'], second)
   const original = [readblob(first), readblob(second)]
-  Caskk.Config({dictionaries: [{path: first, encoding: 'utf-8'}, {path: second, encoding: 'utf-8'}], candidate_select_keys: [], mappings: {s: 'Convert', n: 'NextCandidate'}})
+  Caskk.Config({dictionaries: [{path: first, encoding: 'utf-8'}, {path: second, encoding: 'utf-8'}], candidate_select_keys: [], mappings: {s: 'NextCandidate', n: 'NextCandidate'}})
   Caskk.Enable('dictionary-config')
   for [steps, expected] in [[0, '蚊'], [1, '科'], [2, '課']]
     setline(1, '前後')
@@ -66,7 +66,7 @@ suite.explicit_source_encoding_is_used_by_public_conversion = (): void => {
   defer delete(path)
   # EUC-JP bytes for 'かな /仮名;注釈/' and LF.
   writefile(0zA4ABA4CA202FB2BECCBE3BC3EDBCE12F0A, path)
-  Caskk.Config({dictionaries: [{path: path, encoding: 'euc-jp'}], mappings: {s: 'Convert'}})
+  Caskk.Config({dictionaries: [{path: path, encoding: 'euc-jp'}], mappings: {s: 'NextCandidate'}})
   Caskk.Enable('dictionary-config')
   feedkeys("aXs\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前仮名後')
@@ -80,7 +80,7 @@ suite.small_dictionary_is_ready_after_config_and_does_not_retain_source_containe
   writefile(['か /蚊/'], path)
   final source = {path: path, encoding: 'utf-8'}
   final sources = [source]
-  Caskk.Config({dictionaries: sources, mappings: {s: 'Convert'}})
+  Caskk.Config({dictionaries: sources, mappings: {s: 'NextCandidate'}})
   source.path = path .. '-missing'
   sources->remove(0)
   delete(path)
@@ -95,12 +95,12 @@ suite.dictionary_only_reload_keeps_binding_and_uses_the_updated_dictionary = ():
   const path = tempname()
   defer delete(path)
   writefile(['か /蚊/'], path)
-  Caskk.Config({dictionaries: [{path: path, encoding: 'utf-8'}], mappings: {s: 'Convert'}})
+  Caskk.Config({dictionaries: [{path: path, encoding: 'utf-8'}], mappings: {s: 'NextCandidate'}})
   Caskk.Enable('dictionary-config')
   feedkeys("aKas\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前蚊後')
   writefile(['か /科/'], path)
-  Caskk.Config({dictionaries: [{path: path, encoding: 'utf-8'}], mappings: {s: 'Convert'}})
+  Caskk.Config({dictionaries: [{path: path, encoding: 'utf-8'}], mappings: {s: 'NextCandidate'}})
   assert.equals(Caskk.IsEnabled(), true)
   feedkeys("aKas\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前蚊科後')
@@ -167,7 +167,7 @@ suite.read_and_decode_failures_keep_previous_dictionary_and_input_settings = ():
   defer delete(invalid_bytes)
   writefile(['か /蚊/'], previous)
   writefile(0zFF, invalid_bytes)
-  Caskk.Config({dictionaries: [{path: previous, encoding: 'utf-8'}], sticky_key: ';', mappings: {s: 'Convert'},
+  Caskk.Config({dictionaries: [{path: previous, encoding: 'utf-8'}], sticky_key: ';', mappings: {s: 'NextCandidate'},
     highlight: {preedit: {cterm: 'bold'}}})
   const before = hlget('CaskkPreedit')
   for path in [missing, invalid_bytes]
@@ -192,7 +192,7 @@ suite.configuration_skips_malformed_dictionary_lines_and_loads_later_entries = (
   const path = tempname()
   defer delete(path)
   writefile(['かな /未完', 'かな /仮名/'], path)
-  Caskk.Config({dictionaries: [{path: path, encoding: 'utf-8'}], mappings: {s: 'Convert'}})
+  Caskk.Config({dictionaries: [{path: path, encoding: 'utf-8'}], mappings: {s: 'NextCandidate'}})
   Caskk.Enable('dictionary-config')
   feedkeys("aXs\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前仮名後')
@@ -204,12 +204,12 @@ suite.highlight_failure_does_not_publish_a_newly_loaded_dictionary = (): void =>
   const path = tempname()
   defer delete(path)
   writefile(['か /蚊/'], path)
-  Caskk.Config({dictionaries: [{path: path, encoding: 'utf-8'}], mappings: {s: 'Convert'}})
+  Caskk.Config({dictionaries: [{path: path, encoding: 'utf-8'}], mappings: {s: 'NextCandidate'}})
   const before = hlget('CaskkPreedit')
   writefile(['か /科/'], path)
   var caught = ''
   try
-    Caskk.Config({dictionaries: [{path: path, encoding: 'utf-8'}], mappings: {s: 'Convert'},
+    Caskk.Config({dictionaries: [{path: path, encoding: 'utf-8'}], mappings: {s: 'NextCandidate'},
       highlight: {preedit: {ctermfg: 'caskk-invalid-color'}}})
   catch
     caught = v:exception
@@ -227,8 +227,8 @@ suite.omitting_dictionaries_removes_previously_loaded_candidates = (): void => {
   const path = tempname()
   defer delete(path)
   writefile(['か /蚊/'], path)
-  Caskk.Config({dictionaries: [{path: path, encoding: 'utf-8'}], mappings: {s: 'Convert'}})
-  Caskk.Config({mappings: {s: 'Convert'}})
+  Caskk.Config({dictionaries: [{path: path, encoding: 'utf-8'}], mappings: {s: 'NextCandidate'}})
+  Caskk.Config({mappings: {s: 'NextCandidate'}})
   Caskk.Enable('dictionary-config')
   feedkeys("aKas\<Esc>", 'xt')
   assert.equals(getline(1), '前か後')

@@ -38,7 +38,7 @@ def Setup(options: dict<any> = {})
     combinations: {a: 'a'}, specials: {z: '登録'}})
   Caskk.Config(extend({dictionaries: [{path: path, encoding: 'utf-8'}], candidate_select_keys: ['1', '2'],
     mode_popup: false, candidate_popup: true, completion_min_length: 2,
-    registration_prefill: false, mappings: {s: 'Convert', "\<F6>": 'NextCandidate', c: 'Commit',
+    registration_prefill: false, mappings: {s: 'NextCandidate', "\<F6>": 'NextCandidate', c: 'Commit',
       r: 'OpenRegistration', q: 'KatakanaMode', "\<F5>": 'CancelCompletion'}}, options))
   events = []
   augroup caskk_test_user_events

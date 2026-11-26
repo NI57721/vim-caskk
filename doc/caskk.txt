@@ -19,7 +19,7 @@ In your Vim9 configuration: >vim9
       state_path: expand('~/.local/share/caskk/state.jsonl'),
       state_auto: true,
       sticky_key: ';',
-      mappings: {"\<Space>": 'Convert', "\<C-P>": 'PreviousCandidate',
+      mappings: {"\<Space>": 'NextCandidate', "\<C-P>": 'PreviousCandidate',
         "\<F10>": 'Commit'},
     })
     inoremap <C-J> <ScriptCmd>Caskk.Toggle('example')<CR>
@@ -224,7 +224,7 @@ Completion                                            *caskk-completion*
     Reading suggestions appear automatically.  ShowCompletion selects one;
     PreviousCandidate moves to the previous suggestion, Commit accepts, and
     CancelCompletion restores the reading.  Typing with a selected suggestion
-    accepts it first, including Space when mapped to Convert or NextCandidate.
+    accepts it first, including Space when mapped to NextCandidate.
     Otherwise NextCandidate closes completion and starts conversion.
     Available in Insert input, excluding inline registration.
 
@@ -250,7 +250,7 @@ Command-line input                                   *caskk-commandline*
 Abbreviation mode                               *caskk-abbreviation-mode*
     Uses typed text directly as the dictionary reading.  Enter commits the
     selected completion or, if none is selected, the typed abbreviation.
-    Use Convert for dictionary conversion.  Committing returns to the previous
+    Use NextCandidate for dictionary conversion.  Committing returns to the previous
     input mode.
 
 Numeric conversion                              *caskk-numeric-conversion*
@@ -337,7 +337,7 @@ keyboard_layout_overrides         *caskk-config-keyboard-layout-overrides*
 
 mappings                                          *caskk-config-mappings*
     dict<string>, {}.  Key to action name; see |caskk-actions|.
-    Use actual keycodes: {"\<Space>": 'Convert', "\<F10>": 'Commit'}.
+    Use actual keycodes: {"\<Space>": 'NextCandidate', "\<F10>": 'Commit'}.
 
 small_tsu_okuri_as_t                   *caskk-config-small-tsu-okuri-as-t*
     bool, true.  Okuri starting with っ uses the SKK lookup prefix 't'.
@@ -462,12 +462,9 @@ MAPPING ACTIONS                                          *caskk-actions*
 
 Assign these names through mappings.  No action keys are assigned by default.
 
-Convert                                           *caskk-action-convert*
-    Converts the reading; during selection, advances to the next candidate.
-
 NextCandidate                              *caskk-action-next-candidate*
-    Selects the next candidate.  Passing the last conversion candidate
-    requests registration.
+    Starts conversion or selects the next candidate.  Advancing past the
+    last conversion candidate requests registration.
 
 PreviousCandidate                      *caskk-action-previous-candidate*
     Selects the previous candidate; before the first, restores the reading.

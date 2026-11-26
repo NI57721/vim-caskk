@@ -86,7 +86,7 @@ def Setup(prefill: bool = false, with_candidates: bool = false, extra_mappings: 
     registration_prefill: prefill, candidate_select_keys: second_okuri ? ['1', '2', '3', '4', '5'] : ['1'],
     highlight: {preedit: {term: 'underline', cterm: 'underline', gui: 'underline'}},
     mode_popup: true, mode_popup_time: 0,
-    mappings: extend({s: 'Convert', n: 'NextCandidate', "\<F6>": 'OpenRegistration'}, extra_mappings)}
+    mappings: extend({s: 'NextCandidate', n: 'NextCandidate', "\<F6>": 'OpenRegistration'}, extra_mappings)}
   if with_candidates
     dictionary_directory = tempname()
     mkdir(dictionary_directory)
@@ -383,7 +383,7 @@ suite.terminal_paste_goes_to_the_registration_draft_without_editing_the_source =
     "import autoload 'caskk.vim' as C",
     "C.RegisterInputScheme({name: 'paste', consonants: {k: 'k'}, combinations: {a: 'a'}, specials: {z: '漢字'}})",
     'C.Config({registration_inline: true, registration_auto: false, registration_prefill: false, mode_popup: false,',
-    '  mappings: {s: "Convert", "\<F6>": "OpenRegistration"}})',
+    '  mappings: {s: "NextCandidate", "\<F6>": "OpenRegistration"}})',
     "setline(1, '前後')",
     'cursor(1, 1)',
     "C.Enable('paste')",

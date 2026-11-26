@@ -86,7 +86,7 @@ suite.backspace_keeps_the_shortened_reading_convertible = (): void => {
   const entries = merger.Merge([[parser.ParseLine('あいうえ /読み/')]])
   const compiled = scheme.Compile({}, {a: 'a', i: 'i', u: 'u', e: 'e', o: 'o'})
   const keys = binding.Binding.new(compiled, ';', entries, null_object,
-    {c: 'Convert'})
+    {c: 'NextCandidate'})
   keys.Enable()
   feedkeys("a;aiueo\<BS>c\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前読み後')
@@ -98,7 +98,7 @@ suite.backspace_displays_only_the_last_preedit_character_as_deleted = (): void =
   defer Cleanup(context)
   const entries = merger.Merge([[parser.ParseLine('あいうえ /読み/')]])
   const compiled = scheme.Compile({}, {a: 'a', i: 'i', u: 'u', e: 'e', o: 'o'})
-  const keys = binding.Binding.new(compiled, ';', entries, null_object, {c: 'Convert'})
+  const keys = binding.Binding.new(compiled, ';', entries, null_object, {c: 'NextCandidate'})
   inoremap <buffer> <F11> <ScriptCmd>CapturePendingBuffer()<CR>
   keys.Enable()
   feedkeys("a;aiueo\<BS>\<F11>c\<C-\>\<C-N>", 'xt')
@@ -268,7 +268,7 @@ suite.backspace_preserves_restored_modifier_for_following_input = (): void => {
   const context = Setup()
   defer Cleanup(context)
   const entries = merger.Merge([[parser.ParseLine('か /蚊/')]])
-  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), ';', entries, null_object, {s: 'Convert'})
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), ';', entries, null_object, {s: 'NextCandidate'})
   keys.Enable()
   feedkeys("afooK\<BS>kas\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前foo蚊後')
@@ -289,7 +289,7 @@ suite.backspace_edits_the_preedit_before_following_input_converts_it = (): void 
   const context = Setup()
   defer Cleanup(context)
   const entries = merger.Merge([[parser.ParseLine('かか /科科/')]])
-  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries, null_object, {s: 'Convert'})
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries, null_object, {s: 'NextCandidate'})
   keys.Enable()
   feedkeys("aKaka\<BS>kas\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前科科後')
@@ -388,7 +388,7 @@ suite.enable_installs_keys_and_actions_and_insertleave_closes_preedit = (): void
   Caskk.Config({candidate_select_keys: []})
   defer ResetConfig()
   const entries = merger.Merge([[parser.ParseLine('か /蚊/科/')]])
-  const actions = {s: 'Convert', n: 'NextCandidate', c: 'Commit'}
+  const actions = {s: 'NextCandidate', n: 'NextCandidate', c: 'Commit'}
   const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), ';', entries, user_state.State.new(), actions)
   keys.Enable()
   assert.equals(keys.IsEnabled(), true)
@@ -410,7 +410,7 @@ suite.convert_mapping_starts_advances_and_requests_registration_after_last_candi
   defer ResetConfig()
   const entries = merger.Merge([[parser.ParseLine('か /蚊/科/家/化/課/可/')]])
   const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries,
-    user_state.State.new(), {'<Space>': 'Convert'})
+    user_state.State.new(), {'<Space>': 'NextCandidate'})
   g:caskk_binding_snapshots = []
   inoremap <buffer> <F11> <ScriptCmd>CaptureBindingState()<CR>
   inoremap <buffer> <F12> <ScriptCmd>CaptureBindingState()<CR>
@@ -428,7 +428,7 @@ suite.tab_after_candidate_selection_commits_then_inserts_a_native_tab = (): void
   setlocal noexpandtab
   const entries = merger.Merge([[parser.ParseLine('か /蚊/')]])
   const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries,
-    null_object, {s: 'Convert'})
+    null_object, {s: 'NextCandidate'})
   keys.Enable()
   feedkeys("aKas\<Tab>\<Esc>", 'xt')
   assert.equals(getline(1), "前蚊\t後")
@@ -441,7 +441,7 @@ suite.modified_standalone_vowel_does_not_modify_input_after_okuri_candidate_comm
   defer Cleanup(context)
   const entries = merger.Merge([[parser.ParseLine('あまi /甘/')]])
   const compiled = scheme.Compile({m: 'm'}, {a: 'a', m: 'a*ku', i: 'i'})
-  const keys = binding.Binding.new(compiled, ';', entries, null_object, {'<Space>': 'Convert'})
+  const keys = binding.Binding.new(compiled, ';', entries, null_object, {'<Space>': 'NextCandidate'})
   inoremap <buffer> <F11> <ScriptCmd>CapturePendingBuffer()<CR>
   keys.Enable()
   feedkeys("a;ama;i\<Space>amai\<F11>\<Esc>", 'xt')
@@ -470,7 +470,7 @@ suite.unmodified_okuri_suffix_continues_directly_after_candidate_commit = (): vo
 }
 
 suite.unavailable_printable_actions_fall_back_to_ordinary_input = (): void => {
-  const actions = {'<Space>': 'Convert', n: 'NextCandidate', p: 'PreviousCandidate', c: 'Commit', r: 'OpenRegistration'}
+  const actions = {'<Space>': 'NextCandidate', n: 'NextCandidate', p: 'PreviousCandidate', c: 'Commit', r: 'OpenRegistration'}
   for [key, action] in items(actions)
     const context = Setup()
     try
@@ -492,7 +492,7 @@ suite.start_conversion_mapping_falls_back_while_only_a_consonant_is_pending = ()
   const context = Setup()
   defer Cleanup(context)
   const keys = binding.Binding.new(scheme.Compile({z: 'z'}, {z: 'a*N'}), '', {},
-    null_object, {'<Space>': 'Convert'})
+    null_object, {'<Space>': 'NextCandidate'})
   keys.Enable()
   feedkeys("az\<Space>\<Space>\<Esc>", 'xt')
   assert.equals(getline(1), '前z  後')
@@ -723,7 +723,7 @@ suite.literal_punctuation_is_included_in_the_reading_and_its_undo_checkpoint = (
   const context = Setup()
   defer Cleanup(context)
   const entries = merger.Merge([[parser.ParseLine('か? /可疑/')]])
-  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries, null_object, {s: 'Convert', c: 'Commit'})
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries, null_object, {s: 'NextCandidate', c: 'Commit'})
   keys.Enable()
   feedkeys("aKa?sc\<Esc>", 'xt')
   assert.equals(getline(1), '前可疑後')
@@ -773,7 +773,7 @@ suite.non_ascii_input_stays_in_preedit_before_following_conversion_keys = (): vo
   const context = Setup()
   defer Cleanup(context)
   const entries = merger.Merge([[parser.ParseLine('かあ? /仮名/')]])
-  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries, null_object, {s: 'Convert', c: 'Commit'})
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries, null_object, {s: 'NextCandidate', c: 'Commit'})
   keys.Enable()
   feedkeys("aKaあ?sc\<Esc>", 'xt')
   assert.equals(getline(1), '前仮名後')
@@ -832,7 +832,7 @@ suite.native_movement_commits_and_learns_the_selected_candidate = (): void => {
   defer ResetConfig()
   const preferences = user_state.State.new()
   const entries = merger.Merge([[parser.ParseLine('か /蚊/科/')]])
-  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries, preferences, {s: 'Convert', n: 'NextCandidate'})
+  const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries, preferences, {s: 'NextCandidate', n: 'NextCandidate'})
   keys.Enable()
   feedkeys("aKasn\<Left>ka\<Esc>", 'xt')
   assert.equals(getline(1), '前か科後')
@@ -1004,7 +1004,7 @@ suite.backspace_control_h_keeps_the_reading_modified = (): void => {
   defer Cleanup(context)
   const entries = merger.Merge([[parser.ParseLine('あいあ /読み/')]])
   const keys = binding.Binding.new(scheme.Compile({}, {a: 'a', i: 'i', u: 'u'}), ';', entries,
-    null_object, {c: 'Convert'})
+    null_object, {c: 'NextCandidate'})
   keys.Enable()
   feedkeys("a;aiu\<C-H>ac\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前読み後')
@@ -1053,7 +1053,7 @@ suite.pending_modified_nasal_converts_cancels_commits_and_undoes = (): void => {
     try
       const entries = merger.Merge([[parser.ParseLine('ん /撥/')]])
       const keys = binding.Binding.new(scheme.Compile({q: 'n'}, {a: 'a'}), ';', entries,
-        user_state.State.new(), {'<Space>': 'Convert', '<CR>': 'Commit', p: 'PreviousCandidate'})
+        user_state.State.new(), {'<Space>': 'NextCandidate', '<CR>': 'Commit', p: 'PreviousCandidate'})
       keys.Enable()
       feedkeys('a' .. modified .. finish .. "\<Esc>", 'xt')
       assert.equals(getline(1), expected, modified .. keytrans(finish))

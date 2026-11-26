@@ -56,7 +56,7 @@ suite.enable_and_disable_are_idempotent_and_restore_previous_mapping = (): void 
 suite.toggle_enables_then_disables_the_current_buffer_mapping = (): void => {
   const context = Setup()
   defer Cleanup(context)
-  Caskk.Config({mappings: {"\<C-N>": 'Convert'}})
+  Caskk.Config({mappings: {"\<C-N>": 'NextCandidate'}})
   assert.equals(Caskk.IsEnabled(), false)
   Caskk.Toggle('lifecycle')
   assert.equals(Caskk.IsEnabled(), true)
@@ -193,7 +193,7 @@ suite.builtin_roman_converts_nasal_and_sokuon_input_without_registration = (): v
     const context = Setup()
     try
       Caskk.Config({dictionaries: [{path: source, encoding: 'utf-8'}], candidate_popup: false,
-        mappings: {"\<Space>": 'Convert', "\<F10>": 'Commit'}})
+        mappings: {"\<Space>": 'NextCandidate', "\<F10>": 'Commit'}})
       Caskk.Enable('roman')
       feedkeys('a' .. keys .. "\<F10>\<Esc>", 'xt')
       assert.equals(getline(1), '前' .. expected .. '後')

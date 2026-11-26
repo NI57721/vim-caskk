@@ -109,7 +109,7 @@ def Setup(candidate_popup: bool = true, extra_mappings: dict<string> = {}, candi
   selection_groups = []
   Caskk.RegisterInputScheme({name: 'candidate-popup', consonants: {k: 'k'},
     combinations: {a: 'a'}, specials: {d: '漢字', zx: 'い*くらい'}})
-  var mappings = {s: 'Convert', n: 'NextCandidate', p: 'PreviousCandidate', c: 'Commit'}
+  var mappings = {s: 'NextCandidate', n: 'NextCandidate', p: 'PreviousCandidate', c: 'Commit'}
   extend(mappings, extra_mappings)
   Caskk.Config(extend({keep_preedit_on_backspace: keep_preedit_on_backspace, candidate_popup: candidate_popup, mode_popup: false, dictionaries: [{path: directory .. '/system', encoding: 'utf-8'}],
     mappings: mappings}, options))
@@ -528,7 +528,7 @@ suite.deletion_confirmation_is_fully_visible_in_a_small_terminal = (): void => {
     "import autoload 'caskk/dictionary/lookup.vim' as lookup",
     "import 'caskk/dictionary.vim' as dictionary",
     "C.RegisterInputScheme({name: 'small-confirmation', consonants: {k: 'k'}, combinations: {a: 'a', i: 'i'}})",
-    "C.Config({candidate_select_keys: [], mode_popup: false, registration_auto: false, registration_inline: inline, registration_prefill: false, mappings: {s: 'Convert', x: 'DeleteUserEntry', q: 'OpenRegistration'}})",
+    "C.Config({candidate_select_keys: [], mode_popup: false, registration_auto: false, registration_inline: inline, registration_prefill: false, mappings: {s: 'NextCandidate', x: 'DeleteUserEntry', q: 'OpenRegistration'}})",
     "runtime.Get().AddEntry(lookup.CreateQuery('か', ''), dictionary.Candidate.new('蚊', ['昆虫']))",
     "C.Enable('small-confirmation')",
     "setline(1, ['', '', ''])",
@@ -730,7 +730,7 @@ suite.labels_match_the_visible_rows_in_a_small_terminal = (): void => {
     'set rtp^=' .. escape(getcwd(), ' ,'),
     "import autoload 'caskk.vim' as C",
     "C.RegisterInputScheme({name: 'small-labels', consonants: {k: 'k'}, combinations: {a: 'a'}})",
-    "C.Config({mode_popup: false, dictionaries: [" .. string({path: dictionary_path, encoding: 'utf-8'}) .. "], mappings: {s: 'Convert'}, candidate_select_keys: ['1', '2', '3', '4', '5', '6', '7', '8']})",
+    "C.Config({mode_popup: false, dictionaries: [" .. string({path: dictionary_path, encoding: 'utf-8'}) .. "], mappings: {s: 'NextCandidate'}, candidate_select_keys: ['1', '2', '3', '4', '5', '6', '7', '8']})",
     "C.Enable('small-labels')",
     'def Capture(timer: number)',
     '  writefile([getline(1)], ' .. string(report) .. ')',

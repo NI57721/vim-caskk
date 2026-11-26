@@ -54,7 +54,7 @@ def Setup(options: dict<any> = {})
   Caskk.RegisterInputScheme({name: 'completion-test', consonants: {k: 'k', n: 'n', t: 't'},
     combinations: {a: 'a', i: 'i'}})
   Caskk.Config(extend({dictionaries: [{path: dictionary_path, encoding: 'utf-8'}], completion_min_length: 2,
-    mappings: {"\<Tab>": 'ShowCompletion', "\<F5>": 'CancelCompletion', "\<Space>": 'Convert'}}, options))
+    mappings: {"\<Tab>": 'ShowCompletion', "\<F5>": 'CancelCompletion', "\<Space>": 'NextCandidate'}}, options))
   inoremap <buffer> <F12> <ScriptCmd>Capture()<CR>
   captures = []
   buffer_captures = []
@@ -222,7 +222,7 @@ suite.completion_is_visible_in_a_real_terminal = (): void => {
 }
 
 suite.automatic_completion_requires_no_show_completion_mapping = (): void => {
-  Setup({mappings: {"\<Space>": 'Convert'}})
+  Setup({mappings: {"\<Space>": 'NextCandidate'}})
   defer Cleanup()
   feedkeys("aKa\<F12>na\<F12>\<Down>\<CR>\<Esc>", 'xt')
   assert.equals(captures, ['前か後', '前かな後'])
@@ -246,7 +246,7 @@ suite.automatic_completion_refreshes_after_typing_and_hides_for_pending_input = 
 }
 
 suite.automatic_completion_uses_the_configured_minimum_and_returns_after_editing = (): void => {
-  Setup({completion_min_length: 3, mappings: {c: 'CancelCompletion', "\<Space>": 'Convert'}})
+  Setup({completion_min_length: 3, mappings: {c: 'CancelCompletion', "\<Space>": 'NextCandidate'}})
   defer Cleanup()
   feedkeys("aKana\<F12>ta\<F12>c\<BS>\<F12>ta\<F12>\<Esc>", 'xt')
   assert.equals(captures, ['前かな後', '前かなた後', '前かな後', '前かなた後'])
@@ -395,7 +395,7 @@ suite.abbreviation_enter_commits_selected_prefix_completion = (): void => {
 }
 
 suite.abbreviation_enter_keeps_literal_ascii_when_completions_are_visible = (): void => {
-  Setup({mappings: {q: 'AbbreviationMode', "\<Space>": 'Convert', "\<CR>": 'Commit'}})
+  Setup({mappings: {q: 'AbbreviationMode', "\<Space>": 'NextCandidate', "\<CR>": 'Commit'}})
   defer Cleanup()
   feedkeys("aqapple\<F12>\<CR>\<F12>\<Esc>", 'xt')
   assert.equals(stridx(string(popup_lines[0]), '林檎') >= 0, true)
@@ -520,7 +520,7 @@ suite.zero_okuri_imperative_converts_with_a_verb_marker = (): void => {
   defer delete(source)
   writefile([';; okuri-ari entries.', ';; okuri-nasi entries.',
     'くれ /呉れ;@verb-1-kureru/'], source)
-  Setup({dictionaries: [{path: source, encoding: 'utf-8'}], mappings: {"\<Space>": 'Convert', "\<F10>": 'Commit'}})
+  Setup({dictionaries: [{path: source, encoding: 'utf-8'}], mappings: {"\<Space>": 'NextCandidate', "\<F10>": 'Commit'}})
   defer Cleanup()
   Caskk.Disable()
   Caskk.RegisterInputScheme({name: 'bare-imperative', consonants: {}, combinations: {}, specials: {x: 'くれ'}})
@@ -573,7 +573,7 @@ suite.affix_readings_stay_out_of_automatic_candidate_popup = (): void => {
   writefile(['か> /御/'], dictionary_path)
   Caskk.Disable()
   Caskk.Config({dictionaries: [{path: dictionary_path, encoding: 'utf-8'}], sticky_key: ';', affix_key: '1',
-    mode_popup: false, mappings: {"\<Space>": 'Convert'}})
+    mode_popup: false, mappings: {"\<Space>": 'NextCandidate'}})
   Caskk.Enable('completion-test')
   feedkeys("a;ka1\<F12>\<Space>\<F12>\<Esc>", 'xt')
   assert.equals(captures, ['前か>後', '前御後'])

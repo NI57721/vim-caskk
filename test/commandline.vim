@@ -23,7 +23,7 @@ enddef
 def Setup()
   snapshot = user_runtime.Get().GetSnapshot()
   user_runtime.Get().Restore(user_state.State.new().GetSnapshot())
-  Caskk.Config({sticky_key: ';', mappings: {"\<Space>": 'Convert', "\<C-N>": 'NextCandidate',
+  Caskk.Config({sticky_key: ';', mappings: {"\<Space>": 'NextCandidate', "\<C-N>": 'NextCandidate',
     "\<C-P>": 'PreviousCandidate', "\<F4>": 'KatakanaMode'}})
   Caskk.RegisterInputScheme({name: 'commandline', consonants: {k: 'k'}, combinations: {a: 'a'}})
   cnoremap <F2> <ScriptCmd>Enable()<CR>
@@ -69,7 +69,7 @@ suite.native_motion_closes_the_range_and_preserves_surrounding_text = (): void =
 def Dictionary(): string
   const path = tempname()
   writefile(['か /蚊/家/', 'かk /書/'], path)
-  Caskk.Config({candidate_select_keys: [], dictionaries: [{path: path, encoding: 'utf-8'}], sticky_key: ';', mappings: {"\<Space>": 'Convert',
+  Caskk.Config({candidate_select_keys: [], dictionaries: [{path: path, encoding: 'utf-8'}], sticky_key: ';', mappings: {"\<Space>": 'NextCandidate',
     "\<C-N>": 'NextCandidate', "\<C-P>": 'PreviousCandidate', "\<F4>": 'KatakanaMode'}})
   return path
 enddef
@@ -79,7 +79,7 @@ def LabelDictionary(extra: dict<any> = {}): string
   writefile(['か /蚊/家/科/課/歌/'], path)
   final options = extend({dictionaries: [{path: path, encoding: 'utf-8'}], candidate_select_keys: ['a', '界'],
     mode_popup: false, mappings: {'a': 'KatakanaMode',
-    'p': 'TogglePin', 'd': 'ToggleDemote', "\<Space>": 'Convert',
+    'p': 'TogglePin', 'd': 'ToggleDemote', "\<Space>": 'NextCandidate',
     "\<C-N>": 'NextCandidate', "\<C-P>": 'PreviousCandidate'}}, extra)
   Caskk.Config(options)
   return path
@@ -284,7 +284,7 @@ suite.input_prompt_is_native_in_an_interactive_vim = (): void => {
     'set rtp^=' .. escape(getcwd(), ' ,'),
     "import autoload 'caskk.vim' as C",
     'C.Config({dictionaries: [' .. string({path: dictionary, encoding: 'utf-8'}) .. '], candidate_select_keys: ["界"],'
-      .. ' mappings: {"\<Space>": "Convert", "\<C-F>": "TogglePin"}})',
+      .. ' mappings: {"\<Space>": "NextCandidate", "\<C-F>": "TogglePin"}})',
     "C.RegisterInputScheme({name: 'nested', consonants: {k: 'k'}, combinations: {a: 'a'}})",
     'def Enable()', "  C.Enable('nested')", 'enddef',
     'var answer = ""',
@@ -394,7 +394,7 @@ suite.typed_text_remains_visible_on_the_terminal = (): void => {
     'vim9script',
     'set rtp^=' .. escape(getcwd(), ' ,'),
     "import autoload 'caskk.vim' as C",
-    'C.Config({mode_popup_time: 0, dictionaries: [' .. string({path: dictionary, encoding: 'utf-8'}) .. '], candidate_select_keys: ["1", "界"], mappings: {"\<Space>": "Convert", p: "TogglePin"}})',
+    'C.Config({mode_popup_time: 0, dictionaries: [' .. string({path: dictionary, encoding: 'utf-8'}) .. '], candidate_select_keys: ["1", "界"], mappings: {"\<Space>": "NextCandidate", p: "TogglePin"}})',
     "C.RegisterInputScheme({name: 'visible', consonants: {k: 'k'}, combinations: {a: 'a'}})",
     "cnoremap <F2> <ScriptCmd>C.Enable('visible')<CR>",
     'cnoremap <F5> <Cmd>call setcmdline(repeat("あ", 49))<CR>',
@@ -485,7 +485,7 @@ suite.candidate_list_is_visible_and_follows_selection = (): void => {
     feedkeys(":\<F2>Ka  \<F6>\<C-C>", 'xt')
     assert.equals(index(popup_text, '家') >= 0, true)
     assert.equals(popup_list(), [])
-    Caskk.Config({candidate_popup: false, dictionaries: [{path: path, encoding: 'utf-8'}], mappings: {"\<Space>": 'Convert'}})
+    Caskk.Config({candidate_popup: false, dictionaries: [{path: path, encoding: 'utf-8'}], mappings: {"\<Space>": 'NextCandidate'}})
     feedkeys(":\<F2>Ka \<F6>\<C-C>", 'xt')
     assert.equals(popup_text, ['▼あ'])
   finally
@@ -500,7 +500,7 @@ suite.unlabelled_candidates_scroll_from_the_third_row = (): void => {
   defer delete(path)
   writefile(['か /蚊/家/科/課/'], path)
   Caskk.Config({candidate_select_keys: [], dictionaries: [{path: path, encoding: 'utf-8'}], mode_popup: false,
-    mappings: {"\<Space>": 'Convert', "\<C-N>": 'NextCandidate', "\<C-P>": 'PreviousCandidate'}})
+    mappings: {"\<Space>": 'NextCandidate', "\<C-N>": 'NextCandidate', "\<C-P>": 'PreviousCandidate'}})
   cnoremap <F6> <ScriptCmd>CapturePopup()<CR>
   defer execute('cunmap <F6>')
   candidate_viewports = []
@@ -534,7 +534,7 @@ suite.unavailable_backspace_action_cancels_commandline_conversion_without_learni
   defer Cleanup()
   const path = Dictionary()
   defer delete(path)
-  Caskk.Config({dictionaries: [{path: path, encoding: 'utf-8'}], mappings: {"\<Space>": 'Convert', "\<BS>": 'DeleteUserEntry'}})
+  Caskk.Config({dictionaries: [{path: path, encoding: 'utf-8'}], mappings: {"\<Space>": 'NextCandidate', "\<BS>": 'DeleteUserEntry'}})
   feedkeys(":前\<F2>Ka \<BS>\<F3>\<C-C>", 'xt')
   assert.equals(captured, '前')
   assert.equals(user_runtime.Get().GetSnapshot().mru, {})
@@ -639,7 +639,7 @@ suite.disabled_labels_rank_the_preview_directly = (): void => {
 suite.abort_keys_keep_their_native_meaning_with_rank_actions_configured = (): void => {
   Setup()
   defer Cleanup()
-  const path = LabelDictionary({mappings: {"\<Space>": 'Convert', p: 'TogglePin',
+  const path = LabelDictionary({mappings: {"\<Space>": 'NextCandidate', p: 'TogglePin',
     "\<Esc>": 'TogglePin', "\<C-C>": 'ToggleDemote'}})
   defer delete(path)
   for keys in ["\<Esc>", "p\<C-C>"]
@@ -661,7 +661,7 @@ suite.affix_keys_work_in_commandline_input = (): void => {
       ['<F9>', '<F10>', "\<F9>ka\<F10>", 'か>', '御'],
       ['<F9>', '<F9><F9>', "\<F9>\<F9>ka", '>か', '化']]
     Caskk.Config({dictionaries: [{path: path, encoding: 'utf-8'}], sticky_key: sticky, affix_key: affix,
-      mappings: {"\<Space>": 'Convert'}, mode_popup: false})
+      mappings: {"\<Space>": 'NextCandidate'}, mode_popup: false})
     feedkeys(":\<F2>" .. keys .. "\<F3>\<C-C>", 'xt')
     assert.equals(captured, reading)
     feedkeys(":\<F2>" .. keys .. "\<Space>\<F3>\<C-C>", 'xt')

@@ -10,11 +10,10 @@ const ACTIONS = [
 ]
 
 export def NormalizeAction(action: string): string
-  const normalized = action ==# 'Convert' ? 'NextCandidate' : action
-  if index(ACTIONS, normalized) < 0
+  if index(ACTIONS, action) < 0
     throw 'caskk: unknown binding action: ' .. action
   endif
-  return normalized
+  return action
 enddef
 
 export def Lhs(token: string): string

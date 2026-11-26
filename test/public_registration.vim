@@ -67,7 +67,7 @@ def Setup(lines: list<string> = []): Fixture
   Caskk.RegisterInputScheme({name: 'public-registration', consonants: {k: 'k'},
     combinations: {a: 'a'}, specials: {zx: 'い*くらい'}})
   Caskk.Config({registration_auto: false, state_path: directory .. '/state.jsonl', dictionaries: [{path: directory .. '/system', encoding: 'utf-8'}],
-    mappings: {s: 'Convert', n: 'NextCandidate'}})
+    mappings: {s: 'NextCandidate', n: 'NextCandidate'}})
   Caskk.Enable('public-registration')
   inoremap <buffer> <F3> <ScriptCmd>Handle('complete')<CR>
   inoremap <buffer> <F4> <ScriptCmd>Handle('okuri')<CR>

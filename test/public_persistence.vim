@@ -61,7 +61,7 @@ suite.round_trip_preserves_entries_annotations_mru_pin_and_demotion = (): void =
   defer Cleanup(fixture)
   const path = fixture.directory .. '/state.jsonl'
   Caskk.Config({state_path: path, dictionaries: [{path: fixture.directory .. '/system', encoding: 'utf-8'}],
-    mappings: {s: 'Convert'}})
+    mappings: {s: 'NextCandidate'}})
   const query = lookup.CreateQuery('か', '')
   const state = user_runtime.Get()
   state.AddEntry(query, dictionary.Candidate.new('課', ['ユーザー登録']))
@@ -106,7 +106,7 @@ suite.loaded_learning_is_used_by_an_already_enabled_buffer = (): void => {
   defer Cleanup(fixture)
   const path = fixture.directory .. '/state.jsonl'
   Caskk.Config({state_path: path, dictionaries: [{path: fixture.directory .. '/system', encoding: 'utf-8'}],
-    candidate_select_keys: [], mappings: {s: 'Convert', n: 'NextCandidate'}})
+    candidate_select_keys: [], mappings: {s: 'NextCandidate', n: 'NextCandidate'}})
   Caskk.Enable('persistence')
   feedkeys("aKasn\<C-\>\<C-N>", 'xt')
   assert.equals(getline(1), '前科後')
@@ -122,7 +122,7 @@ suite.automatic_learning_is_saved_when_a_conversion_is_committed = (): void => {
   defer Cleanup(fixture)
   const path = fixture.directory .. '/state.jsonl'
   Caskk.Config({state_path: path,
-    dictionaries: [{path: fixture.directory .. '/system', encoding: 'utf-8'}], candidate_select_keys: [], mappings: {s: 'Convert', n: 'NextCandidate'}})
+    dictionaries: [{path: fixture.directory .. '/system', encoding: 'utf-8'}], candidate_select_keys: [], mappings: {s: 'NextCandidate', n: 'NextCandidate'}})
   Caskk.Enable('persistence')
   feedkeys("aKasn\<C-\>\<C-N>", 'xt')
   assert.equals(store.Load(path).mru[json_encode(['か', ''])], ['科'])
@@ -133,7 +133,7 @@ suite.automatic_candidate_preference_changes_are_saved_without_waiting_for_exit 
   defer Cleanup(fixture)
   const path = fixture.directory .. '/state.jsonl'
   Caskk.Config({state_path: path, candidate_select_keys: ['1', '2'],
-    dictionaries: [{path: fixture.directory .. '/system', encoding: 'utf-8'}], mappings: {s: 'Convert', v: 'TogglePin'}})
+    dictionaries: [{path: fixture.directory .. '/system', encoding: 'utf-8'}], mappings: {s: 'NextCandidate', v: 'TogglePin'}})
   Caskk.Enable('persistence')
   feedkeys("aKas2v\<Esc>", 'xt')
   assert.equals(store.Load(path).pinned[json_encode(['か', ''])], '科')
@@ -144,7 +144,7 @@ suite.automatic_candidate_demotion_is_saved_without_waiting_for_exit = (): void 
   defer Cleanup(fixture)
   const path = fixture.directory .. '/state.jsonl'
   Caskk.Config({state_path: path, candidate_select_keys: ['1', '2'],
-    dictionaries: [{path: fixture.directory .. '/system', encoding: 'utf-8'}], mappings: {s: 'Convert', b: 'ToggleDemote'}})
+    dictionaries: [{path: fixture.directory .. '/system', encoding: 'utf-8'}], mappings: {s: 'NextCandidate', b: 'ToggleDemote'}})
   Caskk.Enable('persistence')
   feedkeys("aKas2b\<Esc>", 'xt')
   assert.equals(store.Load(path).demoted[json_encode(['か', ''])], ['科'])
@@ -155,7 +155,7 @@ suite.omitted_state_path_keeps_learning_in_memory_only = (): void => {
   defer Cleanup(fixture)
   const path = fixture.directory .. '/state.jsonl'
   Caskk.Config({dictionaries: [{path: fixture.directory .. '/system', encoding: 'utf-8'}],
-    candidate_select_keys: [], mappings: {s: 'Convert', n: 'NextCandidate'}})
+    candidate_select_keys: [], mappings: {s: 'NextCandidate', n: 'NextCandidate'}})
   Caskk.Enable('persistence')
   feedkeys("aKasn\<C-\>\<C-N>", 'xt')
   assert.equals(filereadable(path), 0)
@@ -167,7 +167,7 @@ suite.automatic_saving_does_not_write_for_preedit_without_user_state_changes = (
   defer Cleanup(fixture)
   const path = fixture.directory .. '/state.jsonl'
   Caskk.Config({state_path: path,
-    dictionaries: [{path: fixture.directory .. '/system', encoding: 'utf-8'}], mappings: {s: 'Convert'}})
+    dictionaries: [{path: fixture.directory .. '/system', encoding: 'utf-8'}], mappings: {s: 'NextCandidate'}})
   Caskk.Enable('persistence')
   feedkeys("aKa\<Esc>", 'xt')
   assert.equals(filereadable(path), 0)
@@ -180,7 +180,7 @@ suite.automatic_user_entry_deletion_is_saved_at_confirmation = (): void => {
   Caskk.Disable()
   Caskk.Config({state_path: path,
     dictionaries: [{path: fixture.directory .. '/system', encoding: 'utf-8'}],
-    candidate_select_keys: [], mappings: {s: 'Convert', n: 'NextCandidate', x: 'DeleteUserEntry'}})
+    candidate_select_keys: [], mappings: {s: 'NextCandidate', n: 'NextCandidate', x: 'DeleteUserEntry'}})
   user_runtime.Get().AddEntry(lookup.CreateQuery('か', ''), dictionary.Candidate.new('登録のみ', []))
   Caskk.Enable('persistence')
   feedkeys('aKasnnxy', 'xt')
@@ -195,7 +195,7 @@ suite.failed_automatic_save_keeps_the_conversion_and_can_be_retried = (): void =
   defer Cleanup(fixture)
   const path = fixture.directory .. '/state.jsonl'
   Caskk.Config({state_path: path,
-    dictionaries: [{path: fixture.directory .. '/system', encoding: 'utf-8'}], candidate_select_keys: [], mappings: {s: 'Convert', n: 'NextCandidate'}})
+    dictionaries: [{path: fixture.directory .. '/system', encoding: 'utf-8'}], candidate_select_keys: [], mappings: {s: 'NextCandidate', n: 'NextCandidate'}})
   Caskk.Enable('persistence')
   mkdir(path)
   writefile(['keep'], path .. '/sentinel')
@@ -319,7 +319,7 @@ suite.save_during_selection_does_not_commit_the_candidate = (): void => {
   defer Cleanup(fixture)
   const path = fixture.directory .. '/state.jsonl'
   Caskk.Config({state_path: path, dictionaries: [{path: fixture.directory .. '/system', encoding: 'utf-8'}],
-    candidate_select_keys: [], mappings: {s: 'Convert', n: 'NextCandidate'}})
+    candidate_select_keys: [], mappings: {s: 'NextCandidate', n: 'NextCandidate'}})
   execute 'inoremap <buffer> <F12> <ScriptCmd>SaveCurrent(' .. string(path) .. ')<CR>'
   Caskk.Enable('persistence')
   feedkeys("aKasn\<F12>\<C-\>\<C-N>", 'xt')

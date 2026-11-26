@@ -60,7 +60,7 @@ def Setup(options: dict<any> = {}): void
   capture_cursor_positions = []
   inoremap <buffer> <F12> <Cmd>call CaskkTestModePopupCapture()<CR>
   Caskk.Config(extend({mappings: {"\<F1>": 'KatakanaMode', "\<F2>": 'AbbreviationMode',
-    "\<Space>": 'Convert', "\<F3>": 'Commit'}}, options))
+    "\<Space>": 'NextCandidate', "\<F3>": 'Commit'}}, options))
   Caskk.Enable('mode-popup-test')
 enddef
 
@@ -139,7 +139,7 @@ suite.mode_popup_returns_after_native_cursor_motion = (): void => {
 
 suite.mode_popup_returns_after_action_mapped_native_keys = (): void => {
   Setup({mode_popup_time: 0, mappings: {
-    "\<Up>": 'PreviousCandidate', "\<Down>": 'Convert',
+    "\<Up>": 'PreviousCandidate', "\<Down>": 'NextCandidate',
     "\<BS>": 'DeleteUserEntry', "\<CR>": 'Commit'}})
   defer Cleanup()
   setline(1, ['前後', '別行'])

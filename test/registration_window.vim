@@ -103,7 +103,7 @@ def Setup(prefill: bool = true, with_candidates: bool = false, candidate_select_
   Caskk.Config({dictionaries: with_candidates ? [{path: dictionary, encoding: 'utf-8'}] : [], candidate_select_keys: candidate_select_keys,
     registration_auto: false, registration_prefill: prefill,
     state_path: directory .. '/state.jsonl',
-    mappings: {s: 'Convert', n: 'NextCandidate', c: 'Commit'}})
+    mappings: {s: 'NextCandidate', n: 'NextCandidate', c: 'Commit'}})
   Caskk.RegisterInputScheme({name: 'registration-window', consonants: {k: 'k'}, combinations: {a: 'a'},
     specials: {d: '漢字', zx: 'い*くらい'}})
   Caskk.Enable('registration-window')
@@ -300,7 +300,7 @@ suite.cancelling_does_not_commit_an_unconfirmed_candidate_inside_registration = 
   const path = fixture.directory .. '/system'
   writefile(['か /蚊/科/'], path)
   Caskk.Disable()
-  Caskk.Config({keep_preedit_on_backspace: false, registration_auto: false, dictionaries: [{path: path, encoding: 'utf-8'}], mappings: {s: 'Convert'}})
+  Caskk.Config({keep_preedit_on_backspace: false, registration_auto: false, dictionaries: [{path: path, encoding: 'utf-8'}], mappings: {s: 'NextCandidate'}})
   Caskk.Enable('registration-window')
   const before = codec.Encode(user_runtime.Get().GetSnapshot())
   feedkeys("aZX\<F3>\<BS>Kas\<F4>\<Esc>ka\<Esc>", 'xt')
@@ -316,7 +316,7 @@ suite.completing_with_an_inner_conversion_learns_and_registers_the_confirmed_bod
   const path = fixture.directory .. '/system'
   writefile(['か /蚊/科/'], path)
   Caskk.Disable()
-  Caskk.Config({keep_preedit_on_backspace: false, registration_auto: false, dictionaries: [{path: path, encoding: 'utf-8'}], mappings: {s: 'Convert'}})
+  Caskk.Config({keep_preedit_on_backspace: false, registration_auto: false, dictionaries: [{path: path, encoding: 'utf-8'}], mappings: {s: 'NextCandidate'}})
   Caskk.Enable('registration-window')
   feedkeys("aZX\<F3>\<BS>Kas\<CR>\<Esc>", 'xt')
   assert.equals(errors, [])
@@ -333,7 +333,7 @@ suite.configured_open_action_starts_the_window_and_honors_prefill_setting = (): 
   const windows = winnr('$')
   Caskk.Disable()
   Caskk.Config({registration_auto: false, registration_prefill: false,
-    mappings: {s: 'Convert', "\<F3>": 'OpenRegistration'}})
+    mappings: {s: 'NextCandidate', "\<F3>": 'OpenRegistration'}})
   Caskk.Enable('registration-window')
   feedkeys("aKas\<F3>d\<CR>\<Esc>", 'xt')
   assert.equals(errors, [])
@@ -361,7 +361,7 @@ suite.annotation_shortcut_reopens_the_current_tag_without_duplicating_it = (): v
   defer Cleanup(fixture)
   Caskk.Disable()
   Caskk.Config({sticky_key: ';',
-    registration_auto: false, registration_prefill: false, mappings: {s: 'Convert'}})
+    registration_auto: false, registration_prefill: false, mappings: {s: 'NextCandidate'}})
   Caskk.Enable('registration-window')
   feedkeys("aKas\<F3>d\<Tab>v5k\<Esc>\<Tab>\<CR>\<CR>\<Esc>", 'xt')
   assert.equals(errors, [])
@@ -453,7 +453,7 @@ suite.affix_keys_convert_inside_registration_window = (): void => {
   writefile(['>か /化/'], path)
   Caskk.Disable()
   Caskk.Config({registration_auto: false, registration_prefill: false,
-    dictionaries: [{path: path, encoding: 'utf-8'}], sticky_key: ';', affix_key: '1', mappings: {s: 'Convert'}})
+    dictionaries: [{path: path, encoding: 'utf-8'}], sticky_key: ';', affix_key: '1', mappings: {s: 'NextCandidate'}})
   Caskk.Enable('registration-window')
   feedkeys("aKas\<F3>;1kas\<CR>\<Esc>", 'xt')
   assert.equals(errors, [])

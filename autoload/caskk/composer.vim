@@ -150,7 +150,7 @@ export class Composer
   enddef
 
   # Let an already pending special consume the next key before the binding
-  # layer interprets that key as an action such as Convert.
+  # layer interprets that key as an action such as NextCandidate.
   def IsSpecialContinuation(key: string): bool
     const pending = this._CarriedSpecialStart() ? this._consonant : this._special_pending
     if empty(pending)
