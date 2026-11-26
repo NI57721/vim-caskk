@@ -49,7 +49,7 @@ suite.annotations_from_repeated_candidates_in_one_entry_are_merged = (): void =>
 }
 
 suite.unannotated_occurrences_do_not_erase_annotations = (): void => {
-  const plain = [parser.ParseLine('よみ /字/')]
+  const plain: list<dictionary.Entry> = [parser.ParseLine('よみ /字/')]
   const annotated = [parser.ParseLine('よみ /字;説明/')]
   for sources in [[plain, annotated], [annotated, plain]]
     const merged = merger.Merge(sources)
