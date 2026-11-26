@@ -13,6 +13,14 @@ var captured_preedit_positions: list<number> = []
 var captured_preedit_highlights: list<number> = []
 var captured_preedit_text: list<string> = []
 
+def ResetConfig()
+  Caskk.Config({})
+enddef
+
+def DisableBinding(keys: binding.Binding)
+  keys.Disable()
+enddef
+
 def CapturePreeditPosition()
   captured_preedit_positions->add(col('.'))
   captured_preedit_highlights->add(len(prop_list(1, {types: ['caskk_preedit']})))
@@ -378,7 +386,6 @@ suite.enable_installs_keys_and_actions_and_insertleave_closes_preedit = (): void
   const context = Setup()
   defer Cleanup(context)
   Caskk.Config({candidate_select_keys: []})
-  const ResetConfig = () => Caskk.Config({})
   defer ResetConfig()
   const entries = merger.Merge([[parser.ParseLine('か /蚊/科/')]])
   const actions = {s: 'Convert', n: 'NextCandidate', c: 'Commit'}
@@ -400,7 +407,6 @@ suite.convert_mapping_starts_advances_and_requests_registration_after_last_candi
   const context = Setup()
   defer Cleanup(context)
   Caskk.Config({candidate_select_keys: ['1', '2', '3', '4', '5']})
-  const ResetConfig = () => Caskk.Config({})
   defer ResetConfig()
   const entries = merger.Merge([[parser.ParseLine('か /蚊/科/家/化/課/可/')]])
   const keys = binding.Binding.new(scheme.Compile({k: 'k'}, {a: 'a'}), '', entries,
@@ -823,7 +829,6 @@ suite.native_movement_commits_and_learns_the_selected_candidate = (): void => {
   const context = Setup()
   defer Cleanup(context)
   Caskk.Config({candidate_select_keys: []})
-  const ResetConfig = () => Caskk.Config({})
   defer ResetConfig()
   const preferences = user_state.State.new()
   const entries = merger.Merge([[parser.ParseLine('か /蚊/科/')]])
@@ -962,8 +967,7 @@ suite.backspace_restores_and_shortens_multi_character_okuri_without_learning = (
   ])
   const keys = binding.Binding.new(compiled, '', entries, preferences)
   keys.Enable()
-  const DisableBinding = () => keys.Disable()
-  defer DisableBinding()
+  defer DisableBinding(keys)
   inoremap <buffer> <F12> <ScriptCmd>CaptureOkuriBackspace()<CR>
   inoremap <buffer> <F11> <ScriptCmd>CapturePendingBuffer()<CR>
 

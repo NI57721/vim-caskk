@@ -13,6 +13,10 @@ import autoload 'caskk/user_state/store.vim' as store
 final suite = themis#suite('conversion candidates')
 const assert = themis#helper('assert')
 
+def ResetConfig()
+  Caskk.Config({})
+enddef
+
 suite.preparation_preserves_dictionary_order_and_annotations_without_okuri = (): void => {
   const entries = merger.Merge([[parser.ParseLine('かんじ /漢字;文字/感じ/')]])
   const prepared = conversion.Prepare(entries, user_state.State.new(), 'かんじ')
@@ -162,7 +166,6 @@ suite.direct_okuri_nashi_learning_outranks_shared_stem_learning = (): void => {
 }
 
 suite.direct_learning_can_be_disabled_and_legacy_mru_is_only_fallback = (): void => {
-  const ResetConfig = () => Caskk.Config({})
   defer ResetConfig()
   const entries = {'み': parser.ParseLine('み /身/見;@verb-1/')}
   const preferences = user_state.State.new()
