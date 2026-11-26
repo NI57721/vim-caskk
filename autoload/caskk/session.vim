@@ -699,8 +699,9 @@ export class Session
     const output_mode = input_mode.Transition(this._input_mode, requested)
     this._input_mode = output_mode
     this._abbreviation_return_mode = ''
+    var results: list<Result>
     try
-      const results = this.Commit()
+      results = this.Commit()
       if this._register_mode_conversions
         const query = lookup.CreateQuery(snapshot.reading, snapshot.okuri, this._small_tsu_okuri_as_t)
         const text = input_mode.Render(snapshot.reading, output_mode)
@@ -710,11 +711,11 @@ export class Session
           this._preferences.Learn(query, text)
         endif
       endif
-      return results
     finally
       this._input_mode = previous_mode
       this._abbreviation_return_mode = previous_abbreviation_return_mode
     endtry
+    return results
   enddef
 
   def _RestoreAbbreviationMode()
