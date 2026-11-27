@@ -478,10 +478,23 @@ export class Binding
     endif
   enddef
 
+  def _SyncCompletionEscape()
+    const escape = mapping.Lhs('<Esc>')
+    if this._enabled && !this._registration_input && this._inline_editor is null_object
+        && this._editor.IsInCompletion() && this._editor.GetDisplayCandidatesInfo().selected_index >= 0
+      if !this._candidate_mappings.Has(escape)
+        this._candidate_mappings.Install(escape, this._InputMapping('DispatchInput', '<Esc>'))
+      endif
+    else
+      this._candidate_mappings.RestoreKey(escape)
+    endif
+  enddef
+
   def _SyncInputMode()
     if this._editor is null_object
       return
     endif
+    this._SyncCompletionEscape()
     const mode = this._editor.GetInputMode()
     const snapshot = this._editor.GetSnapshot()
     const marker = this._editor.IsInCandidate() || this._editor.IsInCompletion() ? 'candidate'
@@ -1296,12 +1309,20 @@ export class Binding
     if this.HandleAnnotation(key)
       return
     endif
+    const completion_escape = key ==# '<Esc>' && this._candidate_mappings.Has(mapping.Lhs(key))
     this._AbandonExternallyChangedEditor()
     if this._ResolveDeleteUserEntryConfirmation(key)
       return
     endif
     if this._inline_editor isnot null_object
       this._DispatchInline(key)
+      return
+    endif
+    if completion_escape
+      if this._editor isnot null_object && this._editor.IsInCompletion()
+        this._Record(this._editor.Commit())
+      endif
+      feedkeys("\<Esc>", 'in')
       return
     endif
     if this._editor isnot null_object

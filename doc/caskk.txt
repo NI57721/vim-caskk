@@ -226,7 +226,9 @@ Completion                                            *caskk-completion*
     CancelCompletion restores the reading.  Typing with a selected suggestion
     accepts it first, including Space when mapped to NextCandidate.
     Otherwise NextCandidate closes completion and starts conversion.
-    Available in Insert input, excluding inline registration.
+    In ordinary Insert input, Escape commits a selected suggestion and
+    returns to Normal mode.  Available in Insert input, excluding inline
+    registration.
 
 Registration                                        *caskk-registration*
     Missing words open registration by default.  Enter registers the candidate

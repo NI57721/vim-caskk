@@ -120,6 +120,31 @@ suite.previous_candidate_does_not_move_reading_completion = (): void => {
   assert.equals(user_runtime.Get().GetSnapshot().mru, {})
 }
 
+suite.escape_commits_selected_completion_and_leaves_insert_mode = (): void => {
+  Setup()
+  defer Cleanup()
+  inoremap <buffer> <Esc> <Nop>
+  const original_escape = maparg('<Esc>', 'i', false, true)
+  feedkeys("aKana\<Tab>" .. WAIT .. "\<F12>\<Esc>0", 'xt')
+  assert.equals(captures, ['前仮名後'])
+  assert.equals(col('.'), 1)
+  assert.equals(maparg('<Esc>', 'i', false, true), original_escape)
+  assert.equals(getline(1), '前仮名後')
+  assert.equals(popup_list(), [])
+  assert.equals(user_runtime.Get().GetSnapshot().mru[json_encode(['かな', ''])], ['仮名'])
+  normal! u
+  assert.equals(getline(1), '前かな後')
+}
+
+suite.escape_with_unselected_completion_keeps_the_reading = (): void => {
+  Setup()
+  defer Cleanup()
+  feedkeys("aKana\<F12>\<Esc>", 'xt')
+  assert.equals(selected_rows, [0])
+  assert.equals(getline(1), '前かな後')
+  assert.equals(user_runtime.Get().GetSnapshot().mru, {})
+}
+
 suite.menu_previews_selection_and_enter_commits_the_selected_word = (): void => {
   Setup()
   defer Cleanup()
