@@ -517,8 +517,10 @@ suite.deletion_confirmation_is_above_the_conversion_at_the_bottom_right = (): vo
 suite.deletion_confirmation_is_fully_visible_in_a_small_terminal = (): void => {
   const script = tempname() .. '.vim'
   const report = tempname()
+  const pending_report = report .. '-pending'
   defer delete(script)
   defer delete(report)
+  defer delete(pending_report)
   writefile([
     'vim9script',
     'set rtp^=' .. escape(getcwd(), ' ,'),
@@ -532,11 +534,12 @@ suite.deletion_confirmation_is_fully_visible_in_a_small_terminal = (): void => {
     "runtime.Get().AddEntry(lookup.CreateQuery('か', ''), dictionary.Candidate.new('蚊', ['昆虫']))",
     "C.Enable('small-confirmation')",
     "setline(1, ['', '', ''])",
+    # The parent can read between truncation and writing. Publish by rename.
     'def Capture(timer: number)',
-    "  writefile([string(runtime.Get().HasEntryForLookup(lookup.CreateQuery('か', ''), '蚊'))], " .. string(report) .. ')',
+    "  writefile([string(runtime.Get().HasEntryForLookup(lookup.CreateQuery('か', ''), '蚊'))], " .. string(pending_report) .. ')',
+    '  rename(' .. string(pending_report) .. ', ' .. string(report) .. ')',
     'enddef',
     'timer_start(10, Capture, {repeat: -1})',
-    'writefile(["ready"], ' .. string(report) .. ')',
   ], script)
   for dimensions in [[8, 24, false], [6, 36, false], [6, 24, false], [8, 24, true], [6, 36, true]]
     writefile([dimensions[2] ? 'inline' : 'normal'], report)
@@ -545,10 +548,11 @@ suite.deletion_confirmation_is_fully_visible_in_a_small_terminal = (): void => {
     try
       for _ in range(100)
         term_wait(terminal, 10)
-        if readfile(report) == ['ready'] || readfile(report) == ['true']
+        if readfile(report) == ['true']
           break
         endif
       endfor
+      assert.equals(readfile(report), ['true'], string(dimensions))
       # At 6x24, three wrapped rows cannot fit on either side of row three.
       const input = dimensions[2] ? 'iKisqKasx' : 'iKasx'
       term_sendkeys(terminal, dimensions == [6, 24, false] ? '2j' .. input : input)
