@@ -3,6 +3,7 @@ vim9script
 import autoload 'caskk/conversion.vim' as conversion
 import autoload 'caskk/config.vim' as configuration
 import autoload 'caskk/input/mapping.vim' as mapping
+import 'caskk/verb_tags.vim' as tags
 
 export def PageKeys(inline: bool = false): list<string>
   const keys = configuration.GetCandidateSelectKeys()
@@ -70,8 +71,12 @@ export def Format(info: conversion.CandidateListInfo, keys: list<string> = []): 
     const tier = candidate.tier ==# 'pinned' ? '★ ' : candidate.tier ==# 'demoted' ? '↓ ' : ''
     const label = empty(keys) ? '' : keys[candidate.index - start] .. ' '
     var line = label .. tier .. candidate.text
-    if !empty(candidate.annotations)
-      const annotation = substitute(join(candidate.annotations, ' / '), "\n", ' ', 'g')
+    final annotations = mapnew(candidate.annotations, (_, annotation) =>
+      tags.WithoutTags(annotation, filter(split(annotation, '[[:space:];]\+'),
+        (_, token) => tags.IsConjugationTag(token))))
+    annotations->filter((_, annotation) => annotation !=# '')
+    if !empty(annotations)
+      const annotation = substitute(join(annotations, ' / '), "\n", ' ', 'g')
       line ..= ' — ' .. annotation
     endif
     lines->add(line)

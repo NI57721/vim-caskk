@@ -64,5 +64,5 @@ suite.experimental_preview_omits_marker_while_candidate_rows_keep_it = (): void 
   const editor = registration_editor.Editor.new(input)
   editor.Append(input.Feed('X'))
   assert.equals(editor.Insertion(), '書く')
-  assert.equals(editor.Candidates().candidates[0].text, '書く［verb］')
+  assert.equals(editor.Candidates().candidates[0].text, '書く[カ五]')
 }

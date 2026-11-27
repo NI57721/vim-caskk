@@ -25,12 +25,12 @@ suite.tiers_and_learning_apply_across_candidate_kinds = (): void => {
   preferences.Reset(lookup.CreateQuery('か', 'く'), '通常')
   preferences.Demote(lookup.CreateQuery('か', ''), '活用')
   prepared = conversion.Prepare({}, preferences, 'か', 'く', true, database)
-  assert.equals(prepared.DisplayAt(1), '活用く［verb］')
+  assert.equals(prepared.DisplayAt(1), '活用く[カ五]')
   assert.equals(conversion.Selection.new(prepared, preferences).IsExperimental(), false)
   preferences.Reset(lookup.CreateQuery('か', ''), '活用')
   preferences.Learn(lookup.CreateQuery('か', ''), '活用')
   prepared = conversion.Prepare({}, preferences, 'か', 'く', true, database)
-  assert.equals(prepared.DisplayAt(0), '活用く［verb］')
+  assert.equals(prepared.DisplayAt(0), '活用く[カ五]')
 }
 
 suite.annotated_candidates_keep_their_order_within_a_dictionary = (): void => {

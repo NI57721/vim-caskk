@@ -24,7 +24,7 @@ suite.tags_are_per_candidate_and_equal_results_merge = (): void => {
   const normal = parser.ParseLine('わるi /悪/')
   const preferences = state.State.new()
   const prepared = conversion.Prepare({'わる': stem, 'わるi': normal}, preferences, 'わる', 'い')
-  assert.equals(mapnew(prepared.candidates, (i, _) => prepared.DisplayAt(i)), ['悪い', '惡い［adj］'])
+  assert.equals(mapnew(prepared.candidates, (i, _) => prepared.DisplayAt(i)), ['悪い', '惡い[形]'])
   const selection = conversion.Selection.new(prepared, preferences)
   selection.Select(1)
   assert.equals(selection.TogglePin(), 'pinned')
@@ -60,12 +60,12 @@ suite.adjective_preferences_survive_reload_and_are_shared_across_endings = (): v
   const restored = state.State.new()
   restored.Restore(codec.Decode(codec.Encode(preferences.GetSnapshot())))
   const next = conversion.Prepare(entries, restored, 'うつくし', 'か')
-  assert.equals(next.DisplayAt(0), '麗しか［adj］')
+  assert.equals(next.DisplayAt(0), '麗しか[形]')
   const selection = conversion.Selection.new(next, restored)
   selection.TogglePin()
   assert.equals(conversion.Selection.new(conversion.Prepare(entries, restored, 'うつくし', 'く'), restored).GetInfo().tier, 'pinned')
   selection.ToggleDemote()
-  assert.equals(conversion.Prepare(entries, restored, 'うつくし', 'さ').DisplayAt(1), '麗しさ［adj］')
+  assert.equals(conversion.Prepare(entries, restored, 'うつくし', 'さ').DisplayAt(1), '麗しさ[形]')
 }
 
 suite.annotated_user_stems_registered_with_okuri_apply_to_other_endings = (): void => {
@@ -77,7 +77,7 @@ suite.annotated_user_stems_registered_with_okuri_apply_to_other_endings = (): vo
   for suffix in ['い', 'く', 'さ']
     const prepared = conversion.Prepare({}, restored, 'うつくし', suffix)
     assert.equals(prepared.experimental_count, suffix == 'い' ? 0 : 1)
-    assert.equals(prepared.DisplayAt(0), '美し' .. suffix .. (suffix == 'い' ? '' : '［adj］'))
+    assert.equals(prepared.DisplayAt(0), '美し' .. suffix .. (suffix == 'い' ? '' : '[形]'))
     assert.equals(prepared.candidates[0].annotations, ['説明;@adj'])
   endfor
   assert.equals(conversion.Prepare({}, restored, 'べつ', 'く').experimental_count, 0)

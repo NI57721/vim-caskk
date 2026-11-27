@@ -11,6 +11,25 @@ import autoload 'caskk/dictionary/verb.vim' as verb
 import autoload 'caskk/dictionary/adjective.vim' as adjective
 import autoload 'caskk/dictionary/stem.vim' as stem
 
+import 'caskk/verb_tags.vim' as tags
+
+def MergeStemMarkers(first: string, second: string): string
+  if second ==# '' || first ==# second
+    return first
+  endif
+  final labels = split(strpart(first, 1, strlen(first) - 2), ',')
+  for label in split(strpart(second, 1, strlen(second) - 2), ',')
+    if index(labels, label) < 0
+      labels->add(label)
+    endif
+  endfor
+  const adjective_position = index(labels, '形')
+  if adjective_position > 0
+    labels->insert(labels->remove(adjective_position))
+  endif
+  return '[' .. join(labels, ',') .. ']'
+enddef
+
 # Conversion and tagged completion share the source identity and kuru variants.
 export def LearnCandidate(preferences: user_state.State, query: dictionary.Query,
     candidate: dictionary.Candidate, is_stem: bool, direct: bool)
@@ -74,6 +93,9 @@ export class Candidates
       endif
       const position = positions[text]
       this._sources[position]->add(source)
+      if get(this.markers, position, '') !=# ''
+        this.markers[position] = MergeStemMarkers(this.markers[position], source.marker)
+      endif
       for annotation in candidate.annotations
         if index(this._annotations[position], annotation) < 0
           this._annotations[position]->add(annotation)
@@ -93,7 +115,7 @@ export class Candidates
   enddef
 
   def DisplayAt(index: number): string
-    return this.TextAt(index) .. this._sources[index][0].marker
+    return this.TextAt(index) .. get(this.markers, index, '')
   enddef
 
   def TextAt(index: number): string
@@ -342,21 +364,30 @@ export def Prepare(entries: dict<dictionary.Entry>, preferences: user_state.Stat
   final ranked = preferences.Rank(query, system_candidates)
   const ordinary_texts = okuri == '' ? mapnew(ranked, (_, candidate) => candidate.text) : []
   final experimental = adjective.Lookup(entries, preferences, reading, okuri, database)
-  final markers = repeat(['［adj］'], len(experimental))
+  final markers = repeat(['[形]'], len(experimental))
   for candidate in verb.Lookup(entries, preferences, reading, okuri, database)
     const ordinary_position = index(ordinary_texts, candidate.text)
     if ordinary_position >= 0
       ranked[ordinary_position] = MergeAnnotations(ranked[ordinary_position], candidate)
       continue
     endif
+    final labels: list<string> = []
+    for tag in verb.MatchedTags(candidate, reading, okuri)
+      const label = tags.Label(tag, reading)
+      if index(labels, label) < 0
+        labels->add(label)
+      endif
+    endfor
+    const marker = '[' .. join(labels, ',') .. ']'
     const position = index(mapnew(experimental, (_, item) => item.text), candidate.text)
     if okuri == '' && position >= 0
       experimental[position] = MergeAnnotations(experimental[position], candidate)
+      markers[position] = MergeStemMarkers(markers[position], marker)
     elseif position >= 0 && candidate.source_reading == ''
-      markers[position] = '［adj,verb］'
+      markers[position] = MergeStemMarkers(markers[position], marker)
     else
       experimental->add(candidate)
-      markers->add('［verb］')
+      markers->add(marker)
     endif
   endfor
   if okuri == ''

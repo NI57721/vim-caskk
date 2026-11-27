@@ -205,7 +205,7 @@ suite.ordinary_conversion_hides_nonstandalone_tags_from_merged_sources = (): voi
     assert.equals(ordinary.candidates[0].has_plain_source, true)
     const stem = conversion.Prepare({}, preferences, 'き', 'く', true, database)
     assert.equals(len(stem.candidates), 1)
-    assert.equals(stem.DisplayAt(0), '聞く［verb］')
+    assert.equals(stem.DisplayAt(0), '聞く[カ五]')
     assert.equals(stem.candidates[0].annotations, ['@verb-5-k'])
   endfor
 }
@@ -222,7 +222,7 @@ suite.okuri_nashi_prefers_one_ordinary_candidate_over_the_same_verb_stem = (): v
     const selection = conversion.Selection.new(prepared, preferences)
     selection.Select(index_of_verb)
     const stem_index = index(mapnew(prepared.candidates, (_, candidate) => candidate.text), '閉じ')
-    assert.equals(prepared.DisplayAt(stem_index), '閉じ［verb］')
+    assert.equals(prepared.DisplayAt(stem_index), '閉じ[上一]')
     assert.equals(selection.GetInfo().text, '綴じ')
     assert.equals(selection.GetInfo().annotations, ['@verb-1'])
     assert.equals(selection.Commit(), '綴じ')
@@ -238,7 +238,7 @@ suite.okuri_nashi_prefers_one_ordinary_candidate_over_the_same_verb_stem = (): v
 
     const inflected = conversion.Prepare({}, state.State.new(), 'とじ', 'る', true, database)
     assert.equals(sort(mapnew(inflected.candidates, (i, _) => inflected.DisplayAt(i))),
-      sources[0] is plain ? ['綴じる', '閉じる［verb］'] : ['綴じる［verb］', '閉じる［verb］'])
+      sources[0] is plain ? ['綴じる', '閉じる[上一]'] : ['綴じる[上一]', '閉じる[上一]'])
   endfor
 }
 
@@ -251,10 +251,10 @@ suite.ordinary_conversion_keeps_other_annotation_tokens = (): void => {
   assert.equals(ordinary.DisplayAt(0), '聞')
   assert.equals(ordinary.candidates[0].annotations, ['説明;@adj @verb-unknown @verb-1'])
   const adjective = conversion.Prepare({}, preferences, 'き', 'い', true, database)
-  assert.equals(adjective.DisplayAt(0), '聞い［adj,verb］')
+  assert.equals(adjective.DisplayAt(0), '聞い[形,カ五,ガ五]')
   assert.equals(adjective.candidates[0].annotations, [annotation])
   const ichidan = conversion.Prepare({}, preferences, 'とじ', '', true, database)
-  assert.equals(ichidan.DisplayAt(0), '綴じ［verb］')
+  assert.equals(ichidan.DisplayAt(0), '綴じ[上一]')
   assert.equals(ichidan.candidates[0].annotations, ['@verb-1'])
 }
 
@@ -287,17 +287,17 @@ suite.experimental_ranking_tracks_markers_and_explicit_choices = (): void => {
   selected.Select(1)
   selected.Commit()
   const learned = conversion.Prepare(entries, preferences, 'かな', 'い')
-  assert.equals(learned.DisplayAt(0), '叶い［verb］')
+  assert.equals(learned.DisplayAt(0), '叶い[ワ五]')
   preferences.Pin(learned.PreferenceQuery(0), '適')
   const pinned = conversion.Prepare(entries, preferences, 'かな', 'い')
-  assert.equals(pinned.DisplayAt(0), '適い［adj,verb］')
+  assert.equals(pinned.DisplayAt(0), '適い[形,ワ五]')
   const pin_selection = conversion.Selection.new(pinned, preferences)
   assert.equals(pin_selection.GetInfo().tier, 'pinned')
   pin_selection.Commit()
-  assert.equals(conversion.Prepare(entries, preferences, 'かな', 'い').DisplayAt(0), '適い［adj,verb］')
+  assert.equals(conversion.Prepare(entries, preferences, 'かな', 'い').DisplayAt(0), '適い[形,ワ五]')
   preferences.Demote(learned.PreferenceQuery(0), '適')
   const demoted = conversion.Prepare(entries, preferences, 'かな', 'い')
-  assert.equals(demoted.DisplayAt(2), '適い［adj,verb］')
+  assert.equals(demoted.DisplayAt(2), '適い[形,ワ五]')
   assert.equals(conversion.Selection.new(demoted, preferences).GetCandidatesInfo().candidates[2].tier, 'demoted')
 }
 
@@ -310,7 +310,7 @@ suite.stem_preferences_are_shared_across_okuri_but_not_ordinary_candidates = ():
   selected.Select(1)
   selected.Commit()
   const other = conversion.Prepare(entries, preferences, 'か', 'か')
-  assert.equals(other.DisplayAt(0), '描か［verb］')
+  assert.equals(other.DisplayAt(0), '描か[カ五]')
   const ordinary = conversion.Selection.new(conversion.Prepare(entries, preferences, 'か', 'く'), preferences)
   assert.equals(ordinary.CurrentText(), '描く')
   assert.equals(ordinary.IsExperimental(), true)
@@ -323,7 +323,7 @@ suite.stem_preferences_are_shared_across_okuri_but_not_ordinary_candidates = ():
   assert.equals(conversion.Selection.new(negative, preferences).GetInfo().tier, 'pinned')
   pin.ToggleDemote()
   const demoted = conversion.Prepare(entries, preferences, 'か', 'い')
-  assert.equals(demoted.DisplayAt(len(demoted.candidates) - 1), '描い［verb］')
+  assert.equals(demoted.DisplayAt(len(demoted.candidates) - 1), '描い[カ五]')
 }
 
 suite.standalone_complete_forms_are_exceptions_to_bare_stem_suppression = (): void => {
@@ -354,7 +354,7 @@ suite.annotated_user_stems_registered_with_okuri_apply_to_other_endings = (): vo
   for suffix in ['る', 'な', 'た']
     const prepared = conversion.Prepare({}, restored, 'たべ', suffix)
     assert.equals(prepared.experimental_count, suffix == 'る' ? 0 : 1)
-    assert.equals(prepared.DisplayAt(0), '食べ' .. suffix .. (suffix == 'る' ? '' : '［verb］'))
+    assert.equals(prepared.DisplayAt(0), '食べ' .. suffix .. (suffix == 'る' ? '' : '[下一]'))
   endfor
   assert.equals(conversion.Prepare({}, restored, 'たべ', 'あ').experimental_count, 0)
 }
@@ -373,7 +373,7 @@ suite.annotated_okuri_registration_is_available_as_a_verb_stem = (): void => {
   const registered = ime.Register(registration_text.Parse('食べ;@verb-1'))
   assert.equals(registered.text, '食べる')
   const prepared = conversion.Prepare({}, preferences, 'たべ', 'な')
-  assert.equals(prepared.DisplayAt(0), '食べな［verb］')
+  assert.equals(prepared.DisplayAt(0), '食べな[下一]')
   assert.equals(preferences.GetSnapshot().entries[json_encode(['たべ', 'る'])][0].annotations,
     ['@verb-1'])
 }
@@ -385,8 +385,8 @@ suite.selection_returns_plain_text_but_popup_info_keeps_the_marker = (): void =>
   const selected = conversion.Selection.new(prepared, preferences)
   assert.equals(selected.CurrentText(), '書く')
   assert.equals(selected.Select(1), '描く')
-  assert.equals(selected.GetInfo().text, '描く［verb］')
-  assert.equals(selected.GetCandidatesInfo().candidates[0].text, '書く［verb］')
+  assert.equals(selected.GetInfo().text, '描く[カ五]')
+  assert.equals(selected.GetCandidatesInfo().candidates[0].text, '書く[カ五]')
 }
 
 
@@ -402,7 +402,7 @@ suite.iu_stem_accepts_sokuon_from_system_and_user_entries = (): void => {
       const ordinary = from_user && suffix =~# '^う'
       assert.equals(prepared.experimental_count, ordinary ? 0 : 1)
       assert.equals(prepared.TextAt(0), '言' .. suffix)
-      assert.equals(prepared.DisplayAt(0), '言' .. suffix .. (ordinary ? '' : '［verb］'))
+      assert.equals(prepared.DisplayAt(0), '言' .. suffix .. (ordinary ? '' : '[ワ五]'))
     endfor
   endfor
 }
@@ -415,7 +415,7 @@ suite.modified_i_then_l_selects_itta_without_marking_buffer_text = (): void => {
   const results = ime.Feed('L')
   assert.equals(results[-1].in_candidate, true)
   assert.equals(results[-1].text, '言っ')
-  assert.equals(ime.GetCandidatesInfo().candidates[0].text, '言っ［verb］')
+  assert.equals(ime.GetCandidatesInfo().candidates[0].text, '言っ[ワ五]')
 }
 
 suite.merged_row_deletes_ordinary_and_tagged_registrations = (): void => {
@@ -477,7 +477,7 @@ suite.yuu_stem_accepts_sokuon_from_system_and_user_entries = (): void => {
       const ordinary = from_user && suffix =~# '^う'
       assert.equals(prepared.experimental_count, ordinary ? 0 : 1)
       assert.equals(prepared.TextAt(0), '言' .. suffix)
-      assert.equals(prepared.DisplayAt(0), '言' .. suffix .. (ordinary ? '' : '［verb］'))
+      assert.equals(prepared.DisplayAt(0), '言' .. suffix .. (ordinary ? '' : '[ワ五]'))
     endfor
   endfor
 }
@@ -490,7 +490,7 @@ suite.yu_sokuon_input_selects_itta = (): void => {
   const results = ime.Feed('L')
   assert.equals(results[-1].in_candidate, true)
   assert.equals(results[-1].text, '言っ')
-  assert.equals(ime.GetCandidatesInfo().candidates[0].text, '言っ［verb］')
+  assert.equals(ime.GetCandidatesInfo().candidates[0].text, '言っ[ワ五]')
 }
 
 
@@ -503,11 +503,46 @@ suite.ichidan_stems_convert_without_okuri = (): void => {
     const result = ime.StartConversion({[reading]: entry}, preferences)[0]
     assert.equals(result.in_candidate, true, reading)
     assert.equals(result.text, text, reading)
-    assert.equals(ime.GetCandidatesInfo().candidates[0].text, text .. '［verb］', reading)
+    assert.equals(ime.GetCandidatesInfo().candidates[0].text, text .. (reading ==# 'み' ? '[上一]' : '[下一]'), reading)
   endfor
 }
 
 import 'caskk/verb_tags.vim' as verb_tags
+
+const SHORT_LABELS = {
+  '@adj': '形', '@verb-1': '上一', '@verb-1-kureru': '下一(呉)', '@verb-1-uru': '一段(得)',
+  '@verb-5-k': 'カ五', '@verb-5-k-iku': 'カ五(行)', '@verb-5-k-yuku': 'カ五(往)',
+  '@verb-5-g': 'ガ五', '@verb-5-s': 'サ五', '@verb-5-t': 'タ五', '@verb-5-n': 'ナ五',
+  '@verb-5-b': 'バ五', '@verb-5-m': 'マ五', '@verb-5-r': 'ラ五', '@verb-5-r-aru': 'ラ五(有)',
+  '@verb-5-w': 'ワ五', '@verb-5-w-tou': 'ワ五(問)',
+  '@verb-henkaku-k': 'カ変', '@verb-henkaku-s': 'サ変', '@verb-henkaku-z': 'ザ変',
+  '@verb-bungo-4-k': '文カ四', '@verb-bungo-4-g': '文ガ四', '@verb-bungo-4-s': '文サ四',
+  '@verb-bungo-4-t': '文タ四', '@verb-bungo-4-h-u': '文ハ四(う)', '@verb-bungo-4-h-hu': '文ハ四(ふ)',
+  '@verb-bungo-4-b': '文バ四', '@verb-bungo-4-m': '文マ四', '@verb-bungo-4-r': '文ラ四',
+  '@verb-bungo-2-kami-k': '文カ上二', '@verb-bungo-2-kami-g': '文ガ上二', '@verb-bungo-2-kami-t': '文タ上二',
+  '@verb-bungo-2-kami-d': '文ダ上二', '@verb-bungo-2-kami-h': '文ハ上二', '@verb-bungo-2-kami-b': '文バ上二',
+  '@verb-bungo-2-kami-m': '文マ上二', '@verb-bungo-2-kami-y': '文ヤ上二', '@verb-bungo-2-kami-r': '文ラ上二',
+  '@verb-bungo-2-shimo-a': '文ア下二', '@verb-bungo-2-shimo-k': '文カ下二', '@verb-bungo-2-shimo-g': '文ガ下二',
+  '@verb-bungo-2-shimo-s': '文サ下二', '@verb-bungo-2-shimo-z': '文ザ下二', '@verb-bungo-2-shimo-t': '文タ下二',
+  '@verb-bungo-2-shimo-d-zu': '文ダ下二(ず)', '@verb-bungo-2-shimo-d-du': '文ダ下二(づ)',
+  '@verb-bungo-2-shimo-n': '文ナ下二', '@verb-bungo-2-shimo-h': '文ハ下二', '@verb-bungo-2-shimo-b': '文バ下二',
+  '@verb-bungo-2-shimo-m': '文マ下二', '@verb-bungo-2-shimo-y': '文ヤ下二', '@verb-bungo-2-shimo-r': '文ラ下二',
+  '@verb-bungo-2-shimo-w': '文ワ下二', '@verb-bungo-henkaku-k': '文カ変', '@verb-bungo-henkaku-s': '文サ変',
+  '@verb-bungo-henkaku-z': '文ザ変', '@verb-bungo-henkaku-n': '文ナ変', '@verb-bungo-henkaku-r': '文ラ変',
+}
+
+suite.every_recognized_tag_has_a_short_label = (): void => {
+  assert.equals(sort(keys(SHORT_LABELS)), sort(['@adj'] + keys(verb_tags.ENDINGS)))
+  for [tag, label] in items(SHORT_LABELS)
+    const okuri = tag ==# '@adj' ? 'く' : strcharpart(verb_tags.ENDINGS[tag], 0, 1)
+    const entries = {'き': parser.ParseLine('き /語;' .. tag .. '/')}
+    const candidates = conversion.Prepare(entries, state.State.new(), 'き', okuri)
+    assert.equals(candidates.DisplayAt(0), '語' .. okuri .. '[' .. label .. ']', tag)
+    assert.equals(candidates.AnnotationsAt(0), [tag])
+  endfor
+  assert.equals(verb_tags.Label('@verb-1', '食べ'), '下一')
+  assert.equals(verb_tags.Label('@verb-1', 'あ'), '一段')
+}
 
 suite.ichidan_stems_accept_chau_contractions = (): void => {
   for tag in keys(verb_tags.ENDINGS)
@@ -518,7 +553,7 @@ suite.ichidan_stems_accept_chau_contractions = (): void => {
     for okuri in ['ちゃう', 'ちゃった', 'ちゃって', 'ちゃわない']
       const prepared = conversion.Prepare(entries, state.State.new(), 'たべ', okuri)
       assert.equals(len(prepared.candidates), 1, tag .. ': ' .. okuri)
-      assert.equals(prepared.DisplayAt(0), '食べ' .. okuri .. '［verb］')
+      assert.equals(prepared.DisplayAt(0), '食べ' .. okuri .. (tag ==# '@verb-1' ? '[下一]' : '[下一(呉)]'))
     endfor
   endfor
 }

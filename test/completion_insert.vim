@@ -517,7 +517,7 @@ suite.adjective_label_stays_in_popup_while_commit_and_undo_keep_plain_text = ():
   defer Cleanup()
   feedkeys("aKanaI\<F12>\<F10>\<F12>\<Esc>", 'xt')
   assert.equals(captures, ['前仮名い後', '前仮名い後'])
-  assert.equals(stridx(string(popup_lines[0]), '仮名い［adj］') >= 0, true)
+  assert.equals(stridx(string(popup_lines[0]), '仮名い[形]') >= 0, true)
   assert.equals(empty(user_runtime.Get().GetSnapshot().mru), false)
   normal! u
   assert.equals(getline(1), '前かない後')
@@ -526,12 +526,13 @@ suite.adjective_label_stays_in_popup_while_commit_and_undo_keep_plain_text = ():
 suite.verb_label_stays_in_popup_while_commit_and_undo_keep_plain_text = (): void => {
   const source = tempname()
   defer delete(source)
-  writefile([';; okuri-ari entries.', ';; okuri-nasi entries.', 'かな /仮名;@verb-5-k/'], source)
+  writefile([';; okuri-ari entries.', ';; okuri-nasi entries.', 'かな /仮名;説明;@verb-5-k @unknown/'], source)
   Setup({dictionaries: [{path: source, encoding: 'utf-8'}], completion_min_length: 20, mappings: {"\<F10>": 'Commit'}})
   defer Cleanup()
   feedkeys("aKanaKi\<F12>\<F10>\<F12>\<Esc>", 'xt')
   assert.equals(captures, ['前仮名き後', '前仮名き後'])
-  assert.equals(stridx(string(popup_lines[0]), '仮名き［verb］') >= 0, true)
+  assert.equals(stridx(string(popup_lines[0]), '仮名き[カ五] — 説明;@unknown') >= 0, true)
+  assert.equals(stridx(string(popup_lines[0]), '@verb-5-k'), -1)
   assert.equals(empty(user_runtime.Get().GetSnapshot().mru), false)
   normal! u
   assert.equals(getline(1), '前かなき後')
@@ -561,7 +562,7 @@ suite.zero_okuri_imperative_converts_with_a_verb_marker = (): void => {
   Caskk.Enable('bare-imperative')
   feedkeys("aX \<F12>\<F10>\<F12>\<Esc>", 'xt')
   assert.equals(captures, ['前呉れ後', '前呉れ後'])
-  assert.equals(stridx(string(popup_lines[0]), '呉れ［verb］') >= 0, true)
+  assert.equals(index(popup_lines[0], '呉れ[下一(呉)]') >= 0, true)
 }
 
 suite.typed_adjective_suffix_preview_cancel_commit_and_undo = (): void => {

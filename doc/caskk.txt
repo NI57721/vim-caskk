@@ -265,7 +265,7 @@ Experimental dictionary entries ~
 
 Adjective stems                                        *caskk-experimental-adj*
     An SKK entry such as 'うつくし /美し;@adj/' supplies okuri candidates:
-    うつくし*く becomes 美しく.  The candidate popup shows ［adj］.
+    うつくし*く becomes 美しく.  The candidate popup shows [形].
 
 Verb stems                                            *caskk-experimental-verb*
     Add a tagged stem dictionary through dictionaries.  For example,
@@ -277,7 +277,13 @@ Verb stems                                            *caskk-experimental-verb*
     share these readings; the source candidate text is never rewritten.
     Selection history, pinning, demotion, and deletion refer to the source く.
     Cancelling restores the entered reading.  Completion is not expanded.
-    Its popup row shows ［verb］.
+    Candidate rows show a short label for each applicable conjugation,
+    such as [カ五], [カ五(行)], or [カ変].  Ichidan uses [上一] or [下一]
+    according to the stem's last kana, with [一段] as a fallback.  A
+    candidate can have multiple labels, for example [形,カ五].
+    Candidate lists omit recognized conjugation tags from the visible
+    annotation while keeping other text.  The underlying annotations remain
+    available to APIs and in the dictionary.
     Regular ichidan and kureru stems, plus certain complete forms, also
     convert without okuri.
     Verb-only stems are omitted from reading completion.

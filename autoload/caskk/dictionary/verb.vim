@@ -38,18 +38,8 @@ export def WithStandaloneAnnotations(reading: string, candidate: dictionary.Cand
   for annotation in candidate.annotations
     const rejected = filter(split(annotation, SEPARATOR .. '\+'),
       (_, tag) => has_key(tags.ENDINGS, tag) && !IsStandaloneTag(reading, tag))
-    if empty(rejected)
-      annotations->add(annotation)
-      continue
-    endif
-
-    const tag = '\%(' .. join(rejected, '\|') .. '\)'
-    const run = tag .. '\%(' .. SEPARATOR .. '\+' .. tag .. '\)*'
-    # At the end remove the preceding separator. Elsewhere remove the following one.
-    const pattern = SEPARATOR .. '\+' .. run .. SEPARATOR .. '*$'
-      .. '\|\%(^\|' .. SEPARATOR .. '\@<=\)' .. run .. '\%(' .. SEPARATOR .. '\+\|$\)'
-    const filtered = substitute(annotation, '\C' .. pattern, '', 'g')
-    if filtered != ''
+    const filtered = tags.WithoutTags(annotation, rejected)
+    if filtered != '' || empty(rejected)
       annotations->add(filtered)
     endif
   endfor
@@ -62,16 +52,22 @@ export def KuruSourceReading(reading: string): string
   return reading =~# '[こき]$' ? strcharpart(reading, 0, strchars(reading) - 1) .. 'く' : ''
 enddef
 
+def TagAllowsOkuri(tag: string, okuri: string): bool
+  return okuri !=# '' && has_key(tags.ENDINGS, tag)
+    && stridx(tags.ENDINGS[tag], strcharpart(okuri, 0, 1)) >= 0
+enddef
+
 export def AllowsOkuri(candidate: dictionary.Candidate, okuri: string): bool
-  if okuri == ''
-    return false
+  return !empty(filter(split(join(candidate.annotations, ';'), SEPARATOR .. '\+'),
+    (_, tag) => TagAllowsOkuri(tag, okuri)))
+enddef
+
+export def MatchedTags(candidate: dictionary.Candidate, reading: string, okuri: string): list<string>
+  if candidate.source_reading !=# ''
+    return ['@verb-henkaku-k']
   endif
-  for tag in split(join(candidate.annotations, ';'), '[[:space:];]\+')
-    if has_key(tags.ENDINGS, tag) && stridx(tags.ENDINGS[tag], strcharpart(okuri, 0, 1)) >= 0
-      return true
-    endif
-  endfor
-  return false
+  return filter(split(join(candidate.annotations, ';'), SEPARATOR .. '\+'),
+    (_, tag) => okuri ==# '' ? IsStandaloneTag(reading, tag) : TagAllowsOkuri(tag, okuri))
 enddef
 
 export def Lookup(entries: dict<dictionary.Entry>, preferences: user_state.State, reading: string, okuri: string, database: dict_index.Database): list<dictionary.Candidate>

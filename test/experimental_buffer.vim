@@ -30,7 +30,7 @@ suite.popup_keeps_marker_while_buffer_shows_only_candidate = (): void => {
     feedkeys("iKaKu\<Space>\<F12>\<C-\>\<C-N>", 'xt')
     assert.equals(captured, '描く')
     assert.equals(getline(1), '描く')
-    assert.equals(len(filter(copy(rows), (_, row) => row =~# '描く［verb］')) > 0, true)
+    assert.equals(len(filter(copy(rows), (_, row) => stridx(row, '描く[カ五]') >= 0)) > 0, true)
   finally
     Caskk.Disable()
     Caskk.Config({})
