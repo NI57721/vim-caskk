@@ -811,7 +811,7 @@ export class Binding
       this._AppendInlineResults(this._inline_editor.input.Feed(key))
       return
     endif
-    if action ==# 'ShowCompletion' || action ==# 'CancelCompletion'
+    if index(['NextCompletion', 'PreviousCompletion', 'CancelCompletion'], action) >= 0
       return
     elseif action ==# 'NextCandidate'
       if this._inline_editor.input.InCandidate()
@@ -911,14 +911,14 @@ export class Binding
     endif
     const snapshot = this._editor.GetSnapshot()
     const has_candidate = this._editor.IsInCandidate()
-    if action ==# 'ShowCompletion'
+    if action ==# 'NextCompletion'
       return this._editor.IsInCompletion() || (!has_candidate && snapshot.in_preedit)
-    elseif action ==# 'CancelCompletion'
+    elseif action ==# 'PreviousCompletion' || action ==# 'CancelCompletion'
       return this._editor.IsInCompletion()
     elseif action ==# 'NextCandidate'
       return has_candidate || snapshot.in_preedit || this._editor.HasPendingNasal(true)
     elseif action ==# 'PreviousCandidate'
-      return has_candidate || this._editor.IsInCompletion()
+      return has_candidate
     elseif action ==# 'TogglePin' || action ==# 'ToggleDemote'
       return has_candidate
     elseif action ==# 'DeleteUserEntry'
@@ -1331,12 +1331,12 @@ export class Binding
       if key ==# '<CR>' || completion_action ==# 'Commit'
         this._Record(this._editor.Commit())
         return
-      elseif completion_action ==# 'ShowCompletion'
+      elseif completion_action ==# 'NextCompletion'
           || (completion_action == '' && key ==# '<Down>')
         this._editor.MoveCompletion(1)
         this._SyncInputMode()
         return
-      elseif completion_action ==# 'PreviousCandidate'
+      elseif completion_action ==# 'PreviousCompletion'
           || (completion_action == '' && key ==# '<Up>')
         this._editor.MoveCompletion(-1)
         this._SyncInputMode()
@@ -1398,7 +1398,7 @@ export class Binding
     endif
     if action !=# '' && !this._CanRunAction(action)
       this._FallbackActionKey(key)
-    elseif action ==# 'ShowCompletion'
+    elseif action ==# 'NextCompletion'
       this._StartCompletionSearch(true)
       this._SyncInputMode()
     elseif action ==# 'NextCandidate'

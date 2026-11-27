@@ -221,8 +221,8 @@ highest-ranked source supplies the row position, marker, and learning identity.
 The row displays annotations from all matching sources.
 
 Completion                                            *caskk-completion*
-    Reading suggestions appear automatically.  ShowCompletion selects one;
-    PreviousCandidate moves to the previous suggestion, Commit accepts, and
+    Reading suggestions appear automatically.  NextCompletion selects one;
+    PreviousCompletion moves to the previous suggestion, Commit accepts, and
     CancelCompletion restores the reading.  Typing with a selected suggestion
     accepts it first, including Space when mapped to NextCandidate.
     Otherwise NextCandidate closes completion and starts conversion.
@@ -406,7 +406,7 @@ completion_min_length                *caskk-config-completion-min-length*
 
 candidate_popup                           *caskk-config-candidate-popup*
     bool, true.  Shows candidate lists.  Disabling also stops automatic
-    completion; ShowCompletion remains available.  ★ marks pinned candidates,
+    completion; NextCompletion remains available.  ★ marks pinned candidates,
     ↓ marks demoted candidates.
 
 candidate_select_keys               *caskk-config-candidate-select-keys*
@@ -472,8 +472,12 @@ PreviousCandidate                      *caskk-action-previous-candidate*
 Commit                                             *caskk-action-commit*
     Accepts the selected completion, conversion candidate, or reading.
 
-ShowCompletion                            *caskk-action-show-completion*
+NextCompletion                            *caskk-action-next-completion*
     Opens completion and selects the first item, or advances the selection.
+
+PreviousCompletion                    *caskk-action-previous-completion*
+    Moves to the previous reading completion.  Moving back from the first
+    item clears the selection; moving back from no selection selects the last.
 
 CancelCompletion                        *caskk-action-cancel-completion*
     Closes completion and restores the reading.

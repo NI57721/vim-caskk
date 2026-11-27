@@ -504,7 +504,7 @@ suite.invalid_input_types_keys_and_actions_preserve_all_previous_settings = (): 
     {keyboard_layout_overrides: {1: 2}},
     {keyboard_layout_overrides: {1: '?', 2: '?'}},
     {mappings: {"\<F10>": 'MissingAction'}}, {mappings: {'<F10>': 'Commit'}},
-    {mappings: {s: 'Convert'}},
+    {mappings: {s: 'Convert'}}, {mappings: {s: 'ShowCompletion'}},
     {mappings: {'two': 'Commit'}},
     {mappings: {'<NotAKey>': 'Commit'}},
     {persist_input_mode: 'yes'},
@@ -817,7 +817,7 @@ suite.double_sticky_affix_requires_consecutive_input_and_is_opt_in = (): void =>
   defer delete(dictionary)
   writefile(['か /蚊/', '>か /化/'], dictionary)
   const options = {sticky_key: ';', dictionaries: [{path: dictionary, encoding: 'utf-8'}], mode_popup: false,
-    mappings: {"\<Space>": 'NextCandidate', "\<F8>": 'ShowCompletion'}}
+    mappings: {"\<Space>": 'NextCandidate', "\<F8>": 'NextCompletion'}}
   Caskk.Config(options)
   Caskk.Enable('configured')
   feedkeys("a;;ka\<Space>\<C-\>\<C-N>", 'xt')

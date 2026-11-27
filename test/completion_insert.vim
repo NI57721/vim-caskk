@@ -54,7 +54,7 @@ def Setup(options: dict<any> = {})
   Caskk.RegisterInputScheme({name: 'completion-test', consonants: {k: 'k', n: 'n', t: 't'},
     combinations: {a: 'a', i: 'i'}})
   Caskk.Config(extend({dictionaries: [{path: dictionary_path, encoding: 'utf-8'}], completion_min_length: 2,
-    mappings: {"\<Tab>": 'ShowCompletion', "\<F5>": 'CancelCompletion', "\<Space>": 'NextCandidate'}}, options))
+    mappings: {"\<Tab>": 'NextCompletion', "\<F5>": 'CancelCompletion', "\<Space>": 'NextCandidate'}}, options))
   inoremap <buffer> <F12> <ScriptCmd>Capture()<CR>
   captures = []
   buffer_captures = []
@@ -100,14 +100,23 @@ suite.commit_with_unselected_menu_keeps_reading_without_learning = (): void => {
 }
 
 suite.previous_from_first_candidate_restores_unselected_reading = (): void => {
-  Setup({mappings: {"\<Tab>": 'ShowCompletion', "\<F6>": 'PreviousCandidate'}})
+  Setup({mappings: {"\<Tab>": 'NextCompletion', "\<F6>": 'PreviousCompletion'}})
   defer Cleanup()
-  feedkeys("aKana\<F12>\<Tab>\<F12>\<F6>\<F12>\<Tab>\<F12>\<Up>\<F12>\<CR>\<Esc>", 'xt')
-  assert.equals(captures, ['前かな後', '前仮名後', '前かな後', '前仮名後', '前かな後'])
-  assert.equals(selected_rows, [0, 1, 0, 1, 0])
+  feedkeys("aKana\<F12>\<Tab>\<F12>\<F6>\<F12>\<F6>\<F12>\<Tab>\<F12>\<Up>\<F12>\<CR>\<Esc>", 'xt')
+  assert.equals(captures, ['前かな後', '前仮名後', '前かな後', '前金物後', '前仮名後', '前かな後'])
+  assert.equals(selected_rows, [0, 1, 0, 3, 1, 0])
   assert.equals(index(popup_lines[2], '仮名 — 文字') >= 0, true)
   assert.equals(getline(1), '前かな')
   assert.equals(getline(2), '後')
+  assert.equals(user_runtime.Get().GetSnapshot().mru, {})
+}
+
+suite.previous_candidate_does_not_move_reading_completion = (): void => {
+  Setup({mappings: {a: 'PreviousCandidate'}})
+  defer Cleanup()
+  feedkeys("aKana\<F12>a\<F12>\<Esc>", 'xt')
+  assert.equals(captures, ['前かな後', '前かなあ後'])
+  assert.equals(selected_rows, [0, 0])
   assert.equals(user_runtime.Get().GetSnapshot().mru, {})
 }
 
@@ -194,7 +203,7 @@ suite.completion_is_visible_in_a_real_terminal = (): void => {
     "import autoload 'caskk.vim' as C",
     "C.RegisterInputScheme({name: 'visible', consonants: {k: 'k', n: 'n'}, combinations: {a: 'a'}})",
     'C.Config({mode_popup_time: 0, dictionaries: [' .. string({path: dictionary_path, encoding: 'utf-8'})
-      .. '], mappings: {"\<Tab>": "ShowCompletion"}})',
+      .. '], mappings: {"\<Tab>": "NextCompletion"}})',
     "C.Enable('visible')",
     'writefile(["ready"], ' .. string(ready) .. ')',
   ], script)

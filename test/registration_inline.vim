@@ -463,7 +463,7 @@ suite.explicit_backspace_mapping_deletes_an_inline_user_entry = (): void => {
 }
 
 suite.unavailable_inline_backspace_actions_cancel_conversion_without_learning = (): void => {
-  for action in ['DeleteUserEntry', 'KatakanaMode', 'OpenRegistration', 'ShowCompletion', 'CancelCompletion']
+  for action in ['DeleteUserEntry', 'KatakanaMode', 'OpenRegistration', 'NextCompletion', 'PreviousCompletion', 'CancelCompletion']
     const context = Setup(false, true, {"\<BS>": action})
     try
       feedkeys("aKus\<F6>Kas\<BS>\<Cmd>call CaskkTestInlineCapture()\<CR>\<Esc>\<Esc>", 'xt')

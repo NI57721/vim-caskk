@@ -4,7 +4,7 @@ import autoload 'caskk/input/keycode.vim' as keycode
 import autoload 'caskk/input/mode.vim' as input_mode
 
 const ACTIONS = [
-  'ShowCompletion', 'CancelCompletion', 'NextCandidate', 'PreviousCandidate', 'Commit', 'OpenRegistration',
+  'NextCompletion', 'PreviousCompletion', 'CancelCompletion', 'NextCandidate', 'PreviousCandidate', 'Commit', 'OpenRegistration',
   'TogglePin', 'ToggleDemote', 'DeleteUserEntry',
   'AbbreviationMode', 'KatakanaMode', 'HalfwidthKatakanaMode', 'FullwidthAlphanumericMode',
 ]

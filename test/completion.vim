@@ -59,7 +59,7 @@ suite.user_entries_and_ranking_use_their_own_reading_and_exact_okuri = (): void 
 }
 
 suite.settings_validate_minimum_length_and_action = (): void => {
-  config.ConfigureIncrementally({completion_min_length: 3, mappings: {"\<Tab>": 'ShowCompletion'}})
+  config.ConfigureIncrementally({completion_min_length: 3, mappings: {"\<Tab>": 'NextCompletion'}})
   assert.equals(config.GetInput().completion_min_length, 3)
   for value in [0, -1, true, '2']
     var reason = ''

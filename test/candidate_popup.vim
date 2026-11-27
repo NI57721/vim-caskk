@@ -583,7 +583,7 @@ suite.explicit_backspace_delete_mapping_keeps_its_confirmation_behavior = (): vo
 }
 
 suite.unavailable_backspace_actions_cancel_conversion_without_learning = (): void => {
-  for action in ['DeleteUserEntry', 'KatakanaMode', 'OpenRegistration', 'ShowCompletion', 'CancelCompletion']
+  for action in ['DeleteUserEntry', 'KatakanaMode', 'OpenRegistration', 'NextCompletion', 'PreviousCompletion', 'CancelCompletion']
     const fixture = Setup(true, {"\<BS>": action})
     try
       feedkeys('aKas' .. "\<BS>" .. CAPTURE .. "\<Esc>", 'xt')
