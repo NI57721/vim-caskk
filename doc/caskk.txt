@@ -12,6 +12,7 @@ APIS                                                                |caskk-apis|
 CONVERSION TABLE                                        |caskk-conversion-table|
 CONJUGATION                                                  |caskk-conjugation|
 BASIC USE                                                      |caskk-basic-use|
+CHANGELOG                                                      |caskk-changelog|
 LICENCE                                                          |caskk-licence|
 ACKNOWLEDGMENTS                                          |caskk-acknowledgments|
 
@@ -844,6 +845,11 @@ NUMERIC CONVERSION                                    *caskk-numeric-conversion*
     grouping).
     For example, the dictionary entry '#:# /#0時#0分/' converts '12:34' to
     '12時34分' in abbreviation mode.
+
+==============================================================================
+CHANGELOG                                                      *caskk-changelog*
+
+v1.0.0 (2026-11-27) — Initial release
 
 ==============================================================================
 LICENCE                                                          *caskk-licence*

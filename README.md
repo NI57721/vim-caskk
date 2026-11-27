@@ -859,6 +859,11 @@ definition: {
 </details>
 
 
+## 更新履歴
+
+- v1.0.0 (2026-11-27) — 初回リリース
+
+
 ## Licence
 
 [MITライセンス](LICENSE)

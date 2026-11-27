@@ -12,6 +12,7 @@ APIS                                                                |caskk-apis|
 CONVERSION TABLE                                        |caskk-conversion-table|
 CONJUGATION                                                  |caskk-conjugation|
 BASIC USE                                                      |caskk-basic-use|
+CHANGELOG                                                      |caskk-changelog|
 LICENCE                                                          |caskk-licence|
 ACKNOWLEDGMENTS                                          |caskk-acknowledgments|
 
@@ -833,6 +834,11 @@ NUMERIC CONVERSION                                    *caskk-numeric-conversion*
     字）、#5（大字）、#6（ローマ数字）、#8（桁区切り）。
     例えば'#:# /#0時#0分/'を辞書に登録するとabbreviationモードで'12:34'が
     「12時34分」と変換できるようになります。
+
+==============================================================================
+CHANGELOG                                                      *caskk-changelog*
+
+v1.0.0 (2026-11-27) — 初回リリース
 
 ==============================================================================
 LICENCE                                                          *caskk-licence*

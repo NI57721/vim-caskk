@@ -859,6 +859,11 @@ A UTF-8 SKK dictionary of tagged verbs and adjectives is available from [skk-ver
 </details>
 
 
+## Changelog
+
+- v1.0.0 (2026-11-27) — Initial release
+
+
 ## Licence
 
 [MIT Licence](LICENSE)
